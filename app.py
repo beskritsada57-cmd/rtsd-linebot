@@ -126,7 +126,28 @@ def get_user_incidents(query_text=None, user_name=None):
 
 @app.route("/", methods=['GET'])
 def index():
-    return "✅ LINE Bot Webhook with Incident Tracking for RTSD GIS is Running Online!"
+    return ("✅ LINE Bot Webhook with Incident Tracking & Command Dashboard is Running Online!<br><br>"
+            "👉 เข้าชมหน้า Dashboard ติดตามสถานการณ์ได้ที่: <a href='/dashboard'><b>/dashboard</b></a>")
+
+
+@app.route("/dashboard", methods=['GET'])
+def dashboard():
+    """หน้าเว็บ Command Center Dashboard สำหรับแสดงผลสถิติและแผนที่ GIS"""
+    html_path = os.path.join(os.path.dirname(__file__), "dashboard.html")
+    if os.path.exists(html_path):
+        with open(html_path, "r", encoding="utf-8") as f:
+            return f.read(), 200, {'Content-Type': 'text/html; charset=utf-8'}
+    return "Dashboard HTML template not found on server", 404
+
+
+@app.route("/api/incidents", methods=['GET'])
+def api_incidents():
+    """API ดึงข้อมูลเหตุการณ์ทั้งหมดจาก Google Sheets สำหรับ Dashboard"""
+    try:
+        res = requests.get(GOOGLE_SHEET_URL, timeout=20)
+        return jsonify(res.json()), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/callback", methods=['POST'])
