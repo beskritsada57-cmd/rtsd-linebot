@@ -319,6 +319,11 @@
 
   <!-- JavaScript Form Logic -->
   <script>
+    const DATA_URL = "https://script.google.com/macros/s/AKfycbw5Gepu7a5s9j1vXtgE55403L0K3sKtOcpUNArNCm6RJO1ulNp735XyZgAbTlMBwxI/exec";
+    const API_BASE = (window.location.protocol === 'file:' || !window.location.host.includes('onrender.com')) 
+      ? 'https://rtsd-linebot.onrender.com' 
+      : '';
+
     function toggleRankOther(val) {
       const otherInput = document.getElementById('userRankOther');
       if (val === 'อื่นๆ') {
@@ -362,7 +367,7 @@
       const position = document.getElementById('userPosition').value.trim() || '-';
       const phone = document.getElementById('userPhone').value.trim().replace(/-/g, '');
       const lineId = document.getElementById('userLineId').value.trim() || '-';
-      const role = 'เจ้าหน้าที่ RTSD';
+      const role = 'ผู้ใช้งานทั่วไป';
       const purpose = document.getElementById('userPurpose').value.trim() || 'ปฏิบัติงานสารสนเทศภูมิศาสตร์';
 
       if (!phone || phone.length < 9 || phone.length > 10) {
@@ -389,15 +394,24 @@
           purpose: purpose
         };
 
-        const res = await fetch('/api/auth/register-request', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
+        let data;
+        try {
+          const res = await fetch(API_BASE + '/api/auth/register-request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          data = await res.json();
+        } catch (apiErr) {
+          // Direct fallback to Google Apps Script
+          const res = await fetch(DATA_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'register_user', ...payload })
+          });
+          data = await res.json();
+        }
 
-        const data = await res.json();
-
-        if (res.ok && data.status === 'success') {
+        if (data && (data.status === 'success' || data.phone_number)) {
           // Fill modal details
           document.getElementById('reqIdBadge').innerText = `REQUEST ID: ${data.req_id || 'RTSD-REQ-' + phone.slice(-4)}`;
           document.getElementById('modalName').innerText = fullNameWithRank;
@@ -406,7 +420,7 @@
           
           document.getElementById('successModal').classList.remove('hidden');
         } else {
-          alert('เกิดข้อผิดพลาด: ' + (data.message || 'ไม่สามารถลงทะเบียนได้'));
+          alert('เกิดข้อผิดพลาด: ' + (data ? data.message : 'ไม่สามารถลงทะเบียนได้'));
         }
       } catch (err) {
         console.error('Submission error:', err);

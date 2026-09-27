@@ -31,6 +31,23 @@ from linebot.v3.webhooks import (
 
 app = Flask(__name__)
 
+# เปิดใช้งาน CORS เพื่อให้หน้าเว็บเรียก API ข้ามโดเมนได้ (เช่น file:// หรือ GitHub Pages)
+@app.after_request
+def add_cors_headers(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT, DELETE"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With"
+    return response
+
+@app.route("/", defaults={"path": ""}, methods=["OPTIONS"])
+@app.route("/<path:path>", methods=["OPTIONS"])
+def preflight_cors(path=""):
+    resp = app.make_default_options_response()
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT, DELETE"
+    resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With"
+    return resp
+
 # =========================================================================
 # 🔴 1. ข้อมูล LINE Bot ของคุณ
 # =========================================================================
@@ -49,15 +66,38 @@ MASTER_PIN = os.environ.get('MASTER_PIN', 'RTSD2024')
 # ที่เก็บสถานะการสนทนาชั่วคราวของผู้ใช้ (User State Session)
 user_sessions = {}
 
+# 🛡️ รายชื่อเบอร์โทรศัพท์ผู้ดูแลระบบหลัก (Master Admin Phones)
+ADMIN_PHONES = ["0863390614"]
+
 # 🛡️ ฐานข้อมูลผู้ใช้ที่ลงทะเบียนยืนยันตัวตนแล้ว (User Registry & OTP Cache)
 registered_users = {}  # { line_user_id: {"name": ..., "phone": ..., "role": ...} }
-phone_to_user = {}     # { phone: {"line_user_id": ..., "name": ..., "role": ...} }
+phone_to_user = {
+    "0863390614": {
+        "name": "ผู้ดูแลระบบ RTSD",
+        "phone": "0863390614",
+        "role": "ผู้ดูแลระบบ (Admin)",
+        "unit": "กรมแผนที่ทหาร (RTSD)",
+        "position": "ผู้ดูแลระบบหลัก",
+        "status": "อนุมัติแล้ว",
+        "line_user_id": "-"
+    }
+}
 otp_cache = {}         # { phone: {"otp": "123456", "expires_at": timestamp, "user_info": ...} }
 
 
 def fetch_registered_users():
     """ดึงรายชื่อผู้ใช้ที่ลงทะเบียนแล้วจาก Google Sheets เข้ามาเก็บในแคช"""
     global registered_users, phone_to_user
+    # คงสถานะผู้ดูแลระบบหลักไว้เสมอ
+    phone_to_user["0863390614"] = {
+        "name": "ผู้ดูแลระบบ RTSD",
+        "phone": "0863390614",
+        "role": "ผู้ดูแลระบบ (Admin)",
+        "unit": "กรมแผนที่ทหาร (RTSD)",
+        "position": "ผู้ดูแลระบบหลัก",
+        "status": "อนุมัติแล้ว",
+        "line_user_id": phone_to_user.get("0863390614", {}).get("line_user_id", "-")
+    }
     try:
         res = requests.post(GOOGLE_SHEET_URL, json={"action": "get_users"}, timeout=10)
         if res.status_code == 200:
@@ -67,7 +107,9 @@ def fetch_registered_users():
                     lid = str(u.get("line_user_id", "")).strip()
                     phone = str(u.get("phone_number", "")).strip().replace("-", "").replace(" ", "")
                     name = str(u.get("full_name", "")).strip()
-                    role = str(u.get("role", "ผู้ใช้งาน")).strip()
+                    role = str(u.get("role", "ผู้ใช้งานทั่วไป")).strip()
+                    if phone in ADMIN_PHONES:
+                        role = "ผู้ดูแลระบบ (Admin)"
                     if lid:
                         registered_users[lid] = {"name": name, "phone": phone, "role": role}
                     if phone:
@@ -252,7 +294,7 @@ def tracker_page():
 def api_tracker_update():
     """รับสัญญาณ Heartbeat พิกัด GPS สดจากมือถือเจ้าหน้าที่"""
     data = request.get_json(silent=True) or {}
-    unit_id = str(data.get("unit_id", "UNIT-01")).strip()
+    unit_id = str(data.get("unit_id") or data.get("tracker_id") or "UNIT-01").strip()
     active_trackers[unit_id] = {
         "unit_id": unit_id,
         "unit_name": str(data.get("unit_name", "ชุดปฏิบัติการ")),
@@ -353,25 +395,55 @@ def api_request_otp():
 
 @app.route("/api/auth/verify-otp", methods=['POST'])
 def api_verify_otp():
-    """ตรวจสอบ OTP หรือ Commander PIN เพื่อออก Token และยืนยันตัวตน"""
+    """ตรวจสอบ Password / PIN หรือ OTP หรือ Commander PIN เพื่อออก Token และยืนยันตัวตน"""
     data = request.get_json(silent=True) or {}
     phone = str(data.get("phone", "")).strip().replace("-", "").replace(" ", "")
+    username = str(data.get("username", "")).strip().replace("-", "").replace(" ", "").lower()
+    password = str(data.get("password", "") or data.get("pin", "")).strip()
     otp = str(data.get("otp", "")).strip()
     master_pin = str(data.get("master_pin", "")).strip()
 
-    # 1. ตรวจสอบ Master PIN สำหรับศูนย์บัญชาการ / ผู้บังคับบัญชา
+    # 1. ล็อกอินด้วย Username / เบอร์โทร + Password / PIN
+    login_id = phone or username
+    if login_id and password:
+        is_admin_user = (login_id in [p.lower() for p in ADMIN_PHONES]) or (login_id in ["admin", "rtsd_admin", "commander", "superadmin"])
+        
+        # ตรวจสอบรหัสผ่าน: MASTER_PIN ("RTSD2024") หรือ default password ("admin1234", "rtsd2024")
+        valid_password = (password == MASTER_PIN) or (is_admin_user and password.lower() in ["admin1234", "rtsd2024", MASTER_PIN.lower()])
+        
+        if valid_password:
+            user_info = phone_to_user.get(login_id) or {
+                "name": "ผู้ดูแลระบบสูงสุด (Master Admin)" if is_admin_user else f"เจ้าหน้าที่ ({login_id[-4:] if len(login_id) >= 4 else login_id})",
+                "phone": "0863390614" if is_admin_user else login_id,
+                "role": "ผู้ดูแลระบบ (Admin)" if is_admin_user else "ผู้ใช้งานทั่วไป",
+                "unit": "กรมแผนที่ทหาร (RTSD)",
+                "position": "Super Admin" if is_admin_user else "Officer"
+            }
+            if is_admin_user:
+                user_info["role"] = "ผู้ดูแลระบบ (Admin)"
+            return jsonify({
+                "status": "success",
+                "token": f"token-{login_id}-{int(time.time())}",
+                "user": user_info
+            }), 200
+        else:
+            return jsonify({"status": "error", "message": "เบอร์โทร/Username หรือ Password/PIN ไม่ถูกต้อง"}), 401
+
+    # 2. ตรวจสอบ Master PIN เดี่ยวๆ สำหรับศูนย์บัญชาการ / ผู้บังคับบัญชา
     if master_pin and master_pin == MASTER_PIN:
         return jsonify({
             "status": "success",
             "token": f"token-commander-{int(time.time())}",
             "user": {
-                "name": "ผู้บังคับบัญชาศูนย์ RTSD",
-                "phone": "RTSD-HQ",
-                "role": "ผู้บังคับบัญชา / ผู้ดูแลระบบ"
+                "name": "ผู้ดูแลระบบสูงสุด (Master Admin)",
+                "phone": "0863390614",
+                "role": "ผู้ดูแลระบบ (Admin)",
+                "unit": "กรมแผนที่ทหาร (RTSD)",
+                "position": "Super Admin"
             }
         }), 200
 
-    # 2. ตรวจสอบ OTP
+    # 3. ตรวจสอบ OTP ผ่าน LINE
     cached = otp_cache.get(phone)
     if not cached:
         return jsonify({"status": "error", "message": "ไม่พบคำขอ OTP หรือรหัสหมดอายุแล้ว กรุณากดขอใหม่"}), 400
@@ -384,10 +456,12 @@ def api_verify_otp():
         return jsonify({"status": "error", "message": "รหัส OTP ไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง"}), 400
 
     user_info = cached.get("user_info") or phone_to_user.get(phone) or {
-        "name": f"เจ้าหน้าที่ ({phone[-4:]})",
+        "name": "ผู้ดูแลระบบ RTSD" if phone in ADMIN_PHONES else f"เจ้าหน้าที่ ({phone[-4:]})",
         "phone": phone,
-        "role": "เจ้าหน้าที่ RTSD"
+        "role": "ผู้ดูแลระบบ (Admin)" if phone in ADMIN_PHONES else "ผู้ใช้งานทั่วไป"
     }
+    if phone in ADMIN_PHONES:
+        user_info["role"] = "ผู้ดูแลระบบ (Admin)"
     del otp_cache[phone]
 
     return jsonify({
@@ -849,17 +923,18 @@ def handle_text(event):
         return
 
     # 0.5. คำสั่งพิเศษสำหรับแอดมิน: ตั้งแอดมิน / ปลดแอดมิน
-    if user_text.startswith("ตั้งแอดมิน") or user_text.startswith("ปลดแอดมิน"):
-        is_sender_admin = user_info and any(k in user_info.get("role", "") for k in ["แอดมิน", "ผู้ดูแล", "บัญชา"])
+    clean_cmd_text = re.sub(r'[\s\-]', '', user_text)
+    if user_text.startswith("ตั้งแอดมิน") or user_text.startswith("ปลดแอดมิน") or clean_cmd_text.startswith("ตั้งแอดมิน") or clean_cmd_text.startswith("ปลดแอดมิน"):
+        is_sender_admin = (user_info and any(k in user_info.get("role", "") for k in ["แอดมิน", "ผู้ดูแล", "บัญชา"])) or (user_info and user_info.get("phone") in ADMIN_PHONES)
         if not is_sender_admin:
             reply_msg = "⛔ ขออภัยครับ เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่สามารถปรับเปลี่ยนสิทธิ์ได้ครับ"
         else:
-            target_match = re.search(r'(0[689]\d{8}|0[2-9]\d{7})', user_text)
+            target_match = re.search(r'(0[689]\d{8}|0[2-9]\d{7})', clean_cmd_text)
             if not target_match:
                 reply_msg = "⚠️ กรุณาระบุเบอร์โทรศัพท์ของบุคคลที่ต้องการปรับสิทธิ์ด้วยครับ เช่น:\n👉 'ตั้งแอดมิน 0812345678'\n👉 'ปลดแอดมิน 0812345678'"
             else:
                 target_phone = target_match.group(1)
-                new_r = "ผู้ดูแลระบบ (Admin)" if "ตั้งแอดมิน" in user_text else "ผู้ใช้งานทั่วไป"
+                new_r = "ผู้ดูแลระบบ (Admin)" if "ตั้งแอดมิน" in clean_cmd_text else "ผู้ใช้งานทั่วไป"
                 if target_phone not in phone_to_user:
                     fetch_registered_users()
                 if target_phone not in phone_to_user:
@@ -899,13 +974,14 @@ def handle_text(event):
         return
 
     # 1. ผู้ใช้พิมพ์เบอร์โทรศัพท์เข้ามา เพื่อลงทะเบียนยืนยันตัวตน
-    phone_match = re.search(r'(0[689]\d{8}|0[2-9]\d{7})', user_text)
+    clean_text_digits = re.sub(r'[\s\-]', '', user_text)
+    phone_match = re.search(r'(0[689]\d{8}|0[2-9]\d{7})', clean_text_digits)
     if phone_match and (any(w in user_text for w in ["ลงทะเบียน", "สมัคร", "เบอร์", "โทร"]) or not user_info):
         clean_phone = phone_match.group(1)
-        name_part = re.sub(r'0[689]\d{8}|0[2-9]\d{7}', '', user_text)
-        name_part = name_part.replace("ลงทะเบียน", "").replace("เบอร์", "").replace("โทร", "").replace("ชื่อ", "").strip()
+        name_part = re.sub(r'0[689][\d\s\-]{8,12}|0[2-9][\d\s\-]{7,11}', '', user_text)
+        name_part = re.sub(r'(ลงทะเบียน|สมัคร|เบอร์|โทร|ชื่อ)', '', name_part).strip()
         reg_name = name_part if len(name_part) >= 2 else user_name
-        role = "ผู้ใช้งานทั่วไป"
+        role = "ผู้ดูแลระบบ (Admin)" if clean_phone in ADMIN_PHONES else "ผู้ใช้งานทั่วไป"
         
         save_registered_user(user_id, reg_name, clean_phone, role)
         user_sessions[user_id]["user_name"] = f"{reg_name} ({clean_phone})"
