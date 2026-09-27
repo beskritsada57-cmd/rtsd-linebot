@@ -180,29 +180,67 @@ def handle_location(event):
 
 
 
+from linebot.v3.messaging import (
+    Configuration,
+    ApiClient,
+    MessagingApi,
+    ReplyMessageRequest,
+    TextMessage,
+    QuickReply,
+    QuickReplyItem,
+    MessageAction,
+    LocationAction
+)
+
 # กรณีผู้ใช้พิมพ์ข้อความธรรมดา
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_text(event):
     user_text = event.message.text.strip()
     
-    if user_text in ['ช่วย', 'แจ้งเหตุ', 'menu', 'วิธีใช้']:
-        reply = ("🚨 ระบบรับแจ้งเหตุเตือนภัย RTSD 🚨\n\n"
-                 "ท่านสามารถส่งพิกัดมาปักหมุดบนแผนที่ได้ง่าย ๆ:\n"
-                 "👉 เพียงกดปุ่ม '+' ด้านล่างซ้าย\n"
-                 "👉 เลือก 'ตำแหน่งที่ตั้ง' (Location)\n"
-                 "👉 ปักหมุดแล้วกดแชร์เข้ามาได้เลยครับ!")
+    # ถ้าพิมพ์แจ้งเหตุ หรือทักทาย ให้เด้งปุ่ม Dropdown (Quick Reply) ขึ้นมาให้เลือก
+    if user_text in ['ช่วย', 'แจ้งเหตุ', 'menu', 'วิธีใช้', 'สวัสดี', 'hi', 'hello']:
+        quick_reply = QuickReply(items=[
+            QuickReplyItem(action=MessageAction(label="🌊 น้ำท่วมขัง", text="แจ้งเหตุ: น้ำท่วมขัง")),
+            QuickReplyItem(action=MessageAction(label="🚧 ถนนชำรุด", text="แจ้งเหตุ: ถนนชำรุด")),
+            QuickReplyItem(action=MessageAction(label="⛰️ ดินถล่ม", text="แจ้งเหตุ: ดินถล่ม")),
+            QuickReplyItem(action=MessageAction(label="💥 อุบัติเหตุ", text="แจ้งเหตุ: อุบัติเหตุ")),
+            QuickReplyItem(action=LocationAction(label="📍 ส่งพิกัดทันที"))
+        ])
+        
+        reply_message = TextMessage(
+            text="🚨 ระบบรับแจ้งเหตุเตือนภัย RTSD 🚨\n\nกรุณาเลือกประเภทเหตุการณ์ หรือกดส่งพิกัดได้เลยครับ 👇",
+            quick_reply=quick_reply
+        )
+        
+    elif user_text.startswith("แจ้งเหตุ:"):
+        incident_name = user_text.replace("แจ้งเหตุ:", "").strip()
+        quick_reply = QuickReply(items=[
+            QuickReplyItem(action=LocationAction(label="📍 กดส่งพิกัดจุดเกิดเหตุ"))
+        ])
+        reply_message = TextMessage(
+            text=f"รับทราบเหตุ: [{incident_name}]\n\n👉 กรุณากดปุ่ม '📍 กดส่งพิกัดจุดเกิดเหตุ' ด้านล่างนี้เพื่อปักหมุดแผนที่ครับ",
+            quick_reply=quick_reply
+        )
+        
     else:
-        reply = (f"รับข้อความ: \"{user_text}\"\n\n"
-                 "หากต้องการแจ้งเหตุและปักหมุดแผนที่ GIS กรุณากดปุ่ม '+' แล้วเลือก 'ตำแหน่งที่ตั้ง' (Location) ส่งพิกัดเข้ามาได้เลยครับ")
+        quick_reply = QuickReply(items=[
+            QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุเตือนภัย", text="แจ้งเหตุ")),
+            QuickReplyItem(action=LocationAction(label="📍 ส่งพิกัดสถานที่"))
+        ])
+        reply_message = TextMessage(
+            text=f"ได้รับข้อความ: \"{user_text}\"\n\nหากต้องการรายงานเหตุการณ์ กรุณาเลือกเมนูด้านล่างนี้ครับ 👇",
+            quick_reply=quick_reply
+        )
 
     with ApiClient(configuration) as api_client:
         line_bot_api = MessagingApi(api_client)
         line_bot_api.reply_message(
             ReplyMessageRequest(
                 reply_token=event.reply_token,
-                messages=[TextMessage(text=reply)]
+                messages=[reply_message]
             )
         )
+
 
 
 if __name__ == "__main__":
