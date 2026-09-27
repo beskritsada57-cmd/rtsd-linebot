@@ -25,7 +25,8 @@ from linebot.v3.webhooks import (
     TextMessageContent,
     LocationMessageContent,
     ImageMessageContent,
-    VideoMessageContent
+    VideoMessageContent,
+    FollowEvent
 )
 
 app = Flask(__name__)
@@ -391,6 +392,71 @@ def callback():
     return 'OK', 200
 
 
+# กรณีผู้ใช้แอดเพื่อนใหม่ หรือ ปลดบล็อกบอท (Follow Event)
+@handler.add(FollowEvent)
+def handle_follow(event):
+    user_id = event.source.user_id
+    user_name = "ท่าน"
+    try:
+        with ApiClient(configuration) as api_client:
+            line_bot_api = MessagingApi(api_client)
+            profile = line_bot_api.get_profile(user_id)
+            user_name = profile.display_name
+    except Exception as e:
+        print(f"Error fetching profile on follow: {e}")
+
+    # ตรวจสอบประวัติการลงทะเบียนในระบบ
+    user_info = registered_users.get(user_id)
+    if not user_info and len(registered_users) == 0:
+        fetch_registered_users()
+        user_info = registered_users.get(user_id)
+
+    if user_info:
+        welcome_msg = (
+            f"👋 ยินดีต้อนรับกลับครับ คุณ{user_info.get('name', user_name)}!\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"🛡️ ศูนย์บัญชาการแผนที่และเตือนภัย RTSD\n"
+            f"📱 บัญชีของท่าน: {user_info.get('phone')}\n"
+            f"🔰 สิทธิ์: {user_info.get('role', 'ผู้ใช้งานทั่วไป')}\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"ท่านสามารถเริ่มใช้งานได้ทันที เลือกเมนูด้านล่างนี้ได้เลยครับ 👇"
+        )
+        quick_reply = QuickReply(items=[
+            QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุเตือนภัย", text="แจ้งเหตุ")),
+            QuickReplyItem(action=MessageAction(label="🔍 ติดตามสถานะ", text="ติดตามสถานะ")),
+            QuickReplyItem(action=MessageAction(label="🛰️ ส่งพิกัดสด GPS", text="แทร็กกิ้ง"))
+        ])
+    else:
+        welcome_msg = (
+            f"🎉 ยินดีต้อนรับคุณ {user_name} สู่ระบบ RTSD!\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"🛡️ ศูนย์เตือนภัยและบัญชาการสถานการณ์\n"
+            f"กรมแผนที่ทหาร (RTSD Command)\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"📝 เพื่อความปลอดภัยและการยืนยันตัวตน (OTP)\n"
+            f"กรุณาลงทะเบียนสมาชิก 1 ครั้ง โดยพิมพ์:\n\n"
+            f"👉 [เบอร์โทรศัพท์ 10 หลัก] ส่งเข้ามาได้เลยครับ\n"
+            f"ตัวอย่างเช่น:\n"
+            f"• 0812345678\n"
+            f"• สมชาย 0812345678\n\n"
+            f"✨ เมื่อลงทะเบียนแล้ว ระบบจะจำบัญชีของท่านถาวร สามารถใช้ขอ OTP ล็อกอิน Dashboard และแจ้งเหตุได้ทันทีครับ!"
+        )
+        quick_reply = QuickReply(items=[
+            QuickReplyItem(action=MessageAction(label="📝 ลงทะเบียนสมาชิก", text="ลงทะเบียน")),
+            QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุเตือนภัย", text="แจ้งเหตุ")),
+            QuickReplyItem(action=MessageAction(label="🔍 ติดตามสถานะ", text="ติดตามสถานะ"))
+        ])
+
+    with ApiClient(configuration) as api_client:
+        line_bot_api = MessagingApi(api_client)
+        line_bot_api.reply_message(
+            ReplyMessageRequest(
+                reply_token=event.reply_token,
+                messages=[TextMessage(text=welcome_msg, quick_reply=quick_reply)]
+            )
+        )
+
+
 # กรณีผู้ใช้แชร์พิกัดสถานที่ (Location)
 @handler.add(MessageEvent, message=LocationMessageContent)
 def handle_location(event):
@@ -574,6 +640,39 @@ def handle_text(event):
     if not user_info and len(registered_users) == 0:
         fetch_registered_users()
         user_info = registered_users.get(user_id)
+
+    # 0. ผู้ใช้กดปุ่มหรือพิมพ์คำว่า "ลงทะเบียน" / "สมัครสมาชิก" (แบบยังไม่ระบุเบอร์โทร)
+    if user_text in ["ลงทะเบียน", "สมัคร", "สมัครสมาชิก", "register", "ยืนยันตัวตน"]:
+        if user_info:
+            reply_msg = (f"✅ บัญชีของท่านลงทะเบียนเรียบร้อยแล้วครับ!\n"
+                         f"━━━━━━━━━━━━━━━━━━\n"
+                         f"👤 ชื่อผู้ใช้งาน: คุณ{user_info.get('name')}\n"
+                         f"📱 เบอร์โทรศัพท์: {user_info.get('phone')}\n"
+                         f"🔰 บทบาท: {user_info.get('role')}\n"
+                         f"━━━━━━━━━━━━━━━━━━\n"
+                         f"💡 หากต้องการเปลี่ยนเบอร์ ให้พิมพ์ส่งเข้ามาใหม่ได้เลยครับ เช่น:\n"
+                         f"0891234567 หรือ เบอร์ใหม่ 0891234567")
+        else:
+            reply_msg = (f"📝 ลงทะเบียนสมาชิกระบบ RTSD\n"
+                         f"━━━━━━━━━━━━━━━━━━\n"
+                         f"กรุณาพิมพ์ [เบอร์โทรศัพท์มือถือ 10 หลัก] ของท่านแล้วกดส่งเข้ามาได้เลยครับ\n\n"
+                         f"ตัวอย่างการพิมพ์:\n"
+                         f"👉 0812345678\n"
+                         f"👉 {user_name} 0812345678\n\n"
+                         f"🔒 ข้อมูลจะถูกจัดเก็บอย่างปลอดภัยสำหรับรับรหัส OTP ล็อกอิน Dashboard ครับ")
+        quick_reply = QuickReply(items=[
+            QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุเตือนภัย", text="แจ้งเหตุ")),
+            QuickReplyItem(action=MessageAction(label="🔍 ติดตามสถานะ", text="ติดตามสถานะ"))
+        ])
+        with ApiClient(configuration) as api_client:
+            line_bot_api = MessagingApi(api_client)
+            line_bot_api.reply_message(
+                ReplyMessageRequest(
+                    reply_token=event.reply_token,
+                    messages=[TextMessage(text=reply_msg, quick_reply=quick_reply)]
+                )
+            )
+        return
 
     # 1. ผู้ใช้พิมพ์เบอร์โทรศัพท์เข้ามา เพื่อลงทะเบียนยืนยันตัวตน
     phone_match = re.search(r'(0[689]\d{8}|0[2-9]\d{7})', user_text)
