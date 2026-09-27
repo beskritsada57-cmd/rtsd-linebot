@@ -36,7 +36,7 @@ handler = WebhookHandler(CHANNEL_SECRET)
 PORTAL_URL = "https://geoportal.rtsd.mi.th/portal"
 PORTAL_USER = "goc01@2024"
 PORTAL_PASS = "GEOINT@rtsd_09_69"
-TARGET_LAYER_URL = "https://geoportal.rtsd.mi.th/arcgis/rest/services/Hosted/itic_cctv/FeatureServer/0"
+TARGET_LAYER_URL = "https://geoportal.rtsd.mi.th/arcgis/rest/services/Hosted/incident_reports_template/FeatureServer/0"
 
 
 def get_arcgis_token():
@@ -58,7 +58,7 @@ def get_arcgis_token():
 
 
 def add_to_geoportal(lat, lon, title, address):
-    """ปักหมุดเหตุการณ์ลงแผนที่ ArcGIS Geoportal RTSD"""
+    """ปักหมุดเหตุการณ์ลงแผนที่ ArcGIS Geoportal RTSD ในเลเยอร์แจ้งเหตุใหม่"""
     token = get_arcgis_token()
     if not token:
         return False
@@ -71,9 +71,11 @@ def add_to_geoportal(lat, lon, title, address):
         },
         "attributes": {
             "title": str(title)[:250],
-            "organization": str(address)[:100],
-            "status": "แจ้งเตือนภัยใหม่ (LINE)",
-            "lastupdate": "ปัจจุบัน"
+            "address": str(address)[:250],
+            "incident_type": "แจ้งเหตุผ่าน LINE",
+            "reporter": "ผู้ใช้งาน LINE",
+            "status": "รอดำเนินการ",
+            "report_time": "ปัจจุบัน"
         }
     }]
     
@@ -89,6 +91,7 @@ def add_to_geoportal(lat, lon, title, address):
     except Exception as e:
         print(f"Error adding feature: {e}")
         return False
+
 
 
 # =========================================================================
