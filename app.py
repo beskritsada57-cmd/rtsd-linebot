@@ -30,7 +30,7 @@ app = Flask(__name__)
 # 🔴 1. ข้อมูล LINE Bot ของคุณ
 # =========================================================================
 CHANNEL_SECRET = os.getenv('CHANNEL_SECRET', '95fadcaa0b4890bf137239eb0122230c')
-CHANNEL_ACCESS_TOKEN = os.getenv('CHANNEL_ACCESS_TOKEN', 'tZwEj7/Os0MEb2g5oQMsZc6/8Uvt0AID8SVj/O5dyRkph1hgP8H3JSdduIh+SIXjQI1rPILjCx3ZVuG+WszETDZXOZZ2oXki4wCIF/kz26gjfE+iz8GCQtYCj4cbFLv3EQrOv/YrsWJ/VwMDns4f7gdB04t89/1O/w1cDnyilFU=')
+CHANNEL_ACCESS_TOKEN = os.getenv('CHANNEL_ACCESS_TOKEN', 'tZwEj7/Os0MEb2g5oQMsZc6/8Uvt0AID8SVj/O5dyRkph1hgP8H3JSdduIh+SIXjQI1rPILjCx3ZVuG+WszETDZxOZZ2oXki4wCIF/kz26gjfE+iz8GCQtYCj4cbFLv3EQrOv/YrsWJ/VwMDns4f7gdB04t89/1O/w1cDnyilFU=')
 
 configuration = Configuration(access_token=CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(CHANNEL_SECRET)
@@ -278,7 +278,7 @@ def handle_text(event):
         return
 
     # ด่านที่ 1: ผู้ใช้เริ่มแจ้งเหตุ -> เด้ง Dropdown ให้เลือก "ประเภทเหตุการณ์"
-    if user_text in ['ช่วย', 'แจ้งเหตุ', 'menu', 'วิธีใช้', 'สวัสดี', 'hi', 'hello']:
+    if user_text in ['ช่วย', 'แจ้งเหตุ', 'แจ้งเตือน', 'menu', 'วิธีใช้', 'สวัสดี', 'hi', 'hello']:
         quick_reply = QuickReply(items=[
             QuickReplyItem(action=MessageAction(label="🌊 น้ำท่วมขัง", text="เลือกเหตุ: 🌊 น้ำท่วมขัง")),
             QuickReplyItem(action=MessageAction(label="🚧 ถนนชำรุด", text="เลือกเหตุ: 🚧 ดินถล่ม / ผิวทางชำรุด")),
@@ -290,6 +290,7 @@ def handle_text(event):
             text=f"สวัสดีครับคุณ {user_name} 🚨\nกรุณาเลือก [ประเภทเหตุการณ์] ที่พบด้านล่างนี้ครับ 👇",
             quick_reply=quick_reply
         )
+
 
     # ด่านที่ 2: เลือกประเภทเหตุการณ์แล้ว -> เด้ง Dropdown ให้เลือก "ระดับความเร่งด่วน"
     elif user_text.startswith("เลือกเหตุ:"):
