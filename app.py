@@ -8,7 +8,11 @@ from linebot.v3.messaging import (
     ApiClient,
     MessagingApi,
     ReplyMessageRequest,
-    TextMessage
+    TextMessage,
+    QuickReply,
+    QuickReplyItem,
+    MessageAction,
+    LocationAction
 )
 from linebot.v3.webhooks import (
     MessageEvent,
@@ -19,84 +23,42 @@ from linebot.v3.webhooks import (
 app = Flask(__name__)
 
 # =========================================================================
-# 🔴 1. ข้อมูล LINE Bot ของคุณ (ใส่ค่าจริงถูกต้องแล้ว)
+# 🔴 1. ข้อมูล LINE Bot ของคุณ
 # =========================================================================
-
 CHANNEL_SECRET = os.getenv('CHANNEL_SECRET', '95fadcaa0b4890bf137239eb0122230c')
 CHANNEL_ACCESS_TOKEN = os.getenv('CHANNEL_ACCESS_TOKEN', 'tZwEj7/Os0MEb2g5oQMsZc6/8Uvt0AID8SVj/O5dyRkph1hgP8H3JSdduIh+SIXjQI1rPILjCx3ZVuG+WszETDZXOZZ2oXki4wCIF/kz26gjfE+iz8GCQtYCj4cbFLv3EQrOv/YrsWJ/VwMDns4f7gdB04t89/1O/w1cDnyilFU=')
-
-
 
 configuration = Configuration(access_token=CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(CHANNEL_SECRET)
 
 # =========================================================================
-# 🔴 2. ข้อมูล ArcGIS Geoportal RTSD
+# 🔴 2. ข้อมูล Google Sheets Webhook URL
 # =========================================================================
-PORTAL_URL = "https://geoportal.rtsd.mi.th/portal"
-PORTAL_USER = "goc01@2024"
-PORTAL_PASS = "GEOINT@rtsd_09_69"
-TARGET_LAYER_URL = "https://geoportal.rtsd.mi.th/arcgis/rest/services/Hosted/incident_reports_template/FeatureServer/0"
+GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbw5Gepu7a5s9j1vXtgE55403L0K3sKtOcpUNArNCm6RJO1ulNp735XyZgAbTlMBwxI/exec"
+
+# ที่เก็บสถานะการสนทนาชั่วคราวของผู้ใช้ (User State Session)
+user_sessions = {}
 
 
-def get_arcgis_token():
-    """ขอ Token จาก Portal"""
+def save_to_google_sheet(lat, lon, title, address, reporter, urgency, incident_type):
+    """ส่งข้อมูลครบทั้ง 9 ฟิลด์ไปบันทึกลง Google Sheets"""
     try:
-        url = f"{PORTAL_URL.rstrip('/')}/sharing/rest/generateToken"
-        res = requests.post(url, data={
-            'username': PORTAL_USER,
-            'password': PORTAL_PASS,
-            'client': 'referer',
-            'referer': PORTAL_URL,
-            'expiration': 15,
-            'f': 'json'
-        }, verify=False, timeout=10)
-        return res.json().get('token')
-    except Exception as e:
-        print(f"Error get token: {e}")
-        return None
-
-
-def add_to_geoportal(lat, lon, title, address):
-    """ปักหมุดเหตุการณ์ลงแผนที่ ArcGIS Geoportal RTSD ในเลเยอร์แจ้งเหตุใหม่"""
-    token = get_arcgis_token()
-    if not token:
-        return False
-    
-    feature = [{
-        "geometry": {
-            "x": float(lon),
-            "y": float(lat),
-            "spatialReference": {"wkid": 4326}
-        },
-        "attributes": {
-            "title": str(title)[:250],
-            "address": str(address)[:250],
-            "incident_type": "แจ้งเหตุผ่าน LINE",
-            "reporter": "ผู้ใช้งาน LINE",
-            "status": "รอดำเนินการ",
-            "report_time": "ปัจจุบัน"
+        payload = {
+            "title": str(title),
+            "address": str(address),
+            "latitude": float(lat),
+            "longitude": float(lon),
+            "reporter": str(reporter),
+            "urgency": str(urgency),
+            "incident_type": str(incident_type)
         }
-    }]
-    
-    try:
-        url = f"{TARGET_LAYER_URL}/addFeatures"
-        res = requests.post(url, data={
-            'features': requests.compat.json.dumps(feature),
-            'token': token,
-            'f': 'json'
-        }, verify=False, timeout=15)
-        result = res.json()
-        return bool(result.get('addResults', [{}])[0].get('success'))
+        res = requests.post(GOOGLE_SHEET_URL, json=payload, timeout=10)
+        return res.status_code == 200
     except Exception as e:
-        print(f"Error adding feature: {e}")
+        print(f"Error saving to Google Sheets: {e}")
         return False
 
 
-
-# =========================================================================
-# 3. จุดรับ Webhook จาก LINE
-# =========================================================================
 @app.route("/", methods=['GET'])
 def index():
     return "✅ LINE Bot Webhook for RTSD GIS is Running Online!"
@@ -107,7 +69,6 @@ def callback():
     signature = request.headers.get('X-Line-Signature', '')
     body = request.get_data(as_text=True)
 
-    # ดักกรณี LINE กดปุ่ม Verify (จะไม่มี signature หรือไม่มี events)
     if not signature or body == '{"events":[],"destination":""}' or '"events":[]' in body:
         return 'OK', 200
 
@@ -122,45 +83,32 @@ def callback():
     return 'OK', 200
 
 
-
-# =========================================================================
-# 🔴 3. Google Sheets Webhook URL
-# =========================================================================
-GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbw5Gepu7a5s9j1vXtgE55403L0K3sKtOcpUNArNCm6RJO1ulNp735XyZgAbTlMBwxI/exec"
-
-
-def save_to_google_sheet(lat, lon, title, address):
-    """ส่งข้อมูลไปบันทึกลงตาราง Google Sheets อัตโนมัติ"""
-    try:
-        payload = {
-            "title": str(title),
-            "address": str(address),
-            "latitude": float(lat),
-            "longitude": float(lon)
-        }
-        res = requests.post(GOOGLE_SHEET_URL, json=payload, timeout=10)
-        return res.status_code == 200
-    except Exception as e:
-        print(f"Error saving to Google Sheets: {e}")
-        return False
-
-
 # กรณีผู้ใช้แชร์พิกัดสถานที่ (Location)
 @handler.add(MessageEvent, message=LocationMessageContent)
 def handle_location(event):
+    user_id = event.source.user_id
     lat = event.message.latitude
     lon = event.message.longitude
     address = event.message.address or "ไม่ระบุที่อยู่"
     title = event.message.title or "จุดแจ้งเหตุ"
 
-    # 1. บันทึกลง Google Sheets ทันที
-    sheet_saved = save_to_google_sheet(lat, lon, title, address)
+    # ดึงค่าที่ผู้ใช้เคยเลือกไว้ (ถ้าไม่มีให้ใช้ค่าเริ่มต้น)
+    session = user_sessions.get(user_id, {})
+    incident_type = session.get("incident_type", "🌊 น้ำท่วมขัง")
+    urgency = session.get("urgency", "🟡 ปานกลาง")
+    reporter = session.get("user_name", "ผู้ใช้งาน LINE")
+
+    # 1. บันทึกลง Google Sheets ครบทั้ง 9 คอลัมน์
+    save_to_google_sheet(lat, lon, f"แจ้งเหตุ: {incident_type}", address, reporter, urgency, incident_type)
 
     # 2. ตอบกลับผู้ใช้ใน LINE
     reply = (f"✅ ได้รับรายงานเหตุการณ์เรียบร้อยแล้ว!\n\n"
+             f"👤 ผู้แจ้ง: {reporter}\n"
+             f"🚨 เหตุการณ์: {incident_type}\n"
+             f"⚠️ ความเร่งด่วน: {urgency}\n"
              f"📍 พิกัด: {lat}, {lon}\n"
              f"🏠 สถานที่: {address}\n\n"
-             f"ระบบได้บันทึกข้อมูลเข้าสู่ฐานข้อมูลเรียบร้อยแล้วครับ")
+             f"ระบบได้บันทึกข้อมูลเข้าสู่ฐานข้อมูลตาราง RTSD เรียบร้อยแล้วครับ")
 
     with ApiClient(configuration) as api_client:
         line_bot_api = MessagingApi(api_client)
@@ -171,64 +119,80 @@ def handle_location(event):
             )
         )
 
-    # 3. พยายามปักหมุดลง ArcGIS Portal RTSD เบื้องหลัง
-    try:
-        add_to_geoportal(lat, lon, f"แจ้งเหตุ: {title}", address)
-    except Exception as e:
-        print(f"GIS Background push error: {e}")
+    # ล้างสถานะหลังส่งเสร็จ
+    if user_id in user_sessions:
+        del user_sessions[user_id]
 
 
-
-
-from linebot.v3.messaging import (
-    Configuration,
-    ApiClient,
-    MessagingApi,
-    ReplyMessageRequest,
-    TextMessage,
-    QuickReply,
-    QuickReplyItem,
-    MessageAction,
-    LocationAction
-)
-
-# กรณีผู้ใช้พิมพ์ข้อความธรรมดา
+# กรณีผู้ใช้พิมพ์ข้อความ / กดเลือกปุ่ม Dropdown
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_text(event):
+    user_id = event.source.user_id
     user_text = event.message.text.strip()
     
-    # ถ้าพิมพ์แจ้งเหตุ หรือทักทาย ให้เด้งปุ่ม Dropdown (Quick Reply) ขึ้นมาให้เลือก
+    # ดึงชื่อ Profile ผู้ใช้จาก LINE อัตโนมัติ
+    user_name = "ผู้ใช้งาน LINE"
+    try:
+        with ApiClient(configuration) as api_client:
+            line_bot_api = MessagingApi(api_client)
+            profile = line_bot_api.get_profile(user_id)
+            user_name = profile.display_name
+    except Exception:
+        pass
+
+    if user_id not in user_sessions:
+        user_sessions[user_id] = {"user_name": user_name}
+    else:
+        user_sessions[user_id]["user_name"] = user_name
+
+    # ด่านที่ 1: ผู้ใช้เริ่มแจ้งเหตุ -> เด้ง Dropdown ให้เลือก "ประเภทเหตุการณ์"
     if user_text in ['ช่วย', 'แจ้งเหตุ', 'menu', 'วิธีใช้', 'สวัสดี', 'hi', 'hello']:
         quick_reply = QuickReply(items=[
-            QuickReplyItem(action=MessageAction(label="🌊 น้ำท่วมขัง", text="แจ้งเหตุ: น้ำท่วมขัง")),
-            QuickReplyItem(action=MessageAction(label="🚧 ถนนชำรุด", text="แจ้งเหตุ: ถนนชำรุด")),
-            QuickReplyItem(action=MessageAction(label="⛰️ ดินถล่ม", text="แจ้งเหตุ: ดินถล่ม")),
-            QuickReplyItem(action=MessageAction(label="💥 อุบัติเหตุ", text="แจ้งเหตุ: อุบัติเหตุ")),
-            QuickReplyItem(action=LocationAction(label="📍 ส่งพิกัดทันที"))
+            QuickReplyItem(action=MessageAction(label="🌊 น้ำท่วมขัง", text="เลือกเหตุ: 🌊 น้ำท่วมขัง")),
+            QuickReplyItem(action=MessageAction(label="🚧 ถนนชำรุด", text="เลือกเหตุ: 🚧 ดินถล่ม / ผิวทางชำรุด")),
+            QuickReplyItem(action=MessageAction(label="💥 อุบัติเหตุ", text="เลือกเหตุ: 💥 อุบัติเหตุจราจร")),
+            QuickReplyItem(action=MessageAction(label="🔥 ไฟไหม้", text="เลือกเหตุ: 🔥 ไฟไหม้ / หมอกควัน")),
+            QuickReplyItem(action=MessageAction(label="📌 อื่นๆ", text="เลือกเหตุ: 📌 อื่นๆ"))
         ])
-        
         reply_message = TextMessage(
-            text="🚨 ระบบรับแจ้งเหตุเตือนภัย RTSD 🚨\n\nกรุณาเลือกประเภทเหตุการณ์ หรือกดส่งพิกัดได้เลยครับ 👇",
+            text=f"สวัสดีครับคุณ {user_name} 🚨\nกรุณาเลือก [ประเภทเหตุการณ์] ที่พบด้านล่างนี้ครับ 👇",
             quick_reply=quick_reply
         )
-        
-    elif user_text.startswith("แจ้งเหตุ:"):
-        incident_name = user_text.replace("แจ้งเหตุ:", "").strip()
+
+    # ด่านที่ 2: เลือกประเภทเหตุการณ์แล้ว -> เด้ง Dropdown ให้เลือก "ระดับความเร่งด่วน"
+    elif user_text.startswith("เลือกเหตุ:"):
+        incident = user_text.replace("เลือกเหตุ:", "").strip()
+        user_sessions[user_id]["incident_type"] = incident
+
         quick_reply = QuickReply(items=[
-            QuickReplyItem(action=LocationAction(label="📍 กดส่งพิกัดจุดเกิดเหตุ"))
+            QuickReplyItem(action=MessageAction(label="🔴 วิกฤต/ด่วนมาก", text="ระดับ: 🔴 วิกฤต / เร่งด่วนมาก")),
+            QuickReplyItem(action=MessageAction(label="🟡 ปานกลาง", text="ระดับ: 🟡 ปานกลาง")),
+            QuickReplyItem(action=MessageAction(label="🟢 ปกติ/เฝ้าระวัง", text="ระดับ: 🟢 ปกติ / เฝ้าระวัง"))
         ])
         reply_message = TextMessage(
-            text=f"รับทราบเหตุ: [{incident_name}]\n\n👉 กรุณากดปุ่ม '📍 กดส่งพิกัดจุดเกิดเหตุ' ด้านล่างนี้เพื่อปักหมุดแผนที่ครับ",
+            text=f"ประเภท: [{incident}]\n\nกรุณาเลือก [ระดับความเร่งด่วน] ครับ 👇",
             quick_reply=quick_reply
         )
-        
+
+    # ด่านที่ 3: เลือกระดับความเร่งด่วนแล้ว -> เด้งปุ่มให้ "กดแชร์พิกัดสถานที่"
+    elif user_text.startswith("ระดับ:"):
+        urgency = user_text.replace("ระดับ:", "").strip()
+        user_sessions[user_id]["urgency"] = urgency
+
+        quick_reply = QuickReply(items=[
+            QuickReplyItem(action=LocationAction(label="📍 กดแชร์พิกัดจุดเกิดเหตุ"))
+        ])
+        reply_message = TextMessage(
+            text=f"ระดับความเร่งด่วน: [{urgency}]\n\n👉 ขั้นตอนสุดท้าย: กรุณากดปุ่ม '📍 กดแชร์พิกัดจุดเกิดเหตุ' ด้านล่างนี้เพื่อปักหมุดครับ 👇",
+            quick_reply=quick_reply
+        )
+
     else:
         quick_reply = QuickReply(items=[
-            QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุเตือนภัย", text="แจ้งเหตุ")),
-            QuickReplyItem(action=LocationAction(label="📍 ส่งพิกัดสถานที่"))
+            QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุเตือนภัย", text="แจ้งเหตุ"))
         ])
         reply_message = TextMessage(
-            text=f"ได้รับข้อความ: \"{user_text}\"\n\nหากต้องการรายงานเหตุการณ์ กรุณาเลือกเมนูด้านล่างนี้ครับ 👇",
+            text=f"หากต้องการแจ้งเหตุเตือนภัย กรุณากดปุ่ม '🚨 แจ้งเหตุเตือนภัย' ด้านล่างนี้ได้เลยครับ 👇",
             quick_reply=quick_reply
         )
 
@@ -240,7 +204,6 @@ def handle_text(event):
                 messages=[reply_message]
             )
         )
-
 
 
 if __name__ == "__main__":
