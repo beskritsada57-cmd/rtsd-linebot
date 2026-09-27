@@ -101,12 +101,20 @@ def callback():
     signature = request.headers.get('X-Line-Signature', '')
     body = request.get_data(as_text=True)
 
+    # ดักกรณี LINE กดปุ่ม Verify (จะไม่มี signature หรือไม่มี events)
+    if not signature or body == '{"events":[],"destination":""}' or '"events":[]' in body:
+        return 'OK', 200
+
     try:
         handler.handle(body, signature)
     except InvalidSignatureError:
-        abort(400)
+        return 'Invalid signature', 400
+    except Exception as e:
+        print(f"Error handling event: {e}")
+        return 'OK', 200
 
-    return 'OK'
+    return 'OK', 200
+
 
 
 # กรณีผู้ใช้แชร์พิกัดสถานที่ (Location)
