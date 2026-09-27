@@ -29,8 +29,8 @@ app = Flask(__name__)
 # =========================================================================
 # 🔴 1. ข้อมูล LINE Bot ของคุณ
 # =========================================================================
-CHANNEL_SECRET = os.getenv('CHANNEL_SECRET', '95fadcaa0b4890bf137239eb0122230c')
-CHANNEL_ACCESS_TOKEN = os.getenv('CHANNEL_ACCESS_TOKEN', 'tZwEj7/Os0MEb2g5oQMsZc6/8Uvt0AID8SVj/O5dyRkph1hgP8H3JSdduIh+SIXjQI1rPILjCx3ZVuG+WszETDZxOZZ2oXki4wCIF/kz26gjfE+iz8GCQtYCj4cbFLv3EQrOv/YrsWJ/VwMDns4f7gdB04t89/1O/w1cDnyilFU=')
+CHANNEL_SECRET = '95fadcaa0b4890bf137239eb0122230c'
+CHANNEL_ACCESS_TOKEN = 'tZwEj7/Os0MEb2g5oQMsZc6/8Uvt0AID8SVj/O5dyRkph1hgP8H3JSdduIh+SIXjQI1rPILjCx3ZVuG+WszETDZxOZZ2oXki4wCIF/kz26gjfE+iz8GCQtYCj4cbFLv3EQrOv/YrsWJ/VwMDns4f7gdB04t89/1O/w1cDnyilFU='
 
 configuration = Configuration(access_token=CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(CHANNEL_SECRET)
@@ -68,7 +68,7 @@ def save_to_google_sheet(lat, lon, title, address, reporter, urgency, incident_t
 
 @app.route("/", methods=['GET'])
 def index():
-    return "✅ LINE Bot Webhook for RTSD GIS & Media Storage is Running Online!"
+    return "✅ LINE Bot Webhook for RTSD GIS & Media Storage is Running Online (v2 - Direct Token)!"
 
 
 @app.route("/callback", methods=['POST'])
