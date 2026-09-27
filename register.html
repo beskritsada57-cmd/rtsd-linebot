@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ระบบยื่นคำขอใช้งานและลงทะเบียนกำลังพล | RTSD Command System</title>
+  <!-- Google Fonts: Prompt -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Prompt', 'sans-serif'] },
+          colors: {
+            tactical: {
+              bg: '#080e1e',
+              card: '#0f172a',
+              input: '#1e293b',
+              border: '#334155',
+              green: '#10b981',
+              cyan: '#06b6d4',
+              gold: '#f59e0b',
+              red: '#ef4444'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Prompt', sans-serif;
+      background: radial-gradient(circle at top, #0d1b38 0%, #080e1e 100%);
+      color: #f1f5f9;
+      min-height: 100vh;
+    }
+    .glass-card {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(51, 65, 85, 0.7);
+    }
+    .glow-cyan {
+      box-shadow: 0 0 20px rgba(6, 182, 212, 0.25);
+    }
+    .glow-green {
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.25);
+    }
+    .custom-radio:checked + label {
+      border-color: #06b6d4;
+      background-color: rgba(6, 182, 212, 0.12);
+    }
+    .custom-radio:checked + label .check-icon {
+      opacity: 1;
+      transform: scale(1);
+    }
+  </style>
+</head>
+<body class="p-3 sm:p-6 flex flex-col items-center justify-center">
+
+  <!-- Header Container -->
+  <header class="w-full max-w-2xl text-center mb-6 pt-4">
+    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/70 border border-cyan-500/40 text-cyan-400 text-xs font-semibold tracking-wider uppercase mb-3 glow-cyan">
+      <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+      RTSD SECURITY & ACCESS CONTROL SYSTEM
+    </div>
+    <div class="flex items-center justify-center gap-3 mb-2">
+      <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-cyan-600 flex items-center justify-center shadow-lg">
+        <i class="fa-solid fa-shield-halved text-2xl text-slate-900"></i>
+      </div>
+      <div class="text-left">
+        <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+          ระบบลงทะเบียนและยื่นขอใช้งาน
+        </h1>
+        <p class="text-xs text-slate-400">ศูนย์บัญชาการแผนที่และเตือนภัย กรมแผนที่ทหาร (RTSD)</p>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Registration Form Card -->
+  <main class="w-full max-w-2xl glass-card rounded-2xl p-5 sm:p-8 shadow-2xl mb-8 relative overflow-hidden">
+    <!-- Top accent border line -->
+    <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-cyan-500 to-emerald-500"></div>
+
+    <form id="registerForm" onsubmit="handleFormSubmit(event)" class="space-y-6">
+      
+      <!-- Section 1: ข้อมูลส่วนตัวและสังกัด -->
+      <div>
+        <div class="flex items-center gap-2 text-cyan-400 font-semibold text-sm mb-3 border-b border-slate-700/60 pb-2">
+          <i class="fa-solid fa-user-shield"></i>
+          <span>1. ข้อมูลระบุตัวตนและหน่วยงานต้นสังกัด</span>
+        </div>
+        
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <!-- ยศ / คำนำหน้า -->
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">
+              ยศ / คำนำหน้า <span class="text-rose-400">*</span>
+            </label>
+            <select id="userRank" required onchange="toggleRankOther(this.value)" class="w-full px-3 py-2.5 rounded-xl bg-slate-800/90 border border-slate-600 text-sm text-white focus:outline-none focus:border-cyan-400 transition">
+              <optgroup label="⭐ นายทหารชั้นนายพล">
+                <option value="พล.อ.">พล.อ. / พล.ร.อ. / พล.อ.อ.</option>
+                <option value="พล.ท.">พล.ท. / พล.ร.ท. / พล.อ.ท.</option>
+                <option value="พล.ต.">พล.ต. / พล.ร.ต. / พล.อ.ต.</option>
+              </optgroup>
+              <optgroup label="🎖️ นายทหารสัญญาบัตร">
+                <option value="พ.อ.(พิเศษ)">พ.อ.(พิเศษ) / น.อ.(พิเศษ)</option>
+                <option value="พ.อ.">พ.อ. / น.อ.</option>
+                <option value="พ.ท.">พ.ท. / น.ท.</option>
+                <option value="พ.ต.">พ.ต. / น.ต.</option>
+                <option value="ร.อ." selected>ร.อ. / น.ต.</option>
+                <option value="ร.ท.">ร.ท. / น.ท.</option>
+                <option value="ร.ต.">ร.ต. / น.ต.</option>
+                <option value="ว่าที่ ร.ต.">ว่าที่ ร.ต.</option>
+              </optgroup>
+              <optgroup label="🔰 นายทหารประทวน">
+                <option value="จ.ส.อ.">จ.ส.อ. / พ.จ.อ. / พ.อ.อ.</option>
+                <option value="จ.ส.ท.">จ.ส.ท. / พ.จ.ท. / พ.อ.ท.</option>
+                <option value="จ.ส.ต.">จ.ส.ต. / พ.จ.ต. / พ.อ.ต.</option>
+                <option value="ส.อ.">ส.อ. / จ.อ. / จ.อ.</option>
+                <option value="ส.ท.">ส.ท. / จ.ท. / จ.ท.</option>
+                <option value="ส.ต.">ส.ต. / จ.ต. / จ.ต.</option>
+                <option value="พลฯ">พลอาสาสมัคร / พลทหาร</option>
+              </optgroup>
+              <optgroup label="👮 ตำรวจ">
+                <option value="พล.ต.อ.">พล.ต.อ.</option>
+                <option value="พล.ต.ท.">พล.ต.ท.</option>
+                <option value="พล.ต.ต.">พล.ต.ต.</option>
+                <option value="พ.ต.อ.">พ.ต.อ.</option>
+                <option value="พ.ต.ท.">พ.ต.ท.</option>
+                <option value="พ.ต.ต.">พ.ต.ต.</option>
+                <option value="ร.ต.อ.">ร.ต.อ.</option>
+                <option value="ร.ต.ท.">ร.ต.ท.</option>
+                <option value="ร.ต.ต.">ร.ต.ต.</option>
+                <option value="ด.ต.">ด.ต.</option>
+                <option value="ส.ต.ต.">ส.ต.ต. - ส.ต.อ.</option>
+              </optgroup>
+              <optgroup label="👤 พลเรือน / ข้าราชการทั่วไป">
+                <option value="นาย">นาย</option>
+                <option value="นาง">นาง</option>
+                <option value="นางสาว">นางสาว</option>
+                <option value="ดร.">ดร.</option>
+                <option value="อื่นๆ">อื่นๆ (ระบุเอง)</option>
+              </optgroup>
+            </select>
+            <input type="text" id="userRankOther" placeholder="พิมพ์ยศ/คำนำหน้าเอง..." class="w-full mt-2 px-3 py-2 rounded-xl bg-slate-900 border border-amber-500/60 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition hidden">
+          </div>
+
+          <!-- ชื่อ-นามสกุล -->
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-medium text-slate-300 mb-1">
+              ชื่อ - นามสกุล <span class="text-rose-400">*</span>
+            </label>
+            <input type="text" id="userName" required placeholder="เช่น สมชาย ใจภักดี" class="w-full px-3 py-2.5 rounded-xl bg-slate-800/90 border border-slate-600 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
+          <!-- สังกัด / หน่วยงาน (Dropdown) -->
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">
+              หน่วยงาน / ต้นสังกัด <span class="text-rose-400">*</span>
+            </label>
+            <select id="userUnitSelect" required onchange="toggleUnitOther(this.value)" class="w-full px-3 py-2.5 rounded-xl bg-slate-800/90 border border-slate-600 text-sm text-white focus:outline-none focus:border-cyan-400 transition">
+              <optgroup label="🗺️ กรมแผนที่ทหาร (RTSD) & บก.ทท.">
+                <option value="กรมแผนที่ทหาร (ผท.บก.ทท.)" selected>กรมแผนที่ทหาร (ผท.บก.ทท.)</option>
+                <option value="กองบริการแผนที่ (กบค.ผท.)">กองบริการแผนที่ (กบค.ผท.)</option>
+                <option value="กองเทคโนโลยีภูมิสารสนเทศ (กทภ.ผท.)">กองเทคโนโลยีภูมิสารสนเทศ (กทภ.ผท.)</option>
+                <option value="กองทำแผนที่ (กทผ.ผท.)">กองทำแผนที่ (กทผ.ผท.)</option>
+                <option value="กองสารสนเทศและแผนที่ภาพ (กสภ.ผท.)">กองสารสนเทศและแผนที่ภาพ (กสภ.ผท.)</option>
+                <option value="กองควบคุมทางอากาศและสำรวจรังวัด (กอส.ผท.)">กองควบคุมทางอากาศและสำรวจรังวัด (กอส.ผท.)</option>
+                <option value="กองยีโอเดซีและภูมิศาสตร์ (กยภ.ผท.)">กองยีโอเดซีและภูมิศาสตร์ (กยภ.ผท.)</option>
+                <option value="กองการสงครามแผนที่ (กสผ.ผท.)">กองการสงครามแผนที่ (กสผ.ผท.)</option>
+                <option value="ศูนย์ปฏิบัติการร่วมแผนที่ (ศปก.ผท.)">ศูนย์ปฏิบัติการร่วมแผนที่ (ศปก.ผท.)</option>
+                <option value="โรงเรียนแผนที่ กรมแผนที่ทหาร (รร.ผท.)">โรงเรียนแผนที่ กรมแผนที่ทหาร (รร.ผท.)</option>
+                <option value="กองบัญชาการกองทัพไทย (บก.ทท.)">กองบัญชาการกองทัพไทย (บก.ทท.)</option>
+                <option value="หน่วยบัญชาการทหารพัฒนา (นทพ.)">หน่วยบัญชาการทหารพัฒนา (นทพ.)</option>
+                <option value="ศูนย์ปฏิบัติการต่อต้านการก่อการร้ายสากล (ศปภ.)">ศูนย์ปฏิบัติการต่อต้านการก่อการร้ายสากล (ศปภ.)</option>
+                <option value="สำนักยุทธการทหาร (สยท.ทหาร)">สำนักยุทธการทหาร (สยท.ทหาร)</option>
+                <option value="สำนักข่าวกรองทหาร (สขท.ทหาร)">สำนักข่าวกรองทหาร (สขท.ทหาร)</option>
+              </optgroup>
+              <optgroup label="⚔️ เหล่าทัพหลัก">
+                <option value="ศูนย์ปฏิบัติการกองทัพบก (ศปก.ทบ.)">ศูนย์ปฏิบัติการกองทัพบก (ศปก.ทบ.)</option>
+                <option value="กองทัพบก (ทบ.)">กองทัพบก (ทบ.)</option>
+                <option value="ศูนย์ปฏิบัติการกองทัพเรือ (ศปก.ทร.)">ศูนย์ปฏิบัติการกองทัพเรือ (ศปก.ทร.)</option>
+                <option value="กองทัพเรือ (ทร.)">กองทัพเรือ (ทร.)</option>
+                <option value="ศูนย์ปฏิบัติการกองทัพอากาศ (ศปก.ทอ.)">ศูนย์ปฏิบัติการกองทัพอากาศ (ศปก.ทอ.)</option>
+                <option value="กองทัพอากาศ (ทอ.)">กองทัพอากาศ (ทอ.)</option>
+              </optgroup>
+              <optgroup label="🛡️ ความมั่นคง / ปภ. / หน่วยงานร่วม">
+                <option value="กรมป้องกันและบรรเทาสาธารณภัย (ปภ.)">กรมป้องกันและบรรเทาสาธารณภัย (ปภ.)</option>
+                <option value="ศูนย์เตือนภัยพิบัติแห่งชาติ (ศภช.)">ศูนย์เตือนภัยพิบัติแห่งชาติ (ศภช.)</option>
+                <option value="กองอำนวยการรักษาความมั่นคงภายใน (กอ.รมน.)">กองอำนวยการรักษาความมั่นคงภายใน (กอ.รมน.)</option>
+                <option value="สำนักงานตำรวจแห่งชาติ (ตร.)">สำนักงานตำรวจแห่งชาติ (ตร.)</option>
+                <option value="กองบัญชาการตำรวจตระเวนชายแดน (ตชด.)">กองบัญชาการตำรวจตระเวนชายแดน (ตชด.)</option>
+                <option value="GISTDA (จิสด้า)">GISTDA (จิสด้า)</option>
+                <option value="สถาบันสารสนเทศทรัพยากรน้ำ (สสน. / HII)">สถาบันสารสนเทศทรัพยากรน้ำ (สสน. / HII)</option>
+                <option value="กรมอุตุนิยมวิทยา">กรมอุตุนิยมวิทยา</option>
+                <option value="กรมชลประทาน">กรมชลประทาน</option>
+                <option value="อื่นๆ">อื่นๆ (ระบุหน่วยงานเอง)</option>
+              </optgroup>
+            </select>
+            <input type="text" id="userUnitOther" placeholder="พิมพ์ชื่อหน่วยงาน / สังกัด ของท่าน..." class="w-full mt-2 px-3 py-2 rounded-xl bg-slate-900 border border-amber-500/60 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition hidden">
+          </div>
+
+          <!-- ตำแหน่งหน้าที่ -->
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">
+              ตำแหน่งหน้าที่
+            </label>
+            <input type="text" id="userPosition" placeholder="เช่น ผบ.ร้อย / นายทหารแผนที่ / หัวหน้าชุด" class="w-full px-3 py-2.5 rounded-xl bg-slate-800/90 border border-slate-600 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition">
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2: ข้อมูลติดต่อและรับ OTP -->
+      <div>
+        <div class="flex items-center gap-2 text-cyan-400 font-semibold text-sm mb-3 border-b border-slate-700/60 pb-2">
+          <i class="fa-solid fa-mobile-screen-button"></i>
+          <span>2. การยืนยันตัวตนและความปลอดภัย (สำคัญมาก)</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <!-- เบอร์โทรศัพท์ -->
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">
+              หมายเลขโทรศัพท์มือถือ (10 หลัก) <span class="text-rose-400">*</span>
+            </label>
+            <div class="relative">
+              <input type="tel" id="userPhone" required pattern="0[0-9]{9}" maxlength="10" placeholder="08XXXXXXXX" class="w-full pl-10 pr-3 py-2.5 rounded-xl bg-slate-800/90 border border-slate-600 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition font-mono tracking-wider">
+              <i class="fa-solid fa-phone absolute left-3.5 top-3 text-slate-400 text-xs"></i>
+            </div>
+            <p class="text-[11px] text-amber-400 mt-1">
+              <i class="fa-solid fa-circle-info"></i> เบอร์นี้จะใช้รับรหัส OTP ผ่าน LINE เมื่อเข้า Dashboard
+            </p>
+          </div>
+
+          <!-- LINE Account / User ID -->
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">
+              ชื่อแสดงบน LINE / LINE ID (ถ้ามี)
+            </label>
+            <div class="relative">
+              <input type="text" id="userLineId" placeholder="เช่น LINE: somchai_rtsd" class="w-full pl-10 pr-3 py-2.5 rounded-xl bg-slate-800/90 border border-slate-600 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition">
+              <i class="fa-brands fa-line absolute left-3.5 top-3 text-emerald-400 text-sm"></i>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-1">เพื่อให้ระบบส่ง OTP และแจ้งเตือนไปยังแชตของท่านได้ทันที</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 3: วัตถุประสงค์การใช้งาน -->
+      <div>
+        <label class="block text-xs font-medium text-slate-300 mb-1">
+          3. วัตถุประสงค์การขอเข้าใช้งานระบบ (ถ้ามี)
+        </label>
+        <textarea id="userPurpose" rows="2" placeholder="ระบุภารกิจหรือวัตถุประสงค์โดยย่อ เช่น ปฏิบัติภารกิจสนับสนุนอุทกภัย, ลาดตระเวนสำรวจพื้นที่, บัญชาการเหตุการณ์..." class="w-full px-3 py-2.5 rounded-xl bg-slate-800/90 border border-slate-600 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition resize-none"></textarea>
+      </div>
+
+      <!-- ข้อตกลงความปลอดภัย -->
+      <div class="p-3.5 rounded-xl bg-slate-900/80 border border-slate-700/80 text-xs text-slate-400 flex items-start gap-2.5">
+        <input type="checkbox" id="agreeTerms" required class="mt-0.5 rounded text-cyan-500 focus:ring-0">
+        <label for="agreeTerms" class="cursor-pointer text-[12px] leading-relaxed">
+          ข้าพเจ้ารับรองว่าข้อมูลข้างต้นเป็นความจริงทุกประการ และยินยอมปฏิบัติตามระเบียบการรักษาความมั่นคงปลอดภัยสารสนเทศของศูนย์บัญชาการ กรมแผนที่ทหาร (RTSD) อย่างเคร่งครัด
+        </label>
+      </div>
+
+      <!-- Submit Button -->
+      <button type="submit" id="submitBtn" class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold text-sm shadow-lg glow-cyan flex items-center justify-center gap-2 transition active:scale-[0.98]">
+        <i class="fa-solid fa-paper-plane"></i>
+        <span>ยื่นคำขอลงทะเบียน (Submit Request)</span>
+      </button>
+    </form>
+  </main>
+
+  <!-- Success Modal Popup -->
+  <div id="successModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="glass-card rounded-2xl max-w-md w-full p-6 text-center border border-emerald-500/50 glow-green animate-fade-in relative">
+      <div class="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto mb-4 border border-emerald-500/40 text-2xl">
+        <i class="fa-solid fa-circle-check"></i>
+      </div>
+
+      <h3 class="text-xl font-bold text-white mb-1">ลงทะเบียนสำเร็จเรียบร้อย!</h3>
+      <p class="text-xs text-emerald-400 mb-4 font-mono" id="reqIdBadge">REQUEST ID: RTSD-REQ-0000</p>
+
+      <div class="bg-slate-800/80 rounded-xl p-3.5 text-left text-xs space-y-1.5 border border-slate-700 mb-5 text-slate-300">
+        <div><span class="text-slate-400">ชื่อ-สกุล:</span> <b class="text-white" id="modalName">-</b></div>
+        <div><span class="text-slate-400">หน่วยงาน:</span> <b class="text-white" id="modalUnit">-</b></div>
+        <div><span class="text-slate-400">เบอร์โทรศัพท์:</span> <b class="text-cyan-400 font-mono" id="modalPhone">-</b></div>
+        <div><span class="text-slate-400">สถานะ:</span> <span class="px-2 py-0.5 rounded text-[10px] bg-emerald-950 text-emerald-300 border border-emerald-600">🟢 พร้อมใช้งานทันที</span></div>
+      </div>
+
+      <p class="text-xs text-slate-400 mb-5 leading-relaxed">
+        ข้อมูลของท่านถูกบันทึกลงในระบบความปลอดภัย RTSD ถาวรแล้ว ท่านสามารถใช้เบอร์นี้เพื่อขอรหัส OTP เข้าหน้าแดชบอร์ด หรือเปิดหน้าส่งพิกัดสดได้ทันทีครับ
+      </p>
+
+      <div class="grid grid-cols-2 gap-2.5">
+        <a href="/dashboard" class="py-2.5 px-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-medium text-xs flex items-center justify-center gap-1.5 transition">
+          <i class="fa-solid fa-chart-line"></i>
+          <span>เข้าสู่ Dashboard</span>
+        </a>
+        <a href="/tracker" class="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs flex items-center justify-center gap-1.5 transition">
+          <i class="fa-solid fa-location-crosshairs"></i>
+          <span>หน้าส่งพิกัดสด GPS</span>
+        </a>
+      </div>
+      <a href="https://line.me/R/ti/p/@411vtica" class="block mt-3 text-xs text-slate-400 hover:text-white transition">
+        <i class="fa-brands fa-line text-emerald-400"></i> กลับไปยังแชต LINE Bot (@411vtica)
+      </a>
+    </div>
+  </div>
+
+  <!-- JavaScript Form Logic -->
+  <script>
+    function toggleRankOther(val) {
+      const otherInput = document.getElementById('userRankOther');
+      if (val === 'อื่นๆ') {
+        otherInput.classList.remove('hidden');
+        otherInput.required = true;
+        otherInput.focus();
+      } else {
+        otherInput.classList.add('hidden');
+        otherInput.required = false;
+      }
+    }
+
+    function toggleUnitOther(val) {
+      const otherInput = document.getElementById('userUnitOther');
+      if (val === 'อื่นๆ') {
+        otherInput.classList.remove('hidden');
+        otherInput.required = true;
+        otherInput.focus();
+      } else {
+        otherInput.classList.add('hidden');
+        otherInput.required = false;
+      }
+    }
+
+    async function handleFormSubmit(e) {
+      e.preventDefault();
+      const submitBtn = document.getElementById('submitBtn');
+
+      let rank = document.getElementById('userRank').value.trim();
+      if (rank === 'อื่นๆ') {
+        rank = document.getElementById('userRankOther').value.trim() || 'อื่นๆ';
+      }
+
+      const name = document.getElementById('userName').value.trim();
+
+      let unit = document.getElementById('userUnitSelect').value.trim();
+      if (unit === 'อื่นๆ') {
+        unit = document.getElementById('userUnitOther').value.trim() || 'หน่วยงานทั่วไป';
+      }
+
+      const position = document.getElementById('userPosition').value.trim() || '-';
+      const phone = document.getElementById('userPhone').value.trim().replace(/-/g, '');
+      const lineId = document.getElementById('userLineId').value.trim() || '-';
+      const role = 'เจ้าหน้าที่ RTSD';
+      const purpose = document.getElementById('userPurpose').value.trim() || 'ปฏิบัติงานสารสนเทศภูมิศาสตร์';
+
+      if (!phone || phone.length < 9 || phone.length > 10) {
+        alert('กรุณากรอกหมายเลขโทรศัพท์ 10 หลักให้ถูกต้อง (เช่น 0812345678)');
+        return;
+      }
+
+      const fullNameWithRank = `${rank} ${name}`.trim();
+
+      // UI Loading state
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>กำลังบันทึกข้อมูลเข้าระบบความปลอดภัย...</span>`;
+
+      try {
+        const payload = {
+          rank: rank,
+          full_name: fullNameWithRank,
+          name_only: name,
+          unit: unit,
+          position: position,
+          phone_number: phone,
+          line_user_id: lineId,
+          role: role,
+          purpose: purpose
+        };
+
+        const res = await fetch('/api/auth/register-request', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.status === 'success') {
+          // Fill modal details
+          document.getElementById('reqIdBadge').innerText = `REQUEST ID: ${data.req_id || 'RTSD-REQ-' + phone.slice(-4)}`;
+          document.getElementById('modalName').innerText = fullNameWithRank;
+          document.getElementById('modalUnit').innerText = unit;
+          document.getElementById('modalPhone').innerText = phone;
+          
+          document.getElementById('successModal').classList.remove('hidden');
+        } else {
+          alert('เกิดข้อผิดพลาด: ' + (data.message || 'ไม่สามารถลงทะเบียนได้'));
+        }
+      } catch (err) {
+        console.error('Submission error:', err);
+        alert('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> <span>ยื่นคำขอลงทะเบียน (Submit Request)</span>`;
+      }
+    }
+  </script>
+</body>
+</html>

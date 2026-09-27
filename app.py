@@ -76,19 +76,32 @@ def fetch_registered_users():
         print(f"Error fetching users: {e}")
 
 
-def save_registered_user(line_user_id, name, phone, role="ผู้ใช้งาน"):
+def save_registered_user(line_user_id, name, phone, role="ผู้ใช้งาน", unit="-", position="-", status="อนุมัติแล้ว", purpose="-"):
     """บันทึกข้อมูลผู้ใช้ใหม่ลง Google Sheets และแคชในหน่วยความจำ"""
     global registered_users, phone_to_user
     clean_phone = phone.replace("-", "").replace(" ", "")
-    registered_users[line_user_id] = {"name": name, "phone": clean_phone, "role": role}
-    phone_to_user[clean_phone] = {"line_user_id": line_user_id, "name": name, "role": role}
+    user_data = {
+        "name": name,
+        "phone": clean_phone,
+        "role": role,
+        "unit": unit,
+        "position": position,
+        "status": status,
+        "purpose": purpose
+    }
+    registered_users[line_user_id] = user_data
+    phone_to_user[clean_phone] = {"line_user_id": line_user_id, **user_data}
     try:
         payload = {
             "action": "register_user",
             "line_user_id": line_user_id,
             "full_name": name,
             "phone_number": clean_phone,
-            "role": role
+            "role": role,
+            "unit": unit,
+            "position": position,
+            "approval_status": status,
+            "purpose": purpose
         }
         requests.post(GOOGLE_SHEET_URL, json=payload, timeout=10)
         return True
@@ -201,6 +214,7 @@ active_trackers = {}
 def index():
     return ("✅ LINE Bot Webhook with Incident Tracking & Command Dashboard is Running Online!<br><br>"
             "👉 เข้าชมหน้า Dashboard ติดตามสถานการณ์ได้ที่: <a href='/dashboard'><b>/dashboard</b></a><br>"
+            "👉 หน้าลงทะเบียนขอใช้งานระบบ (Access Portal): <a href='/register'><b>/register</b></a><br>"
             "👉 เปิดหน้าจอส่งพิกัดสดสำหรับเจ้าหน้าที่ (Live Tracker): <a href='/tracker'><b>/tracker</b></a>")
 
 
@@ -212,6 +226,16 @@ def dashboard():
         with open(html_path, "r", encoding="utf-8") as f:
             return f.read(), 200, {'Content-Type': 'text/html; charset=utf-8'}
     return "Dashboard HTML template not found on server", 404
+
+
+@app.route("/register", methods=['GET'])
+def register_page():
+    """หน้าเว็บ Tactical Registration Portal สำหรับยื่นขอใช้งานระบบ RTSD"""
+    html_path = os.path.join(os.path.dirname(__file__), "register.html")
+    if os.path.exists(html_path):
+        with open(html_path, "r", encoding="utf-8") as f:
+            return f.read(), 200, {'Content-Type': 'text/html; charset=utf-8'}
+    return "Register HTML template not found on server", 404
 
 
 @app.route("/tracker", methods=['GET'])
@@ -373,6 +397,154 @@ def api_verify_otp():
     }), 200
 
 
+@app.route("/api/auth/register-request", methods=['POST'])
+def api_register_request():
+    """รับข้อมูลการลงทะเบียนจากหน้าเว็บ /register แล้วบันทึกลง Google Sheets พร้อมส่งข้อความแจ้งเตือนทาง LINE (ถ้ามี)"""
+    data = request.get_json(silent=True) or {}
+    full_name = str(data.get("full_name", "")).strip()
+    phone = str(data.get("phone_number", "")).strip().replace("-", "").replace(" ", "")
+    unit = str(data.get("unit", "")).strip()
+    position = str(data.get("position", "-")).strip()
+    role = str(data.get("role", "ผู้ใช้งานทั่วไป")).strip()
+    purpose = str(data.get("purpose", "-")).strip()
+    line_user_id = str(data.get("line_user_id", "")).strip()
+
+    if not phone or len(phone) < 9 or len(phone) > 10:
+        return jsonify({"status": "error", "message": "หมายเลขโทรศัพท์ไม่ถูกต้อง (ต้องเป็น 10 หลัก)"}), 400
+
+    if not full_name:
+        return jsonify({"status": "error", "message": "กรุณาระบุชื่อ-นามสกุล"}), 400
+
+    req_id = f"RTSD-REQ-{int(time.time()) % 10000:04d}"
+
+    # บันทึกเข้า Memory Cache และส่งไป Google Sheets
+    save_registered_user(
+        line_user_id=line_user_id if line_user_id and line_user_id != "-" else f"WEB-{phone}",
+        name=full_name,
+        phone=phone,
+        role=role,
+        unit=unit,
+        position=position,
+        status="อนุมัติแล้ว",
+        purpose=purpose
+    )
+
+    # หากมี LINE User ID หรือเบอร์ตรงกับผู้ใช้ LINE ให้ Push แจ้งเตือนทาง LINE ทันที
+    target_lid = line_user_id if (line_user_id and line_user_id.startswith("U")) else None
+    if not target_lid and phone in phone_to_user:
+        target_lid = phone_to_user[phone].get("line_user_id")
+
+    if target_lid and str(target_lid).startswith("U"):
+        try:
+            line_push_msg = (
+                f"🎉 การลงทะเบียนสมาชิก RTSD ได้รับการอนุมัติแล้ว!\n"
+                f"━━━━━━━━━━━━━━━━━━\n"
+                f"📋 รหัสคำขอ: {req_id}\n"
+                f"👤 ผู้ใช้งาน: {full_name}\n"
+                f"🏢 หน่วยงาน: {unit}\n"
+                f"📱 เบอร์โทรศัพท์: {phone}\n"
+                f"🔰 ระดับสิทธิ์: {role}\n"
+                f"━━━━━━━━━━━━━━━━━━\n"
+                f"✨ บัญชีของท่านเปิดใช้งานสมบูรณ์แล้ว สามารถใช้เบอร์นี้ขอรหัส OTP เข้า Dashboard หรือส่งพิกัดสดได้ทันทีครับ"
+            )
+            with ApiClient(configuration) as api_client:
+                line_bot_api = MessagingApi(api_client)
+                line_bot_api.push_message(
+                    PushMessageRequest(
+                        to=target_lid,
+                        messages=[TextMessage(text=line_push_msg)]
+                    )
+                )
+        except Exception as e:
+            print(f"Error pushing LINE registration confirmation: {e}")
+
+    return jsonify({
+        "status": "success",
+        "req_id": req_id,
+        "full_name": full_name,
+        "phone_number": phone,
+        "role": role,
+        "unit": unit
+    }), 200
+
+
+@app.route("/api/admin/users", methods=['GET'])
+def api_admin_get_users():
+    """ส่งรายชื่อผู้ลงทะเบียนทั้งหมดให้แอดมินดูและจัดการสิทธิ์"""
+    fetch_registered_users()
+    users_list = []
+    seen_phones = set()
+    for phone, u in phone_to_user.items():
+        if phone in seen_phones:
+            continue
+        seen_phones.add(phone)
+        users_list.append({
+            "name": u.get("name", "ไม่ระบุชื่อ"),
+            "phone": phone,
+            "unit": u.get("unit", "-"),
+            "position": u.get("position", "-"),
+            "role": u.get("role", "ผู้ใช้งานทั่วไป"),
+            "line_user_id": u.get("line_user_id", "-")
+        })
+    return jsonify(users_list), 200
+
+
+@app.route("/api/admin/update-role", methods=['POST'])
+def api_admin_update_role():
+    """แอดมินปรับเปลี่ยนสิทธิ์ของผู้ใช้งาน (ผู้ใช้งานทั่วไป <-> ผู้ดูแลระบบ)"""
+    data = request.get_json(silent=True) or {}
+    phone = str(data.get("phone", "")).strip().replace("-", "").replace(" ", "")
+    new_role = str(data.get("role", "ผู้ใช้งานทั่วไป")).strip()
+
+    if not phone or phone not in phone_to_user:
+        return jsonify({"status": "error", "message": "ไม่พบหมายเลขโทรศัพท์นี้ในระบบ"}), 404
+
+    user_info = phone_to_user[phone]
+    user_info["role"] = new_role
+    lid = user_info.get("line_user_id", "")
+    if lid in registered_users:
+        registered_users[lid]["role"] = new_role
+
+    # บันทึกลง Google Sheets
+    save_registered_user(
+        line_user_id=lid,
+        name=user_info.get("name", "ผู้ใช้งาน"),
+        phone=phone,
+        role=new_role,
+        unit=user_info.get("unit", "-"),
+        position=user_info.get("position", "-"),
+        status="อนุมัติแล้ว",
+        purpose=user_info.get("purpose", "-")
+    )
+
+    # Push แจ้งเตือนทาง LINE หากมี LINE ID
+    if lid and lid.startswith("U"):
+        try:
+            role_emoji = "⭐" if "แอดมิน" in new_role or "ผู้ดูแล" in new_role or "บัญชา" in new_role else "👤"
+            push_msg = (
+                f"🔔 แจ้งเตือนการปรับเปลี่ยนระดับสิทธิ์\n"
+                f"━━━━━━━━━━━━━━━━━━\n"
+                f"👤 คุณ{user_info.get('name')}\n"
+                f"🔰 ระดับสิทธิ์ใหม่: {role_emoji} {new_role}\n"
+                f"━━━━━━━━━━━━━━━━━━\n"
+                f"ระบบความปลอดภัย RTSD ได้อัปเดตสิทธิ์ของท่านเรียบร้อยแล้วครับ"
+            )
+            with ApiClient(configuration) as api_client:
+                line_bot_api = MessagingApi(api_client)
+                line_bot_api.push_message(
+                    PushMessageRequest(to=lid, messages=[TextMessage(text=push_msg)])
+                )
+        except Exception as e:
+            print(f"Error pushing role change notice: {e}")
+
+    return jsonify({
+        "status": "success",
+        "message": f"ปรับสิทธิ์เป็น '{new_role}' สำเร็จแล้ว",
+        "phone": phone,
+        "new_role": new_role
+    }), 200
+
+
 @app.route("/callback", methods=['POST'])
 def callback():
     signature = request.headers.get('X-Line-Signature', '')
@@ -436,10 +608,10 @@ def handle_follow(event):
             f"📝 เพื่อความปลอดภัยและการยืนยันตัวตน (OTP)\n"
             f"กรุณาลงทะเบียนสมาชิก 1 ครั้ง โดยพิมพ์:\n\n"
             f"👉 [เบอร์โทรศัพท์ 10 หลัก] ส่งเข้ามาได้เลยครับ\n"
-            f"ตัวอย่างเช่น:\n"
-            f"• 0812345678\n"
-            f"• สมชาย 0812345678\n\n"
-            f"✨ เมื่อลงทะเบียนแล้ว ระบบจะจำบัญชีของท่านถาวร สามารถใช้ขอ OTP ล็อกอิน Dashboard และแจ้งเหตุได้ทันทีครับ!"
+            f"ตัวอย่างเช่น: 0812345678 หรือ สมชาย 0812345678\n\n"
+            f"🌐 หรือกรอกข้อมูลแบบละเอียดพร้อมระบุยศ/สังกัดได้ที่:\n"
+            f"https://rtsd-linebot.onrender.com/register\n\n"
+            f"✨ เมื่อลงทะเบียนแล้ว ระบบจะจำบัญชีของท่านถาวรเพื่อขอรับรหัส OTP ล็อกอิน Dashboard ครับ!"
         )
         quick_reply = QuickReply(items=[
             QuickReplyItem(action=MessageAction(label="📝 ลงทะเบียนสมาชิก", text="ลงทะเบียน")),
@@ -655,11 +827,13 @@ def handle_text(event):
         else:
             reply_msg = (f"📝 ลงทะเบียนสมาชิกระบบ RTSD\n"
                          f"━━━━━━━━━━━━━━━━━━\n"
-                         f"กรุณาพิมพ์ [เบอร์โทรศัพท์มือถือ 10 หลัก] ของท่านแล้วกดส่งเข้ามาได้เลยครับ\n\n"
-                         f"ตัวอย่างการพิมพ์:\n"
-                         f"👉 0812345678\n"
-                         f"👉 {user_name} 0812345678\n\n"
-                         f"🔒 ข้อมูลจะถูกจัดเก็บอย่างปลอดภัยสำหรับรับรหัส OTP ล็อกอิน Dashboard ครับ")
+                         f"ท่านสามารถลงทะเบียนได้ 2 วิธี:\n\n"
+                         f"1️⃣ พิมพ์ [เบอร์โทรศัพท์ 10 หลัก] ส่งในแชตนี้ได้ทันที\n"
+                         f"เช่น: 0812345678 หรือ สมชาย 0812345678\n\n"
+                         f"2️⃣ หรือกรอกฟอร์มพร้อมระบุ ยศ/สังกัด/สิทธิ์ ผ่านหน้าเว็บ:\n"
+                         f"👉 https://rtsd-linebot.onrender.com/register\n"
+                         f"━━━━━━━━━━━━━━━━━━\n"
+                         f"🔒 ข้อมูลจะถูกจัดเก็บสำหรับรับรหัส OTP เข้าหน้าแดชบอร์ดครับ")
         quick_reply = QuickReply(items=[
             QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุเตือนภัย", text="แจ้งเหตุ")),
             QuickReplyItem(action=MessageAction(label="🔍 ติดตามสถานะ", text="ติดตามสถานะ"))
@@ -674,6 +848,56 @@ def handle_text(event):
             )
         return
 
+    # 0.5. คำสั่งพิเศษสำหรับแอดมิน: ตั้งแอดมิน / ปลดแอดมิน
+    if user_text.startswith("ตั้งแอดมิน") or user_text.startswith("ปลดแอดมิน"):
+        is_sender_admin = user_info and any(k in user_info.get("role", "") for k in ["แอดมิน", "ผู้ดูแล", "บัญชา"])
+        if not is_sender_admin:
+            reply_msg = "⛔ ขออภัยครับ เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่สามารถปรับเปลี่ยนสิทธิ์ได้ครับ"
+        else:
+            target_match = re.search(r'(0[689]\d{8}|0[2-9]\d{7})', user_text)
+            if not target_match:
+                reply_msg = "⚠️ กรุณาระบุเบอร์โทรศัพท์ของบุคคลที่ต้องการปรับสิทธิ์ด้วยครับ เช่น:\n👉 'ตั้งแอดมิน 0812345678'\n👉 'ปลดแอดมิน 0812345678'"
+            else:
+                target_phone = target_match.group(1)
+                new_r = "ผู้ดูแลระบบ (Admin)" if "ตั้งแอดมิน" in user_text else "ผู้ใช้งานทั่วไป"
+                if target_phone not in phone_to_user:
+                    fetch_registered_users()
+                if target_phone not in phone_to_user:
+                    reply_msg = f"⚠️ ไม่พบบัญชีเบอร์โทร {target_phone} ในระบบ กรุณาให้บุคคลดังกล่าวลงทะเบียนก่อนครับ"
+                else:
+                    target_u = phone_to_user[target_phone]
+                    target_u["role"] = new_r
+                    target_lid = target_u.get("line_user_id", "")
+                    if target_lid in registered_users:
+                        registered_users[target_lid]["role"] = new_r
+                    save_registered_user(
+                        line_user_id=target_lid,
+                        name=target_u.get("name", "ผู้ใช้งาน"),
+                        phone=target_phone,
+                        role=new_r,
+                        unit=target_u.get("unit", "-"),
+                        position=target_u.get("position", "-"),
+                        status="อนุมัติแล้ว",
+                        purpose=target_u.get("purpose", "-")
+                    )
+                    reply_msg = f"✅ ดำเนินการปรับสิทธิ์ คุณ{target_u.get('name')} ({target_phone})\nเป็น: ⭐ {new_r} เรียบร้อยแล้วครับ!"
+                    if target_lid and target_lid.startswith("U"):
+                        try:
+                            with ApiClient(configuration) as api_client:
+                                line_bot_api = MessagingApi(api_client)
+                                line_bot_api.push_message(
+                                    PushMessageRequest(to=target_lid, messages=[TextMessage(text=f"🔔 บัญชีของท่านได้รับการปรับสิทธิ์เป็น: ⭐ {new_r} โดยผู้ดูแลระบบ RTSD")])
+                                )
+                        except Exception:
+                            pass
+
+        with ApiClient(configuration) as api_client:
+            line_bot_api = MessagingApi(api_client)
+            line_bot_api.reply_message(
+                ReplyMessageRequest(reply_token=event.reply_token, messages=[TextMessage(text=reply_msg)])
+            )
+        return
+
     # 1. ผู้ใช้พิมพ์เบอร์โทรศัพท์เข้ามา เพื่อลงทะเบียนยืนยันตัวตน
     phone_match = re.search(r'(0[689]\d{8}|0[2-9]\d{7})', user_text)
     if phone_match and (any(w in user_text for w in ["ลงทะเบียน", "สมัคร", "เบอร์", "โทร"]) or not user_info):
@@ -681,7 +905,7 @@ def handle_text(event):
         name_part = re.sub(r'0[689]\d{8}|0[2-9]\d{7}', '', user_text)
         name_part = name_part.replace("ลงทะเบียน", "").replace("เบอร์", "").replace("โทร", "").replace("ชื่อ", "").strip()
         reg_name = name_part if len(name_part) >= 2 else user_name
-        role = "เจ้าหน้าที่ RTSD" if any(w in user_text for w in ["ทหาร", "จนท", "เจ้าหน้าที่", "ร้อย", "พัน", "หมวด"]) else "ผู้ใช้งานทั่วไป"
+        role = "ผู้ใช้งานทั่วไป"
         
         save_registered_user(user_id, reg_name, clean_phone, role)
         user_sessions[user_id]["user_name"] = f"{reg_name} ({clean_phone})"
