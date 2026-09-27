@@ -1,4 +1,6 @@
 import os
+import re
+import time
 import base64
 import requests
 from flask import Flask, request, abort, jsonify
@@ -66,9 +68,65 @@ def save_to_google_sheet(lat, lon, title, address, reporter, urgency, incident_t
         return False
 
 
+def get_user_incidents(query_text=None, user_name=None):
+    """ดึงข้อมูลสถานะการแจ้งเหตุจาก Google Sheets (ผ่าน doGet) เพื่อระบบ Tracking"""
+    try:
+        res = requests.get(GOOGLE_SHEET_URL, timeout=20)
+        if res.status_code != 200:
+            return []
+        rows = res.json()
+        if not rows or len(rows) <= 1:
+            return []
+        
+        data_rows = rows[1:]  # ข้ามแถวหัวตาราง
+        matched = []
+        
+        # ค้นหาจากแถวใหม่ล่าสุดย้อนกลับไปแถวแรก
+        for r in reversed(data_rows):
+            if len(r) < 9:
+                continue
+            timestamp = str(r[0])
+            title = str(r[1])
+            address = str(r[2])
+            reporter = str(r[5])
+            urgency = str(r[6])
+            incident_type = str(r[7])
+            status = str(r[8]).strip() or "⏳ รอดำเนินการ"
+            media_url = str(r[9]) if len(r) > 9 else "-"
+            
+            # ถ้าผู้ใช้ระบุรหัสเหตุ เช่น RTSD-1234
+            if query_text and (query_text.lower() in title.lower() or query_text.lower() in timestamp.lower()):
+                matched.append({
+                    "timestamp": timestamp,
+                    "title": title,
+                    "address": address,
+                    "reporter": reporter,
+                    "urgency": urgency,
+                    "incident_type": incident_type,
+                    "status": status,
+                    "media_url": media_url
+                })
+            # ถ้าไม่ระบุรหัส ให้ค้นจากชื่อผู้แจ้ง
+            elif user_name and user_name.lower() in reporter.lower():
+                matched.append({
+                    "timestamp": timestamp,
+                    "title": title,
+                    "address": address,
+                    "reporter": reporter,
+                    "urgency": urgency,
+                    "incident_type": incident_type,
+                    "status": status,
+                    "media_url": media_url
+                })
+        return matched
+    except Exception as e:
+        print(f"Error fetching incidents for tracking: {e}")
+        return []
+
+
 @app.route("/", methods=['GET'])
 def index():
-    return "✅ LINE Bot Webhook for RTSD GIS & Media Storage is Running Online (v2 - Direct Token)!"
+    return "✅ LINE Bot Webhook with Incident Tracking for RTSD GIS is Running Online!"
 
 
 @app.route("/callback", methods=['POST'])
@@ -140,6 +198,10 @@ def handle_image(event):
     urgency = session.get("urgency", "🟡 ปานกลาง")
     incident_type = session.get("incident_type", "🌊 น้ำท่วมขัง")
 
+    # ออกรหัสติดตามเหตุการณ์เฉพาะ (Report Tracking ID)
+    report_id = f"RTSD-{int(time.time()) % 100000:04d}"
+    title = f"[{report_id}] แจ้งเหตุ: {incident_type}"
+
     # ดาวน์โหลดรูปจาก LINE API
     file_base64 = None
     try:
@@ -154,20 +216,28 @@ def handle_image(event):
     mime_type = "image/jpeg"
 
     # บันทึกข้อมูลและรูปเข้า Google Sheets + Drive
-    save_to_google_sheet(lat, lon, f"แจ้งเหตุ: {incident_type}", address, reporter, urgency, incident_type, file_base64, file_name, mime_type)
+    save_to_google_sheet(lat, lon, title, address, reporter, urgency, incident_type, file_base64, file_name, mime_type)
 
     reply = (f"✅ บันทึกข้อมูลและรูปถ่ายหลักฐานสำเร็จ!\n\n"
+             f"🆔 รหัสติดตามเหตุ: #{report_id}\n"
              f"👤 ผู้แจ้ง: {reporter}\n"
              f"🚨 เหตุการณ์: {incident_type}\n"
              f"⚠️ ความเร่งด่วน: {urgency}\n"
-             f"📸 ไฟล์ภาพ: บันทึกลง Drive RTSD เรียบร้อยแล้วครับ")
+             f"⏳ สถานะ: ⏳ รอดำเนินการ\n"
+             f"📸 รูปถ่าย: บันทึกลง Drive RTSD เรียบร้อยแล้วครับ\n\n"
+             f"💡 ท่านสามารถกดปุ่ม '🔍 ติดตาม #{report_id}' ด้านล่าง เพื่อเช็กความคืบหน้าได้ตลอดเวลาครับ")
+
+    quick_reply = QuickReply(items=[
+        QuickReplyItem(action=MessageAction(label=f"🔍 ติดตาม #{report_id}", text=f"ติดตาม {report_id}")),
+        QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุใหม่", text="แจ้งเหตุ"))
+    ])
 
     with ApiClient(configuration) as api_client:
         line_bot_api = MessagingApi(api_client)
         line_bot_api.reply_message(
             ReplyMessageRequest(
                 reply_token=event.reply_token,
-                messages=[TextMessage(text=reply)]
+                messages=[TextMessage(text=reply, quick_reply=quick_reply)]
             )
         )
 
@@ -189,6 +259,9 @@ def handle_video(event):
     urgency = session.get("urgency", "🟡 ปานกลาง")
     incident_type = session.get("incident_type", "🌊 น้ำท่วมขัง")
 
+    report_id = f"RTSD-{int(time.time()) % 100000:04d}"
+    title = f"[{report_id}] แจ้งเหตุ: {incident_type}"
+
     # ดาวน์โหลดวิดีโอจาก LINE API
     file_base64 = None
     try:
@@ -203,20 +276,28 @@ def handle_video(event):
     mime_type = "video/mp4"
 
     # บันทึกข้อมูลและคลิปเข้า Google Sheets + Drive
-    save_to_google_sheet(lat, lon, f"แจ้งเหตุ: {incident_type}", address, reporter, urgency, incident_type, file_base64, file_name, mime_type)
+    save_to_google_sheet(lat, lon, title, address, reporter, urgency, incident_type, file_base64, file_name, mime_type)
 
     reply = (f"✅ บันทึกข้อมูลและคลิปวิดีโอหลักฐานสำเร็จ!\n\n"
+             f"🆔 รหัสติดตามเหตุ: #{report_id}\n"
              f"👤 ผู้แจ้ง: {reporter}\n"
              f"🚨 เหตุการณ์: {incident_type}\n"
              f"⚠️ ความเร่งด่วน: {urgency}\n"
-             f"🎥 คลิปวิดีโอ: บันทึกลง Drive RTSD เรียบร้อยแล้วครับ")
+             f"⏳ สถานะ: ⏳ รอดำเนินการ\n"
+             f"🎥 คลิปวิดีโอ: บันทึกลง Drive RTSD เรียบร้อยแล้วครับ\n\n"
+             f"💡 ท่านสามารถกดปุ่ม '🔍 ติดตาม #{report_id}' ด้านล่าง เพื่อเช็กความคืบหน้าได้ตลอดเวลาครับ")
+
+    quick_reply = QuickReply(items=[
+        QuickReplyItem(action=MessageAction(label=f"🔍 ติดตาม #{report_id}", text=f"ติดตาม {report_id}")),
+        QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุใหม่", text="แจ้งเหตุ"))
+    ])
 
     with ApiClient(configuration) as api_client:
         line_bot_api = MessagingApi(api_client)
         line_bot_api.reply_message(
             ReplyMessageRequest(
                 reply_token=event.reply_token,
-                messages=[TextMessage(text=reply)]
+                messages=[TextMessage(text=reply, quick_reply=quick_reply)]
             )
         )
 
@@ -254,22 +335,32 @@ def handle_text(event):
         urgency = session.get("urgency", "🟡 ปานกลาง")
         incident_type = session.get("incident_type", "🌊 น้ำท่วมขัง")
 
-        save_to_google_sheet(lat, lon, f"แจ้งเหตุ: {incident_type}", address, user_name, urgency, incident_type)
+        report_id = f"RTSD-{int(time.time()) % 100000:04d}"
+        title = f"[{report_id}] แจ้งเหตุ: {incident_type}"
+
+        save_to_google_sheet(lat, lon, title, address, user_name, urgency, incident_type)
 
         reply = (f"✅ บันทึกข้อมูลเรียบร้อยแล้ว!\n\n"
+                 f"🆔 รหัสติดตามเหตุ: #{report_id}\n"
                  f"👤 ผู้แจ้ง: {user_name}\n"
                  f"🚨 เหตุการณ์: {incident_type}\n"
                  f"⚠️ ความเร่งด่วน: {urgency}\n"
+                 f"⏳ สถานะ: ⏳ รอดำเนินการ\n"
                  f"📍 พิกัด: {lat}, {lon}\n"
                  f"🏠 สถานที่: {address}\n\n"
-                 f"ระบบได้บันทึกข้อมูลเข้าสู่ฐานข้อมูลตาราง RTSD เรียบร้อยแล้วครับ")
+                 f"💡 ท่านสามารถกดปุ่ม '🔍 ติดตาม #{report_id}' ด้านล่าง เพื่อเช็กความคืบหน้าได้ตลอดเวลาครับ")
+
+        quick_reply = QuickReply(items=[
+            QuickReplyItem(action=MessageAction(label=f"🔍 ติดตาม #{report_id}", text=f"ติดตาม {report_id}")),
+            QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุใหม่", text="แจ้งเหตุ"))
+        ])
 
         with ApiClient(configuration) as api_client:
             line_bot_api = MessagingApi(api_client)
             line_bot_api.reply_message(
                 ReplyMessageRequest(
                     reply_token=event.reply_token,
-                    messages=[TextMessage(text=reply)]
+                    messages=[TextMessage(text=reply, quick_reply=quick_reply)]
                 )
             )
 
@@ -277,20 +368,69 @@ def handle_text(event):
             del user_sessions[user_id]
         return
 
+    # =========================================================================
+    # 🔍 ระบบติดตามสถานะงาน (Incident Status Tracking)
+    # =========================================================================
+    if user_text in ['ติดตาม', 'ติดตามสถานะ', 'เช็กสถานะ', 'ตรวจสถานะ', 'สถานะ', 'status'] or user_text.startswith("ติดตาม") or "rtsd-" in user_text.lower():
+        # ตรวจสอบว่าผู้ใช้พิมพ์รหัสมาด้วยหรือไม่ เช่น "ติดตาม RTSD-1234" หรือ "RTSD-1234"
+        id_match = re.search(r'rtsd-\d+', user_text, re.IGNORECASE)
+        search_id = id_match.group(0).upper() if id_match else None
+
+        incidents = get_user_incidents(query_text=search_id, user_name=user_name if not search_id else None)
+
+        if incidents:
+            top = incidents[0]  # รายการล่าสุด
+            time_display = top['timestamp'].replace('T', ' ').replace('.000Z', ' น.')
+            
+            # สัญลักษณ์สถานะ
+            status_text = top['status']
+            if 'เสร็จ' in status_text or 'เรียบร้อย' in status_text:
+                status_icon = "🟢"
+            elif 'ดำเนิน' in status_text:
+                status_icon = "🟡"
+            else:
+                status_icon = "⏳"
+
+            reply_msg = (f"📋 ผลการตรวจสอบสถานะการแจ้งเหตุ\n"
+                         f"──────────────────────\n"
+                         f"📌 เรื่อง: {top['title']}\n"
+                         f"🚨 ประเภท: {top['incident_type']}\n"
+                         f"⚠️ ความเร่งด่วน: {top['urgency']}\n"
+                         f"🏠 สถานที่: {top['address']}\n"
+                         f"{status_icon} สถานะปัจจุบัน: 【 {top['status']} 】\n"
+                         f"⏰ เวลาที่แจ้ง: {time_display}\n"
+                         f"──────────────────────\n"
+                         f"ℹ️ เจ้าหน้าที่ศูนย์ RTSD ได้รับข้อมูลและอยู่ระหว่างดำเนินการครับ")
+            
+            refresh_cmd = f"ติดตาม {search_id}" if search_id else "ติดตามสถานะ"
+            quick_reply = QuickReply(items=[
+                QuickReplyItem(action=MessageAction(label="🔄 รีเฟรชสถานะ", text=refresh_cmd)),
+                QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุใหม่", text="แจ้งเหตุ"))
+            ])
+        else:
+            reply_msg = (f"🔍 ไม่พบข้อมูลประวัติการแจ้งเหตุของคุณ {user_name}\n\n"
+                         f"หากท่านมีรหัสติดตาม สามารถพิมพ์ เช่น:\n"
+                         f"'ติดตาม RTSD-1234' เพื่อค้นหาได้เลยครับ")
+            quick_reply = QuickReply(items=[
+                QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุเตือนภัย", text="แจ้งเหตุ"))
+            ])
+        
+        reply_message = TextMessage(text=reply_msg, quick_reply=quick_reply)
+
     # ด่านที่ 1: ผู้ใช้เริ่มแจ้งเหตุ -> เด้ง Dropdown ให้เลือก "ประเภทเหตุการณ์"
-    if user_text in ['ช่วย', 'แจ้งเหตุ', 'แจ้งเตือน', 'menu', 'วิธีใช้', 'สวัสดี', 'hi', 'hello']:
+    elif user_text in ['ช่วย', 'แจ้งเหตุ', 'แจ้งเตือน', 'menu', 'วิธีใช้', 'สวัสดี', 'hi', 'hello']:
         quick_reply = QuickReply(items=[
             QuickReplyItem(action=MessageAction(label="🌊 น้ำท่วมขัง", text="เลือกเหตุ: 🌊 น้ำท่วมขัง")),
             QuickReplyItem(action=MessageAction(label="🚧 ถนนชำรุด", text="เลือกเหตุ: 🚧 ดินถล่ม / ผิวทางชำรุด")),
             QuickReplyItem(action=MessageAction(label="💥 อุบัติเหตุ", text="เลือกเหตุ: 💥 อุบัติเหตุจราจร")),
             QuickReplyItem(action=MessageAction(label="🔥 ไฟไหม้", text="เลือกเหตุ: 🔥 ไฟไหม้ / หมอกควัน")),
+            QuickReplyItem(action=MessageAction(label="🔍 ติดตามสถานะ", text="ติดตามสถานะ")),
             QuickReplyItem(action=MessageAction(label="📌 อื่นๆ", text="เลือกเหตุ: 📌 อื่นๆ"))
         ])
         reply_message = TextMessage(
-            text=f"สวัสดีครับคุณ {user_name} 🚨\nกรุณาเลือก [ประเภทเหตุการณ์] ที่พบด้านล่างนี้ครับ 👇",
+            text=f"สวัสดีครับคุณ {user_name} 🚨\nกรุณาเลือก [ประเภทเหตุการณ์] หรือเลือก [ติดตามสถานะ] ด้านล่างนี้ครับ 👇",
             quick_reply=quick_reply
         )
-
 
     # ด่านที่ 2: เลือกประเภทเหตุการณ์แล้ว -> เด้ง Dropdown ให้เลือก "ระดับความเร่งด่วน"
     elif user_text.startswith("เลือกเหตุ:"):
@@ -307,7 +447,7 @@ def handle_text(event):
             quick_reply=quick_reply
         )
 
-    # ด่านที่ 3: เลือกระดับความเร่งด่วนแล้ว -> เด้งปุ่มให้ "กดแชร์พิกัดสถานที่"
+    # ด่านที่ 3: เลือกระดับความเร่งด่วนแล้ว -> เด้งปุ่มให้ "กดแชร์พิกัดสถานที่" (หรือพิมพ์ตัวเลขพิกัดจากคอม)
     elif user_text.startswith("ระดับ:"):
         urgency = user_text.replace("ระดับ:", "").strip()
         user_sessions[user_id]["urgency"] = urgency
@@ -316,16 +456,46 @@ def handle_text(event):
             QuickReplyItem(action=LocationAction(label="📍 กดแชร์พิกัดจุดเกิดเหตุ"))
         ])
         reply_message = TextMessage(
-            text=f"ระดับความเร่งด่วน: [{urgency}]\n\n👉 ขั้นตอนถัดไป: กรุณากดปุ่ม '📍 กดแชร์พิกัดจุดเกิดเหตุ' ด้านล่างนี้ครับ 👇",
+            text=(f"ระดับความเร่งด่วน: [{urgency}]\n\n"
+                  f"👉 ขั้นตอนถัดไป: กรุณาระบุพิกัดสถานที่เกิดเหตุ\n"
+                  f"📱 สำหรับมือถือ: กดปุ่ม '📍 กดแชร์พิกัดจุดเกิดเหตุ' ด้านล่างได้เลยครับ\n"
+                  f"💻 สำหรับคอมพิวเตอร์ (LINE PC): สามารถพิมพ์ตัวเลขพิกัดส่งมาได้เลยครับ เช่น:\n"
+                  f"13.7857, 100.5912"),
+            quick_reply=quick_reply
+        )
+
+    # ด่านเสริมสำหรับ LINE บนคอมพิวเตอร์: ผู้ใช้พิมพ์ตัวเลขพิกัด Lat, Lon ส่งเข้ามา
+    elif re.search(r'([-+]?\d{1,2}\.\d+)[,\s]+([-+]?\d{1,3}\.\d+)', user_text):
+        coord_match = re.search(r'([-+]?\d{1,2}\.\d+)[,\s]+([-+]?\d{1,3}\.\d+)', user_text)
+        lat = float(coord_match.group(1))
+        lon = float(coord_match.group(2))
+
+        session = user_sessions.get(user_id, {})
+        session["lat"] = lat
+        session["lon"] = lon
+        session["address"] = f"พิกัดระบุเอง: {lat}, {lon}"
+        session["title"] = f"จุดแจ้งเหตุ ({lat:.4f}, {lon:.4f})"
+        session["waiting_for_media"] = True
+        user_sessions[user_id] = session
+
+        quick_reply = QuickReply(items=[
+            QuickReplyItem(action=MessageAction(label="⏩ ข้าม (ไม่ส่งรูป)", text="ข้ามการส่งรูป"))
+        ])
+        reply_message = TextMessage(
+            text=(f"📍 ได้รับพิกัดจากคอมพิวเตอร์เรียบร้อยแล้วครับ!\n\n"
+                  f"📌 ละติจูด: {lat}\n"
+                  f"📌 ลองจิจูด: {lon}\n\n"
+                  f"📸 เพื่อความสมบูรณ์ของข้อมูล กรุณาส่ง [รูปถ่าย] หรือ [คลิปวิดีโอ] หลักฐานเข้ามาได้เลยครับ (หรือกดปุ่ม '⏩ ข้าม (ไม่ส่งรูป)' ด้านล่าง)"),
             quick_reply=quick_reply
         )
 
     else:
         quick_reply = QuickReply(items=[
-            QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุเตือนภัย", text="แจ้งเหตุ"))
+            QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุเตือนภัย", text="แจ้งเหตุ")),
+            QuickReplyItem(action=MessageAction(label="🔍 ติดตามสถานะ", text="ติดตามสถานะ"))
         ])
         reply_message = TextMessage(
-            text=f"หากต้องการแจ้งเหตุเตือนภัย กรุณากดปุ่ม '🚨 แจ้งเหตุเตือนภัย' ด้านล่างนี้ได้เลยครับ 👇",
+            text=f"หากต้องการแจ้งเหตุ หรือติดตามสถานะงาน กรุณาเลือกปุ่มด้านล่างนี้ได้เลยครับ 👇",
             quick_reply=quick_reply
         )
 
