@@ -6,12 +6,14 @@ import requests
 from flask import Flask, request, abort, jsonify
 from linebot.v3 import WebhookHandler
 from linebot.v3.exceptions import InvalidSignatureError
+import random
 from linebot.v3.messaging import (
     Configuration,
     ApiClient,
     MessagingApi,
     MessagingApiBlob,
     ReplyMessageRequest,
+    PushMessageRequest,
     TextMessage,
     QuickReply,
     QuickReplyItem,
@@ -31,19 +33,67 @@ app = Flask(__name__)
 # =========================================================================
 # 🔴 1. ข้อมูล LINE Bot ของคุณ
 # =========================================================================
-CHANNEL_SECRET = '95fadcaa0b4890bf137239eb0122230c'
-CHANNEL_ACCESS_TOKEN = 'tZwEj7/Os0MEb2g5oQMsZc6/8Uvt0AID8SVj/O5dyRkph1hgP8H3JSdduIh+SIXjQI1rPILjCx3ZVuG+WszETDZxOZZ2oXki4wCIF/kz26gjfE+iz8GCQtYCj4cbFLv3EQrOv/YrsWJ/VwMDns4f7gdB04t89/1O/w1cDnyilFU='
+CHANNEL_SECRET = os.environ.get('CHANNEL_SECRET', '95fadcaa0b4890bf137239eb0122230c')
+CHANNEL_ACCESS_TOKEN = os.environ.get('CHANNEL_ACCESS_TOKEN', 'tZwEj7/Os0MEb2g5oQMsZc6/8Uvt0AID8SVj/O5dyRkph1hgP8H3JSdduIh+SIXjQI1rPILjCx3ZVuG+WszETDZxOZZ2oXki4wCIF/kz26gjfE+iz8GCQtYCj4cbFLv3EQrOv/YrsWJ/VwMDns4f7gdB04t89/1O/w1cDnyilFU=')
 
 configuration = Configuration(access_token=CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(CHANNEL_SECRET)
 
 # =========================================================================
-# 🔴 2. ข้อมูล Google Sheets Webhook URL
+# 🔴 2. ข้อมูล Google Sheets Webhook URL & Master PIN
 # =========================================================================
-GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbw5Gepu7a5s9j1vXtgE55403L0K3sKtOcpUNArNCm6RJO1ulNp735XyZgAbTlMBwxI/exec"
+GOOGLE_SHEET_URL = os.environ.get('GOOGLE_SHEET_URL', "https://script.google.com/macros/s/AKfycbw5Gepu7a5s9j1vXtgE55403L0K3sKtOcpUNArNCm6RJO1ulNp735XyZgAbTlMBwxI/exec")
+MASTER_PIN = os.environ.get('MASTER_PIN', 'RTSD2024')
 
 # ที่เก็บสถานะการสนทนาชั่วคราวของผู้ใช้ (User State Session)
 user_sessions = {}
+
+# 🛡️ ฐานข้อมูลผู้ใช้ที่ลงทะเบียนยืนยันตัวตนแล้ว (User Registry & OTP Cache)
+registered_users = {}  # { line_user_id: {"name": ..., "phone": ..., "role": ...} }
+phone_to_user = {}     # { phone: {"line_user_id": ..., "name": ..., "role": ...} }
+otp_cache = {}         # { phone: {"otp": "123456", "expires_at": timestamp, "user_info": ...} }
+
+
+def fetch_registered_users():
+    """ดึงรายชื่อผู้ใช้ที่ลงทะเบียนแล้วจาก Google Sheets เข้ามาเก็บในแคช"""
+    global registered_users, phone_to_user
+    try:
+        res = requests.post(GOOGLE_SHEET_URL, json={"action": "get_users"}, timeout=10)
+        if res.status_code == 200:
+            users = res.json()
+            if isinstance(users, list):
+                for u in users:
+                    lid = str(u.get("line_user_id", "")).strip()
+                    phone = str(u.get("phone_number", "")).strip().replace("-", "").replace(" ", "")
+                    name = str(u.get("full_name", "")).strip()
+                    role = str(u.get("role", "ผู้ใช้งาน")).strip()
+                    if lid:
+                        registered_users[lid] = {"name": name, "phone": phone, "role": role}
+                    if phone:
+                        phone_to_user[phone] = {"line_user_id": lid, "name": name, "role": role}
+    except Exception as e:
+        print(f"Error fetching users: {e}")
+
+
+def save_registered_user(line_user_id, name, phone, role="ผู้ใช้งาน"):
+    """บันทึกข้อมูลผู้ใช้ใหม่ลง Google Sheets และแคชในหน่วยความจำ"""
+    global registered_users, phone_to_user
+    clean_phone = phone.replace("-", "").replace(" ", "")
+    registered_users[line_user_id] = {"name": name, "phone": clean_phone, "role": role}
+    phone_to_user[clean_phone] = {"line_user_id": line_user_id, "name": name, "role": role}
+    try:
+        payload = {
+            "action": "register_user",
+            "line_user_id": line_user_id,
+            "full_name": name,
+            "phone_number": clean_phone,
+            "role": role
+        }
+        requests.post(GOOGLE_SHEET_URL, json=payload, timeout=10)
+        return True
+    except Exception as e:
+        print(f"Error registering user: {e}")
+        return False
 
 
 def save_to_google_sheet(lat, lon, title, address, reporter, urgency, incident_type, file_base64=None, file_name=None, mime_type=None):
@@ -66,6 +116,24 @@ def save_to_google_sheet(lat, lon, title, address, reporter, urgency, incident_t
     except Exception as e:
         print(f"Error saving to Google Sheets: {e}")
         return False
+
+
+def update_google_sheet_status(title=None, timestamp=None, new_status="🟢 แก้ไขแล้วเสร็จ"):
+    """ส่งคำสั่งไปค้นหาแถวเดิมและอัปเดตสถานะใน Google Sheets"""
+    try:
+        payload = {
+            "action": "update_status",
+            "title": str(title) if title else "",
+            "timestamp": str(timestamp) if timestamp else "",
+            "status": str(new_status)
+        }
+        res = requests.post(GOOGLE_SHEET_URL, json=payload, timeout=20)
+        if res.status_code == 200:
+            return res.json()
+        return {"status": "error", "message": f"HTTP {res.status_code}"}
+    except Exception as e:
+        print(f"Error updating incident status: {e}")
+        return {"status": "error", "message": str(e)}
 
 
 def get_user_incidents(query_text=None, user_name=None):
@@ -124,10 +192,15 @@ def get_user_incidents(query_text=None, user_name=None):
         return []
 
 
+# ที่เก็บข้อมูลพิกัดสดของหน่วยกำลังพล / ยานพาหนะ (In-memory Active Units)
+active_trackers = {}
+
+
 @app.route("/", methods=['GET'])
 def index():
     return ("✅ LINE Bot Webhook with Incident Tracking & Command Dashboard is Running Online!<br><br>"
-            "👉 เข้าชมหน้า Dashboard ติดตามสถานการณ์ได้ที่: <a href='/dashboard'><b>/dashboard</b></a>")
+            "👉 เข้าชมหน้า Dashboard ติดตามสถานการณ์ได้ที่: <a href='/dashboard'><b>/dashboard</b></a><br>"
+            "👉 เปิดหน้าจอส่งพิกัดสดสำหรับเจ้าหน้าที่ (Live Tracker): <a href='/tracker'><b>/tracker</b></a>")
 
 
 @app.route("/dashboard", methods=['GET'])
@@ -140,6 +213,42 @@ def dashboard():
     return "Dashboard HTML template not found on server", 404
 
 
+@app.route("/tracker", methods=['GET'])
+def tracker_page():
+    """หน้าเว็บ Tactical Live GPS Tracker สำหรับเจ้าหน้าที่เปิดบนมือถือ"""
+    html_path = os.path.join(os.path.dirname(__file__), "tracker.html")
+    if os.path.exists(html_path):
+        with open(html_path, "r", encoding="utf-8") as f:
+            return f.read(), 200, {'Content-Type': 'text/html; charset=utf-8'}
+    return "Tracker HTML template not found on server", 404
+
+
+@app.route("/api/tracker/update", methods=['POST'])
+def api_tracker_update():
+    """รับสัญญาณ Heartbeat พิกัด GPS สดจากมือถือเจ้าหน้าที่"""
+    data = request.get_json(silent=True) or {}
+    unit_id = str(data.get("unit_id", "UNIT-01")).strip()
+    active_trackers[unit_id] = {
+        "unit_id": unit_id,
+        "unit_name": str(data.get("unit_name", "ชุดปฏิบัติการ")),
+        "commander": str(data.get("commander", "หัวหน้าชุด")),
+        "latitude": float(data.get("latitude", 0)),
+        "longitude": float(data.get("longitude", 0)),
+        "speed": float(data.get("speed", 0)),
+        "heading": float(data.get("heading", 0)),
+        "battery": int(data.get("battery", 100)),
+        "status": str(data.get("status", "🟢 กำลังปฏิบัติภารกิจ")),
+        "last_update": data.get("timestamp", time.strftime("%Y-%m-%d %H:%M:%S"))
+    }
+    return jsonify({"status": "success", "unit_id": unit_id}), 200
+
+
+@app.route("/api/tracker/units", methods=['GET'])
+def api_tracker_units():
+    """ส่งรายการพิกัดสดของทุกหน่วยให้ Dashboard และ Geoportal RTSD Sync"""
+    return jsonify(list(active_trackers.values())), 200
+
+
 @app.route("/api/incidents", methods=['GET'])
 def api_incidents():
     """API ดึงข้อมูลเหตุการณ์ทั้งหมดจาก Google Sheets สำหรับ Dashboard"""
@@ -148,6 +257,119 @@ def api_incidents():
         return jsonify(res.json()), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/incident/update-status", methods=['POST'])
+def api_update_incident_status():
+    """API สำหรับให้ Dashboard หรือระบบภายนอกสั่งเปลี่ยนสถานะของเหตุการณ์เดิม"""
+    data = request.get_json(silent=True) or {}
+    title = data.get("title", "")
+    timestamp = data.get("timestamp", "")
+    new_status = data.get("status", "🟢 แก้ไขแล้วเสร็จ")
+
+    result = update_google_sheet_status(title=title, timestamp=timestamp, new_status=new_status)
+    return jsonify(result), 200
+
+
+@app.route("/api/auth/request-otp", methods=['POST'])
+def api_request_otp():
+    """สร้างรหัส OTP 6 หลัก แล้วส่งเข้าแชท LINE ของเจ้าหน้าที่โดยตรง"""
+    data = request.get_json(silent=True) or {}
+    phone = str(data.get("phone", "")).strip().replace("-", "").replace(" ", "")
+
+    if not phone or len(phone) < 9:
+        return jsonify({"status": "error", "message": "กรุณาระบุเบอร์โทรศัพท์ให้ถูกต้อง (9-10 หลัก)"}), 400
+
+    # ค้นหาข้อมูลผู้ใช้จากเบอร์โทร
+    user_info = phone_to_user.get(phone)
+    if not user_info:
+        fetch_registered_users()
+        user_info = phone_to_user.get(phone)
+
+    otp_code = f"{random.randint(100000, 999999)}"
+    otp_cache[phone] = {
+        "otp": otp_code,
+        "expires_at": time.time() + 300,  # 5 นาที
+        "user_info": user_info
+    }
+
+    sent_via_line = False
+    if user_info and user_info.get("line_user_id"):
+        target_line_id = user_info["line_user_id"]
+        try:
+            with ApiClient(configuration) as api_client:
+                line_bot_api = MessagingApi(api_client)
+                push_text = (f"🔐 รหัส OTP สำหรับเข้าสู่ระบบ RTSD Dashboard\n"
+                             f"──────────────────────\n"
+                             f"👉 รหัส OTP ของคุณคือ: 【 {otp_code} 】\n"
+                             f"──────────────────────\n"
+                             f"⏰ รหัสนี้มีอายุ 5 นาที\n"
+                             f"⚠️ ห้ามแจ้งรหัสนี้แก่บุคคลอื่น เพื่อความปลอดภัย")
+                line_bot_api.push_message(
+                    PushMessageRequest(to=target_line_id, messages=[TextMessage(text=push_text)])
+                )
+                sent_via_line = True
+        except Exception as push_err:
+            print(f"Error pushing OTP via LINE: {push_err}")
+
+    resp = {
+        "status": "success",
+        "message": "ส่งรหัส OTP เข้า LINE ของท่านเรียบร้อยแล้ว" if sent_via_line else "สร้างรหัส OTP สำเร็จ",
+        "sent_via_line": sent_via_line,
+        "phone": phone
+    }
+    # ถ้ายังไม่ได้ผูก LINE ให้แสดง demo_otp สำหรับทดสอบ
+    if not sent_via_line:
+        resp["demo_otp"] = otp_code
+        resp["hint"] = "เบอร์นี้ยังไม่ได้ผูก LINE หรือยังไม่ได้เป็นเพื่อนกับบอท ระบบจึงแสดง OTP ทดสอบบนหน้าจอ"
+
+    return jsonify(resp), 200
+
+
+@app.route("/api/auth/verify-otp", methods=['POST'])
+def api_verify_otp():
+    """ตรวจสอบ OTP หรือ Commander PIN เพื่อออก Token และยืนยันตัวตน"""
+    data = request.get_json(silent=True) or {}
+    phone = str(data.get("phone", "")).strip().replace("-", "").replace(" ", "")
+    otp = str(data.get("otp", "")).strip()
+    master_pin = str(data.get("master_pin", "")).strip()
+
+    # 1. ตรวจสอบ Master PIN สำหรับศูนย์บัญชาการ / ผู้บังคับบัญชา
+    if master_pin and master_pin == MASTER_PIN:
+        return jsonify({
+            "status": "success",
+            "token": f"token-commander-{int(time.time())}",
+            "user": {
+                "name": "ผู้บังคับบัญชาศูนย์ RTSD",
+                "phone": "RTSD-HQ",
+                "role": "ผู้บังคับบัญชา / ผู้ดูแลระบบ"
+            }
+        }), 200
+
+    # 2. ตรวจสอบ OTP
+    cached = otp_cache.get(phone)
+    if not cached:
+        return jsonify({"status": "error", "message": "ไม่พบคำขอ OTP หรือรหัสหมดอายุแล้ว กรุณากดขอใหม่"}), 400
+
+    if time.time() > cached["expires_at"]:
+        del otp_cache[phone]
+        return jsonify({"status": "error", "message": "รหัส OTP หมดอายุแล้ว (เกิน 5 นาที) กรุณากดขอใหม่"}), 400
+
+    if cached["otp"] != otp:
+        return jsonify({"status": "error", "message": "รหัส OTP ไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง"}), 400
+
+    user_info = cached.get("user_info") or phone_to_user.get(phone) or {
+        "name": f"เจ้าหน้าที่ ({phone[-4:]})",
+        "phone": phone,
+        "role": "เจ้าหน้าที่ RTSD"
+    }
+    del otp_cache[phone]
+
+    return jsonify({
+        "status": "success",
+        "token": f"token-{phone}-{int(time.time())}",
+        "user": user_info
+    }), 200
 
 
 @app.route("/callback", methods=['POST'])
@@ -347,6 +569,83 @@ def handle_text(event):
     else:
         user_sessions[user_id]["user_name"] = user_name
 
+    # ตรวจสอบการลงทะเบียนยืนยันตัวตนของผู้ใช้ (User Identity Check)
+    user_info = registered_users.get(user_id)
+    if not user_info and len(registered_users) == 0:
+        fetch_registered_users()
+        user_info = registered_users.get(user_id)
+
+    # 1. ผู้ใช้พิมพ์เบอร์โทรศัพท์เข้ามา เพื่อลงทะเบียนยืนยันตัวตน
+    phone_match = re.search(r'(0[689]\d{8}|0[2-9]\d{7})', user_text)
+    if phone_match and (any(w in user_text for w in ["ลงทะเบียน", "สมัคร", "เบอร์", "โทร"]) or not user_info):
+        clean_phone = phone_match.group(1)
+        name_part = re.sub(r'0[689]\d{8}|0[2-9]\d{7}', '', user_text)
+        name_part = name_part.replace("ลงทะเบียน", "").replace("เบอร์", "").replace("โทร", "").replace("ชื่อ", "").strip()
+        reg_name = name_part if len(name_part) >= 2 else user_name
+        role = "เจ้าหน้าที่ RTSD" if any(w in user_text for w in ["ทหาร", "จนท", "เจ้าหน้าที่", "ร้อย", "พัน", "หมวด"]) else "ผู้ใช้งานทั่วไป"
+        
+        save_registered_user(user_id, reg_name, clean_phone, role)
+        user_sessions[user_id]["user_name"] = f"{reg_name} ({clean_phone})"
+        
+        reply_msg = (f"🎉 ลงทะเบียนยืนยันตัวตนสำเร็จแล้วครับ!\n"
+                     f"──────────────────────\n"
+                     f"👤 ชื่อผู้ใช้งาน: คุณ{reg_name}\n"
+                     f"📱 เบอร์โทรศัพท์: {clean_phone}\n"
+                     f"🔰 สิทธิ์การใช้งาน: {role}\n"
+                     f"──────────────────────\n"
+                     f"🛡️ ระบบความปลอดภัย RTSD จดจำบัญชีของท่านเรียบร้อยแล้ว\n"
+                     f"👉 ต่อไปนี้ท่านสามารถใช้เบอร์นี้ขอรหัส OTP ล็อกอิน Dashboard หรือส่งพิกัดแจ้งเหตุได้ตลอดไปโดยไม่ต้องกรอกข้อมูลใหม่อีกครับ 🎉")
+
+        quick_reply = QuickReply(items=[
+            QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุเตือนภัย", text="แจ้งเหตุ")),
+            QuickReplyItem(action=MessageAction(label="🔍 ติดตามสถานะ", text="ติดตามสถานะ")),
+            QuickReplyItem(action=MessageAction(label="🛰️ ส่งพิกัดสด GPS", text="แทร็กกิ้ง"))
+        ])
+        with ApiClient(configuration) as api_client:
+            line_bot_api = MessagingApi(api_client)
+            line_bot_api.reply_message(
+                ReplyMessageRequest(
+                    reply_token=event.reply_token,
+                    messages=[TextMessage(text=reply_msg, quick_reply=quick_reply)]
+                )
+            )
+        return
+
+    # 2. ผู้ใช้พิมพ์เช็คข้อมูลตัวเอง
+    if user_text in ["โปรไฟล์", "ข้อมูลของฉัน", "profile", "ข้อมูลส่วนตัว", "เบอร์ของฉัน"]:
+        if user_info:
+            reply_msg = (f"👤 ข้อมูลบัญชีผู้ใช้งานของคุณ\n"
+                         f"──────────────────────\n"
+                         f"📌 ชื่อ-นามสกุล: คุณ{user_info.get('name')}\n"
+                         f"📱 เบอร์โทรศัพท์: {user_info.get('phone')}\n"
+                         f"🔰 บทบาท: {user_info.get('role')}\n"
+                         f"✅ สถานะยืนยันตัวตน: สมบูรณ์ (Verified)\n"
+                         f"──────────────────────\n"
+                         f"💡 สามารถใช้เบอร์โทรนี้เพื่อขอรับรหัส OTP เข้าใช้งาน Dashboard ได้ทันทีครับ")
+        else:
+            reply_msg = (f"⚠️ ท่านยังไม่ได้ลงทะเบียนยืนยันตัวตนในระบบ\n\n"
+                         f"👉 กรุณาพิมพ์ [เบอร์โทรศัพท์ 10 หลัก] ส่งเข้ามาได้เลยครับ เช่น:\n"
+                         f"0812345678 (หรือระบุชื่อด้วย เช่น 'สมชาย 0812345678')")
+        
+        quick_reply = QuickReply(items=[
+            QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุเตือนภัย", text="แจ้งเหตุ")),
+            QuickReplyItem(action=MessageAction(label="🔍 ติดตามสถานะ", text="ติดตามสถานะ"))
+        ])
+        with ApiClient(configuration) as api_client:
+            line_bot_api = MessagingApi(api_client)
+            line_bot_api.reply_message(
+                ReplyMessageRequest(
+                    reply_token=event.reply_token,
+                    messages=[TextMessage(text=reply_msg, quick_reply=quick_reply)]
+                )
+            )
+        return
+
+    # ถ้าผู้ใช้ลงทะเบียนแล้ว ให้อัปเดตชื่อใน Session ให้มีชื่อและเบอร์โทรเสมอ
+    if user_info:
+        user_name = f"{user_info.get('name')} ({user_info.get('phone')})"
+        user_sessions[user_id]["user_name"] = user_name
+
     # กรณีผู้ใช้เลือกข้ามการส่งรูป
     if user_text == "ข้ามการส่งรูป":
         session = user_sessions.get(user_id, {})
@@ -423,11 +722,22 @@ def handle_text(event):
                          f"──────────────────────\n"
                          f"ℹ️ เจ้าหน้าที่ศูนย์ RTSD ได้รับข้อมูลและอยู่ระหว่างดำเนินการครับ")
             
-            refresh_cmd = f"ติดตาม {search_id}" if search_id else "ติดตามสถานะ"
-            quick_reply = QuickReply(items=[
-                QuickReplyItem(action=MessageAction(label="🔄 รีเฟรชสถานะ", text=refresh_cmd)),
+            ref_id = search_id
+            if not ref_id:
+                id_m = re.search(r'\[(RTSD-[^\]]+)\]', top['title'])
+                if id_m:
+                    ref_id = id_m.group(1)
+            
+            refresh_cmd = f"ติดตาม {ref_id}" if ref_id else "ติดตามสถานะ"
+            qr_items = [
+                QuickReplyItem(action=MessageAction(label="🔄 รีเฟรช", text=refresh_cmd)),
                 QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุใหม่", text="แจ้งเหตุ"))
-            ])
+            ]
+            if ref_id:
+                qr_items.insert(1, QuickReplyItem(action=MessageAction(label="🟡 ปรับ: กำลังทำ", text=f"ปรับสถานะ {ref_id} กำลังดำเนินการ")))
+                qr_items.insert(2, QuickReplyItem(action=MessageAction(label="🟢 ปรับ: เสร็จสิ้น", text=f"เสร็จสิ้น {ref_id}")))
+
+            quick_reply = QuickReply(items=qr_items)
         else:
             reply_msg = (f"🔍 ไม่พบข้อมูลประวัติการแจ้งเหตุของคุณ {user_name}\n\n"
                          f"หากท่านมีรหัสติดตาม สามารถพิมพ์ เช่น:\n"
@@ -435,7 +745,72 @@ def handle_text(event):
             quick_reply = QuickReply(items=[
                 QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุเตือนภัย", text="แจ้งเหตุ"))
             ])
+
+    # ด่านปรับปรุง/แก้ไขสถานะเหตุการณ์เดิม (สำหรับเจ้าหน้าที่สั่งผ่าน LINE Bot)
+    elif any(user_text.startswith(prefix) for prefix in ["ปรับสถานะ", "อัปเดตสถานะ", "อัปเดต", "แก้ไขสถานะ", "เสร็จสิ้น"]):
+        parts = user_text.split()
+        target_id = ""
+        status_raw = ""
         
+        if user_text.startswith("เสร็จสิ้น"):
+            target_id = parts[1].replace("#", "").strip() if len(parts) > 1 else ""
+            status_raw = "เสร็จสิ้น"
+        elif len(parts) >= 3:
+            target_id = parts[1].replace("#", "").strip()
+            status_raw = " ".join(parts[2:]).strip()
+        elif len(parts) == 2:
+            target_id = parts[1].replace("#", "").strip()
+            status_raw = "กำลังดำเนินการ"
+
+        if target_id:
+            new_status = "🟡 กำลังดำเนินการ"
+            if any(w in status_raw for w in ["เสร็จ", "เรียบร้อย", "สำเร็จ", "done", "close"]):
+                new_status = "🟢 แก้ไขแล้วเสร็จ"
+            elif any(w in status_raw for w in ["รอ", "wait", "pending"]):
+                new_status = "⏳ รอดำเนินการ"
+            elif any(w in status_raw for w in ["ยกเลิก", "ระงับ", "cancel"]):
+                new_status = "❌ ยกเลิก/ระงับเหตุ"
+
+            res = update_google_sheet_status(title=target_id, new_status=new_status)
+            if res.get("status") == "success":
+                reply_msg = (f"✅ อัปเดตสถานะเหตุการณ์เรียบร้อยแล้ว!\n"
+                             f"──────────────────────\n"
+                             f"📌 รหัสเหตุการณ์: #{target_id}\n"
+                             f"🔄 สถานะใหม่: {new_status}\n"
+                             f"👤 เจ้าหน้าที่ผู้ปรับ: {user_name}\n"
+                             f"⏰ เวลา: {time.strftime('%H:%M:%S น.')}\n"
+                             f"──────────────────────\n"
+                             f"📡 ระบบได้บันทึกลง Google Sheets และ Dashboard เรียบร้อยแล้วครับ")
+            else:
+                reply_msg = (f"⚠️ ไม่สามารถอัปเดตสถานะได้\n\n"
+                             f"ไม่พบเหตุการณ์ที่มีรหัส '{target_id}' ในระบบ หรือ Google Sheets ยังไม่ตอบกลับ\n"
+                             f"💡 กรุณาตรวจสอบรหัสเหตุการณ์อีกครั้งครับ")
+        else:
+            reply_msg = ("ℹ️ คำสั่งปรับสถานะเหตุการณ์สำหรับเจ้าหน้าที่:\n\n"
+                         "👉 'ปรับสถานะ [รหัสเหตุการณ์] กำลังดำเนินการ'\n"
+                         "👉 'ปรับสถานะ [รหัสเหตุการณ์] เสร็จสิ้น'\n"
+                         "👉 'เสร็จสิ้น [รหัสเหตุการณ์]'\n\n"
+                         "ตัวอย่าง: เสร็จสิ้น RTSD-0927-1420")
+
+        quick_reply = QuickReply(items=[
+            QuickReplyItem(action=MessageAction(label="🔍 ติดตามสถานะ", text="ติดตามสถานะ")),
+            QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุเตือนภัย", text="แจ้งเหตุ"))
+        ])
+        reply_message = TextMessage(text=reply_msg, quick_reply=quick_reply)
+        
+    # ด่านเปิดระบบ Live GPS Tracker สำหรับเจ้าหน้าที่
+    elif user_text in ['แทร็กกิ้ง', 'แทร็ก', 'gps', 'พิกัดสด', 'tracking', 'แชร์พิกัดสด', 'ภารกิจ']:
+        tracker_url = "https://rtsd-linebot.onrender.com/tracker"
+        reply_msg = (f"🛰️ ระบบติดตามกำลังพลและยานพาหนะ (Live GPS Tracker)\n"
+                     f"──────────────────────\n"
+                     f"สำหรับเจ้าหน้าที่ภาคสนามหรือพลขับรถบรรเทาทุกข์ กรมแผนที่ทหาร\n\n"
+                     f"👉 กรุณากดลิงก์ด้านล่างเพื่อเปิดหน้าส่งพิกัดสด:\n"
+                     f"{tracker_url}\n\n"
+                     f"💡 วิธีใช้งาน: กรอกรหัสชุดปฏิบัติการ แล้วกด 'เริ่มปฏิบัติภารกิจ' จากนั้นวางมือถือไว้หน้ารถได้เลยครับ ระบบจะยิงพิกัด GPS อัตโนมัติทุก 10 วินาทีเข้าสู่ศูนย์วอร์รูม RTSD ทันที")
+        quick_reply = QuickReply(items=[
+            QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุเตือนภัย", text="แจ้งเหตุ")),
+            QuickReplyItem(action=MessageAction(label="🔍 ติดตามสถานะ", text="ติดตามสถานะ"))
+        ])
         reply_message = TextMessage(text=reply_msg, quick_reply=quick_reply)
 
     # ด่านที่ 1: ผู้ใช้เริ่มแจ้งเหตุ -> เด้ง Dropdown ให้เลือก "ประเภทเหตุการณ์"
@@ -446,10 +821,11 @@ def handle_text(event):
             QuickReplyItem(action=MessageAction(label="💥 อุบัติเหตุ", text="เลือกเหตุ: 💥 อุบัติเหตุจราจร")),
             QuickReplyItem(action=MessageAction(label="🔥 ไฟไหม้", text="เลือกเหตุ: 🔥 ไฟไหม้ / หมอกควัน")),
             QuickReplyItem(action=MessageAction(label="🔍 ติดตามสถานะ", text="ติดตามสถานะ")),
+            QuickReplyItem(action=MessageAction(label="🛰️ ส่งพิกัดสด GPS", text="แทร็กกิ้ง")),
             QuickReplyItem(action=MessageAction(label="📌 อื่นๆ", text="เลือกเหตุ: 📌 อื่นๆ"))
         ])
         reply_message = TextMessage(
-            text=f"สวัสดีครับคุณ {user_name} 🚨\nกรุณาเลือก [ประเภทเหตุการณ์] หรือเลือก [ติดตามสถานะ] ด้านล่างนี้ครับ 👇",
+            text=f"สวัสดีครับคุณ {user_name} 🚨\nกรุณาเลือก [ประเภทเหตุการณ์], [ติดตามสถานะ] หรือ [ส่งพิกัดสด] ด้านล่างนี้ครับ 👇",
             quick_reply=quick_reply
         )
 

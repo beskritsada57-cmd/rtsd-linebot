@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RTSD Incident & Disaster Command Dashboard</title>
+  <title>RTSD Incident Statistics & Analytics Dashboard</title>
   <!-- Google Fonts: Prompt -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,9 +12,6 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- Leaflet CSS & JS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <!-- FontAwesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -28,8 +25,9 @@
           },
           colors: {
             rtsd: {
-              dark: '#0b1329',
-              card: '#131e3a',
+              dark: '#080e1e',
+              card: '#111b33',
+              cardHover: '#162244',
               border: '#1e293b',
               accent: '#38bdf8',
               gold: '#fbbf24'
@@ -42,37 +40,19 @@
   <style>
     body {
       font-family: 'Prompt', sans-serif;
-      background-color: #080e1e;
+      background-color: #070c19;
       color: #f1f5f9;
-    }
-    .leaflet-popup-content-wrapper {
-      background: #131e3a !important;
-      color: #f1f5f9 !important;
-      border: 1px solid #334155;
-      border-radius: 0.75rem;
-    }
-    .leaflet-popup-tip {
-      background: #131e3a !important;
     }
     .custom-scrollbar::-webkit-scrollbar {
       width: 6px;
       height: 6px;
     }
     .custom-scrollbar::-webkit-scrollbar-track {
-      background: #0f172a;
+      background: #0b1329;
     }
     .custom-scrollbar::-webkit-scrollbar-thumb {
       background: #334155;
       border-radius: 3px;
-    }
-    .pulse-radar {
-      box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
-      animation: pulse 1.8s infinite;
-    }
-    @keyframes pulse {
-      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-      70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
     }
   </style>
 </head>
@@ -81,34 +61,48 @@
   <!-- ========================================================================= -->
   <!-- 🛰️ TOP COMMAND HEADER -->
   <!-- ========================================================================= -->
-  <header class="bg-rtsd-card border-b border-slate-800 px-4 lg:px-8 py-3 sticky top-0 z-50 shadow-xl backdrop-blur-md bg-opacity-95">
+  <header class="bg-rtsd-card border-b border-slate-800 px-4 lg:px-8 py-3.5 sticky top-0 z-50 shadow-xl backdrop-blur-md bg-opacity-95">
     <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
       <!-- Title & Emblem -->
       <div class="flex items-center space-x-3">
         <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/30 text-white font-bold text-xl">
-          <i class="fa-solid fa-shield-halved"></i>
+          <i class="fa-solid fa-chart-line"></i>
         </div>
         <div>
           <div class="flex items-center space-x-2">
             <h1 class="text-lg md:text-xl font-bold tracking-wide text-white uppercase flex items-center gap-2">
-              ศูนย์ติดตามสถานการณ์และแจ้งเตือนภัย RTSD
+              Dashboard สถิติและรายงานสถานการณ์ RTSD
             </h1>
-            <span class="px-2 py-0.5 text-xs font-semibold rounded bg-sky-500/20 text-sky-400 border border-sky-500/30">GIS LIVE</span>
+            <span class="px-2 py-0.5 text-xs font-semibold rounded bg-sky-500/20 text-sky-400 border border-sky-500/30">STATISTICS</span>
           </div>
-          <p class="text-xs text-slate-400">กรมแผนที่ทหาร • Real-time Incident & Disaster Command Center</p>
+          <p class="text-xs text-slate-400">กรมแผนที่ทหาร • Incident Analytics & Management Performance</p>
         </div>
       </div>
 
       <!-- Quick Actions & Clock -->
       <div class="flex items-center space-x-3 text-xs md:text-sm">
+        <!-- User Profile Badge & Logout -->
+        <div id="userBadge" class="hidden items-center space-x-2 px-3 py-1.5 rounded-lg bg-sky-950/70 border border-sky-500/40 text-sky-300">
+          <i class="fa-solid fa-user-shield text-sky-400"></i>
+          <span id="userNameDisplay">เจ้าหน้าที่</span>
+          <button onclick="logout()" title="ออกจากระบบ" class="ml-1 text-slate-400 hover:text-rose-400 cursor-pointer">
+            <i class="fa-solid fa-right-from-bracket"></i>
+          </button>
+        </div>
+
         <div class="hidden sm:flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-300">
           <i class="fa-regular fa-clock text-sky-400"></i>
           <span id="liveClock">กำลังโหลดเวลา...</span>
         </div>
 
-        <button onclick="fetchData()" class="px-3.5 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 transition-all font-medium text-white shadow-md shadow-sky-600/30 flex items-center gap-1.5">
+        <button onclick="fetchData()" class="px-3.5 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 transition-all font-medium text-white shadow-md shadow-sky-600/30 flex items-center gap-1.5 cursor-pointer">
           <i id="refreshIcon" class="fa-solid fa-arrows-rotate"></i>
           <span>รีเฟรช</span>
+        </button>
+
+        <button onclick="exportCSV()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all flex items-center gap-1.5 cursor-pointer">
+          <i class="fa-solid fa-file-arrow-down text-emerald-400"></i>
+          <span class="hidden sm:inline">ส่งออก CSV</span>
         </button>
 
         <a href="https://line.me/R/ti/p/@411vtica" target="_blank" class="px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 transition-all flex items-center gap-1.5">
@@ -124,9 +118,9 @@
   <!-- ========================================================================= -->
   <main class="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-8 py-6 space-y-6">
 
-    <!-- KPI STATS CARDS -->
-    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
-      <!-- 1. Total -->
+    <!-- KPI STATS CARDS (6 CARDS) -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
+      <!-- 1. Total Incidents -->
       <div class="bg-rtsd-card border border-slate-800 rounded-xl p-4 shadow-lg flex items-center justify-between">
         <div>
           <p class="text-xs text-slate-400 font-medium">เหตุการณ์ทั้งหมด</p>
@@ -138,7 +132,7 @@
         </div>
       </div>
 
-      <!-- 2. Critical -->
+      <!-- 2. Critical Incidents -->
       <div class="bg-rtsd-card border border-rose-900/40 rounded-xl p-4 shadow-lg flex items-center justify-between">
         <div>
           <p class="text-xs text-rose-400 font-medium">🔴 วิกฤต/ด่วนมาก</p>
@@ -174,8 +168,20 @@
         </div>
       </div>
 
-      <!-- 5. With Photos -->
-      <div class="col-span-2 md:col-span-1 bg-rtsd-card border border-slate-800 rounded-xl p-4 shadow-lg flex items-center justify-between">
+      <!-- 5. Resolution Rate (%) -->
+      <div class="bg-rtsd-card border border-cyan-900/40 rounded-xl p-4 shadow-lg flex items-center justify-between">
+        <div>
+          <p class="text-xs text-cyan-400 font-medium">อัตราปิดงานสำเร็จ</p>
+          <h3 id="statRate" class="text-2xl md:text-3xl font-bold text-cyan-400 mt-1">0%</h3>
+          <span class="text-[10px] text-cyan-500/80">Resolution Rate</span>
+        </div>
+        <div class="w-10 h-10 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center text-lg">
+          <i class="fa-solid fa-percent"></i>
+        </div>
+      </div>
+
+      <!-- 6. With Photos -->
+      <div class="bg-rtsd-card border border-slate-800 rounded-xl p-4 shadow-lg flex items-center justify-between">
         <div>
           <p class="text-xs text-indigo-400 font-medium">📸 มีภาพถ่าย/คลิป</p>
           <h3 id="statMedia" class="text-2xl md:text-3xl font-bold text-indigo-300 mt-1">0</h3>
@@ -187,58 +193,100 @@
       </div>
     </div>
 
-    <!-- CHARTS & GIS MAP SECTION -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      
-      <!-- Interactive GIS Map (2 Columns on Desktop) -->
-      <div class="lg:col-span-2 bg-rtsd-card border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col">
-        <div class="flex items-center justify-between mb-3">
+    <!-- ========================================================================= -->
+    <!-- 📈 STATISTICAL CHARTS GRID (2x2) -->
+    <!-- ========================================================================= -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+      <!-- Chart 1: Timeline Trend of Incidents (Line / Area Chart) -->
+      <div class="bg-rtsd-card border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col">
+        <div class="flex items-center justify-between mb-4">
           <div class="flex items-center space-x-2">
-            <i class="fa-solid fa-map-location-dot text-sky-400"></i>
-            <h2 class="font-semibold text-white text-sm md:text-base">แผนที่พิกัดจุดเกิดเหตุ (GIS Interactive Map)</h2>
+            <div class="w-7 h-7 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center text-sm">
+              <i class="fa-solid fa-arrow-trend-up"></i>
+            </div>
+            <div>
+              <h2 class="font-semibold text-white text-sm md:text-base">แนวโน้มการแจ้งเหตุการณ์ (Timeline Trend)</h2>
+              <p class="text-[11px] text-slate-400">สถิติความถี่การแจ้งเหตุการณ์ตามลำดับวัน</p>
+            </div>
           </div>
-          <div class="flex items-center space-x-2 text-xs text-slate-400">
-            <span class="inline-block w-2.5 h-2.5 rounded-full bg-rose-500"></span> วิกฤต
-            <span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-500 ml-2"></span> ปานกลาง
-            <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 ml-2"></span> เฝ้าระวัง
-          </div>
+          <span class="text-xs px-2.5 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700">รายวัน</span>
         </div>
-        <!-- Map Container -->
-        <div id="map" class="w-full h-80 md:h-[400px] rounded-xl overflow-hidden border border-slate-700/60 z-10"></div>
-      </div>
-
-      <!-- Charts Column (1 Column on Desktop) -->
-      <div class="space-y-6 flex flex-col justify-between">
-        <!-- Chart 1: Incident Types -->
-        <div class="bg-rtsd-card border border-slate-800 rounded-2xl p-4 shadow-xl flex-1 flex flex-col">
-          <h2 class="font-semibold text-white text-sm mb-3 flex items-center gap-2">
-            <i class="fa-solid fa-chart-pie text-sky-400"></i>
-            สัดส่วนประเภทเหตุการณ์
-          </h2>
-          <div class="flex-1 flex items-center justify-center relative min-h-[160px]">
-            <canvas id="typeChart"></canvas>
-          </div>
-        </div>
-
-        <!-- Chart 2: Urgency Levels -->
-        <div class="bg-rtsd-card border border-slate-800 rounded-2xl p-4 shadow-xl flex-1 flex flex-col">
-          <h2 class="font-semibold text-white text-sm mb-3 flex items-center gap-2">
-            <i class="fa-solid fa-chart-column text-sky-400"></i>
-            ระดับความเร่งด่วน
-          </h2>
-          <div class="flex-1 flex items-center justify-center relative min-h-[160px]">
-            <canvas id="urgencyChart"></canvas>
-          </div>
+        <div class="flex-1 min-h-[240px] relative">
+          <canvas id="trendChart"></canvas>
         </div>
       </div>
+
+      <!-- Chart 2: Incident Type Breakdown (Doughnut Chart) -->
+      <div class="bg-rtsd-card border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center space-x-2">
+            <div class="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-sm">
+              <i class="fa-solid fa-chart-pie"></i>
+            </div>
+            <div>
+              <h2 class="font-semibold text-white text-sm md:text-base">สัดส่วนประเภทเหตุการณ์ (Incident Distribution)</h2>
+              <p class="text-[11px] text-slate-400">จำแนกตามประเภทของภัยพิบัติและอุบัติเหตุ</p>
+            </div>
+          </div>
+          <span class="text-xs px-2.5 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700">สัดส่วน %</span>
+        </div>
+        <div class="flex-1 min-h-[240px] relative">
+          <canvas id="typeChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Chart 3: Urgency Level Breakdown (Bar Chart) -->
+      <div class="bg-rtsd-card border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center space-x-2">
+            <div class="w-7 h-7 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center text-sm">
+              <i class="fa-solid fa-chart-simple"></i>
+            </div>
+            <div>
+              <h2 class="font-semibold text-white text-sm md:text-base">ระดับความเร่งด่วนของสถานการณ์ (Urgency Severity)</h2>
+              <p class="text-[11px] text-slate-400">จำแนกความรุนแรงเพื่อจัดลำดับทรัพยากร</p>
+            </div>
+          </div>
+          <span class="text-xs px-2.5 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700">จำนวนเรื่อง</span>
+        </div>
+        <div class="flex-1 min-h-[240px] relative">
+          <canvas id="urgencyChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Chart 4: Incident Handling Status (Horizontal Stacked Bar / Polar) -->
+      <div class="bg-rtsd-card border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center space-x-2">
+            <div class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-sm">
+              <i class="fa-solid fa-bars-progress"></i>
+            </div>
+            <div>
+              <h2 class="font-semibold text-white text-sm md:text-base">สถานะการเข้าปฏิบัติการ (Response Status)</h2>
+              <p class="text-[11px] text-slate-400">ความคืบหน้าของกำลังพลในการแก้ไขเหตุการณ์</p>
+            </div>
+          </div>
+          <span class="text-xs px-2.5 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700">สถานะงาน</span>
+        </div>
+        <div class="flex-1 min-h-[240px] relative">
+          <canvas id="statusChart"></canvas>
+        </div>
+      </div>
+
     </div>
 
-    <!-- LIVE INCIDENTS TABLE -->
+    <!-- ========================================================================= -->
+    <!-- 📋 DETAILED INCIDENTS REPORT TABLE -->
+    <!-- ========================================================================= -->
     <div class="bg-rtsd-card border border-slate-800 rounded-2xl p-4 md:p-6 shadow-xl space-y-4">
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div class="flex items-center space-x-2">
-          <i class="fa-solid fa-list-check text-sky-400"></i>
-          <h2 class="font-semibold text-white text-base">รายการแจ้งเหตุการณ์ล่าสุด (Live Incidents Feed)</h2>
+          <i class="fa-solid fa-table-list text-sky-400 text-lg"></i>
+          <div>
+            <h2 class="font-semibold text-white text-base">รายงานรายการแจ้งเหตุการณ์โดยละเอียด (Incident Records)</h2>
+            <p class="text-xs text-slate-400">ค้นหา ตรวจสอบข้อมูลพิกัด ผู้แจ้ง และรูปถ่ายหลักฐาน</p>
+          </div>
         </div>
         <!-- Search and Filter -->
         <div class="flex flex-wrap items-center gap-2 text-xs">
@@ -255,6 +303,12 @@
             <option value="ปานกลาง">🟡 ปานกลาง</option>
             <option value="เฝ้าระวัง">🟢 ปกติ/เฝ้าระวัง</option>
           </select>
+          <select id="statusFilter" onchange="filterTable()" class="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-300 focus:outline-none focus:border-sky-500">
+            <option value="">ทุกสถานะ</option>
+            <option value="รอดำเนินการ">⏳ รอดำเนินการ</option>
+            <option value="ดำเนินการ">🟡 กำลังดำเนินการ</option>
+            <option value="เสร็จ">🟢 แก้ไขแล้วเสร็จ</option>
+          </select>
         </div>
       </div>
 
@@ -263,11 +317,11 @@
         <table class="w-full text-left text-xs md:text-sm text-slate-300">
           <thead class="bg-slate-900/90 uppercase text-[11px] text-slate-400 border-b border-slate-800 tracking-wider">
             <tr>
-              <th class="px-4 py-3">เวลา</th>
-              <th class="px-4 py-3">รหัส / เรื่อง</th>
+              <th class="px-4 py-3">วัน-เวลา</th>
+              <th class="px-4 py-3">รหัส / หัวข้อเหตุการณ์</th>
               <th class="px-4 py-3">ประเภท</th>
               <th class="px-4 py-3">ความเร่งด่วน</th>
-              <th class="px-4 py-3">สถานที่</th>
+              <th class="px-4 py-3">สถานที่ / พิกัด</th>
               <th class="px-4 py-3">ผู้แจ้ง</th>
               <th class="px-4 py-3">สถานะ</th>
               <th class="px-4 py-3 text-center">รูปถ่าย/คลิป</th>
@@ -277,15 +331,98 @@
             <tr>
               <td colspan="8" class="text-center py-8 text-slate-500">
                 <i class="fa-solid fa-spinner fa-spin text-2xl text-sky-400 mb-2"></i>
-                <p>กำลังเชื่อมต่อฐานข้อมูล Google Sheets & GIS...</p>
+                <p>กำลังเชื่อมต่อฐานข้อมูลสถิติ...</p>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
+
+      <!-- Table Footer / Count -->
+      <div class="flex items-center justify-between text-xs text-slate-500 pt-1">
+        <span id="tableSummary">แสดงผล 0 รายการ</span>
+        <span>ระบบอัปเดตอัตโนมัติทุก 30 วินาที</span>
+      </div>
     </div>
 
   </main>
+
+  <!-- ========================================================================= -->
+  <!-- 🛡️ RTSD TACTICAL AUTHENTICATION MODAL (OTP & PIN GATE) -->
+  <!-- ========================================================================= -->
+  <div id="authModal" class="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-rtsd-card border border-sky-500/30 rounded-2xl max-w-md w-full p-6 relative shadow-2xl shadow-sky-950/50 space-y-5 text-center">
+      <!-- RTSD Emblem -->
+      <div class="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center text-white text-3xl shadow-xl shadow-sky-500/30">
+        <i class="fa-solid fa-shield-halved"></i>
+      </div>
+      <div>
+        <h2 class="text-xl font-bold text-white tracking-wide uppercase">ศูนย์ปฏิบัติการข้อมูล RTSD</h2>
+        <p class="text-xs text-slate-400 mt-1">ระบบยืนยันตัวตนเพื่อความมั่นคงปลอดภัย (Security Authentication)</p>
+      </div>
+
+      <!-- Tab Switcher -->
+      <div class="flex rounded-xl bg-slate-900/80 p-1 border border-slate-800 text-xs font-medium">
+        <button id="tabOtpBtn" onclick="switchAuthTab('otp')" class="flex-1 py-2 rounded-lg bg-sky-600 text-white transition-all cursor-pointer">
+          <i class="fa-solid fa-mobile-screen mr-1"></i> เบอร์โทร & OTP
+        </button>
+        <button id="tabPinBtn" onclick="switchAuthTab('pin')" class="flex-1 py-2 rounded-lg text-slate-400 hover:text-white transition-all cursor-pointer">
+          <i class="fa-solid fa-key mr-1"></i> Commander PIN
+        </button>
+      </div>
+
+      <!-- Tab 1: Phone + OTP Form -->
+      <div id="otpSection" class="space-y-4 text-left">
+        <div>
+          <label class="block text-xs text-slate-300 font-medium mb-1.5">เบอร์โทรศัพท์ (ที่ลงทะเบียนใน LINE Bot)</label>
+          <div class="relative">
+            <i class="fa-solid fa-phone absolute left-3.5 top-3 text-slate-500 text-sm"></i>
+            <input type="tel" id="authPhone" placeholder="08xxxxxxxx" maxlength="10" class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-24 py-2.5 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-sky-500">
+            <button id="requestOtpBtn" onclick="handleRequestOtp()" class="absolute right-1.5 top-1.5 px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium transition-all cursor-pointer">
+              ขอ OTP
+            </button>
+          </div>
+          <p id="otpHint" class="text-[11px] text-slate-500 mt-1.5 flex items-center gap-1">
+            <i class="fa-solid fa-circle-info"></i> รหัส OTP 6 หลักจะถูกส่งเข้าห้องแชท LINE ของเบอร์นี้
+          </p>
+        </div>
+
+        <div id="otpInputGroup" class="hidden space-y-2">
+          <div class="flex items-center justify-between text-xs">
+            <label class="text-slate-300 font-medium">รหัส OTP 6 หลัก</label>
+            <span id="otpCountdown" class="text-amber-400 text-[11px]"></span>
+          </div>
+          <input type="text" id="authOtp" placeholder="123456" maxlength="6" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-center text-xl tracking-[0.3em] font-mono text-sky-400 focus:outline-none focus:border-sky-500">
+          
+          <button onclick="handleVerifyOtp()" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white font-medium text-sm shadow-lg shadow-sky-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer">
+            <i class="fa-solid fa-lock-open"></i> ยืนยัน OTP และเข้าสู่ระบบ
+          </button>
+        </div>
+      </div>
+
+      <!-- Tab 2: Commander Master PIN Form -->
+      <div id="pinSection" class="hidden space-y-4 text-left">
+        <div>
+          <label class="block text-xs text-slate-300 font-medium mb-1.5">รหัสผ่านลับผู้บังคับบัญชา (Commander PIN)</label>
+          <div class="relative">
+            <i class="fa-solid fa-shield-halved absolute left-3.5 top-3 text-slate-500 text-sm"></i>
+            <input type="password" id="authPin" placeholder="กรอก Master PIN (ค่าเริ่มต้น RTSD2024)" class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-sky-500">
+          </div>
+        </div>
+        <button onclick="handleVerifyPin()" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-rose-600 hover:from-amber-500 hover:to-rose-500 text-white font-medium text-sm shadow-lg shadow-amber-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer">
+          <i class="fa-solid fa-unlock"></i> ปลดล็อกด้วย Master PIN
+        </button>
+      </div>
+
+      <!-- Remember Me -->
+      <div class="pt-2 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" id="rememberMe" checked class="rounded bg-slate-900 border-slate-700 text-sky-600 focus:ring-0">
+          <span>จดจำฉันไว้ในอุปกรณ์นี้ (Remember Me)</span>
+        </label>
+      </div>
+    </div>
+  </div>
 
   <!-- ========================================================================= -->
   <!-- 🖼️ IMAGE PREVIEW MODAL -->
@@ -294,7 +431,7 @@
     <div class="bg-rtsd-card border border-slate-700 rounded-2xl max-w-2xl w-full p-4 relative shadow-2xl space-y-3">
       <div class="flex items-center justify-between pb-2 border-b border-slate-800">
         <h3 id="modalTitle" class="font-semibold text-white text-sm">รูปภาพหลักฐานจากจุดเกิดเหตุ</h3>
-        <button onclick="closeModal()" class="text-slate-400 hover:text-white text-lg px-2">
+        <button onclick="closeModal()" class="text-slate-400 hover:text-white text-lg px-2 cursor-pointer">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
@@ -311,31 +448,16 @@
   </div>
 
   <!-- ========================================================================= -->
-  <!-- ⚙️ DASHBOARD JAVASCRIPT LOGIC -->
+  <!-- ⚙️ DASHBOARD STATISTICAL ANALYTICS JAVASCRIPT -->
   <!-- ========================================================================= -->
   <script>
     // Web App URL ของ Google Sheets (CORS-friendly JSON)
     const DATA_URL = "https://script.google.com/macros/s/AKfycbw5Gepu7a5s9j1vXtgE55403L0K3sKtOcpUNArNCm6RJO1ulNp735XyZgAbTlMBwxI/exec";
     
     let rawIncidents = [];
-    let map, markersLayer;
-    let typeChartInstance, urgencyChartInstance;
+    let trendChartInstance, typeChartInstance, urgencyChartInstance, statusChartInstance;
 
-    // 1. Initial Map Setup (Leaflet)
-    function initMap() {
-      // พิกัดศูนย์กลาง กทม. และประเทศไทย
-      map = L.map('map', { zoomControl: true }).setView([13.785, 100.55], 11);
-
-      // ใช้แผนที่ CartoDB Dark Matter สไตล์ Military Night Command
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; RTSD &copy; OpenStreetMap',
-        maxZoom: 19
-      }).addTo(map);
-
-      markersLayer = L.layerGroup().addTo(map);
-    }
-
-    // 2. Format Direct Image URL helper
+    // 1. Direct Image URL Formatter
     function getDirectImageUrl(url) {
       if (!url || url === '-' || url.trim() === '') return null;
       if (url.includes('/drive/folders/')) return null;
@@ -347,7 +469,7 @@
       return url;
     }
 
-    // 3. Fetch Data from API / Google Sheets
+    // 2. Fetch Data from API / Google Sheets
     async function fetchData() {
       const refreshIcon = document.getElementById('refreshIcon');
       refreshIcon.classList.add('fa-spin');
@@ -358,6 +480,8 @@
         
         if (rows && rows.length > 1) {
           processData(rows.slice(1)); // ข้ามแถวหัวตาราง
+        } else {
+          processData([]);
         }
       } catch (err) {
         console.error("Error fetching data:", err);
@@ -366,12 +490,14 @@
       }
     }
 
-    // 4. Process and Populate Data
+    // 3. Process Data & Calculate Statistics
     function processData(rows) {
       rawIncidents = [];
       let total = 0, critical = 0, inProgress = 0, resolved = 0, hasMedia = 0;
       let typeCounts = {};
       let urgencyCounts = { '🔴 วิกฤต': 0, '🟡 ปานกลาง': 0, '🟢 เฝ้าระวัง': 0 };
+      let statusCounts = { '⏳ รอดำเนินการ': 0, '🟡 กำลังดำเนินการ': 0, '🟢 แก้ไขแล้วเสร็จ': 0 };
+      let dateCounts = {};
 
       rows.forEach(r => {
         if (!r || r.length < 5) return;
@@ -389,18 +515,35 @@
 
         total++;
         if (urgency.includes('วิกฤต')) critical++;
-        if (status.includes('ดำเนิน') && !status.includes('แล้ว')) inProgress++;
-        if (status.includes('เสร็จ') || status.includes('เรียบร้อย') || status.includes('แล้ว')) resolved++;
+        
+        if (status.includes('เสร็จ') || status.includes('เรียบร้อย') || status.includes('แล้ว')) {
+          resolved++;
+          statusCounts['🟢 แก้ไขแล้วเสร็จ']++;
+        } else if (status.includes('ดำเนิน') || status.includes('ปฏิบัติ')) {
+          inProgress++;
+          statusCounts['🟡 กำลังดำเนินการ']++;
+        } else {
+          statusCounts['⏳ รอดำเนินการ']++;
+        }
+
         if (media_url !== '-' && media_url !== '') hasMedia++;
 
-        // Types tally
+        // Type breakdown
         const cleanType = incident_type.replace(/^[^\w\s\u0E00-\u0E7F]+/, '').trim() || 'อื่นๆ';
         typeCounts[cleanType] = (typeCounts[cleanType] || 0) + 1;
 
-        // Urgency tally
+        // Urgency breakdown
         if (urgency.includes('วิกฤต')) urgencyCounts['🔴 วิกฤต']++;
         else if (urgency.includes('ปานกลาง')) urgencyCounts['🟡 ปานกลาง']++;
         else urgencyCounts['🟢 เฝ้าระวัง']++;
+
+        // Date grouping for timeline trend (e.g., "DD/MM" or YYYY-MM-DD)
+        let dateKey = 'ไม่ระบุวัน';
+        if (timestamp) {
+          const dPart = timestamp.split('T')[0].split(' ')[0];
+          dateKey = dPart.substring(5); // เอาเฉพาะ MM-DD
+        }
+        dateCounts[dateKey] = (dateCounts[dateKey] || 0) + 1;
 
         rawIncidents.push({
           timestamp, title, address, lat, lon, reporter, urgency, incident_type: cleanType, raw_type: incident_type, status, media_url
@@ -408,28 +551,67 @@
       });
 
       // Update KPI
+      const rate = total > 0 ? Math.round((resolved / total) * 100) : 0;
       document.getElementById('statTotal').innerText = total;
       document.getElementById('statCritical').innerText = critical;
       document.getElementById('statInProgress').innerText = inProgress;
       document.getElementById('statResolved').innerText = resolved;
+      document.getElementById('statRate').innerText = `${rate}%`;
       document.getElementById('statMedia').innerText = hasMedia;
 
-      // Update Types Filter Dropdown
+      // Update Dropdowns
       const typeFilter = document.getElementById('typeFilter');
       typeFilter.innerHTML = '<option value="">ทุกประเภท</option>';
       Object.keys(typeCounts).forEach(type => {
         typeFilter.innerHTML += `<option value="${type}">${type} (${typeCounts[type]})</option>`;
       });
 
-      // Render Charts, Map, and Table
-      renderCharts(typeCounts, urgencyCounts);
-      renderMap(rawIncidents);
+      // Render Charts & Table
+      renderStatisticalCharts(typeCounts, urgencyCounts, statusCounts, dateCounts);
       renderTable(rawIncidents);
     }
 
-    // 5. Render Charts (Chart.js)
-    function renderCharts(typeCounts, urgencyCounts) {
-      // 1. Doughnut Chart: Types
+    // 4. Render Statistical Charts (Chart.js)
+    function renderStatisticalCharts(typeCounts, urgencyCounts, statusCounts, dateCounts) {
+      const chartFont = { family: 'Prompt', size: 11 };
+
+      // Chart 1: Timeline Trend (Area Line Chart)
+      const ctxTrend = document.getElementById('trendChart').getContext('2d');
+      if (trendChartInstance) trendChartInstance.destroy();
+
+      const sortedDates = Object.keys(dateCounts).sort();
+      const trendValues = sortedDates.map(d => dateCounts[d]);
+
+      trendChartInstance = new Chart(ctxTrend, {
+        type: 'line',
+        data: {
+          labels: sortedDates.length > 0 ? sortedDates : ['ไม่มีข้อมูล'],
+          datasets: [{
+            label: 'จำนวนเหตุการณ์ที่แจ้ง',
+            data: trendValues.length > 0 ? trendValues : [0],
+            borderColor: '#38bdf8',
+            backgroundColor: 'rgba(56, 189, 248, 0.15)',
+            fill: true,
+            tension: 0.35,
+            borderWidth: 2,
+            pointBackgroundColor: '#38bdf8',
+            pointRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            x: { ticks: { color: '#94a3b8', font: chartFont }, grid: { display: false } },
+            y: { ticks: { color: '#94a3b8', stepSize: 1, font: chartFont }, grid: { color: '#1e293b' } }
+          }
+        }
+      });
+
+      // Chart 2: Type Breakdown (Doughnut Chart)
       const ctxType = document.getElementById('typeChart').getContext('2d');
       if (typeChartInstance) typeChartInstance.destroy();
 
@@ -439,20 +621,21 @@
           labels: Object.keys(typeCounts),
           datasets: [{
             data: Object.values(typeCounts),
-            backgroundColor: ['#0284c7', '#f59e0b', '#ef4444', '#10b981', '#8b5cf6', '#64748b'],
-            borderWidth: 0
+            backgroundColor: ['#38bdf8', '#f59e0b', '#ef4444', '#10b981', '#8b5cf6', '#ec4899', '#64748b'],
+            borderWidth: 2,
+            borderColor: '#111b33'
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: { position: 'bottom', labels: { color: '#cbd5e1', font: { family: 'Prompt', size: 10 } } }
+            legend: { position: 'bottom', labels: { color: '#cbd5e1', font: chartFont } }
           }
         }
       });
 
-      // 2. Bar Chart: Urgency
+      // Chart 3: Urgency Levels (Bar Chart)
       const ctxUrgency = document.getElementById('urgencyChart').getContext('2d');
       if (urgencyChartInstance) urgencyChartInstance.destroy();
 
@@ -461,10 +644,11 @@
         data: {
           labels: Object.keys(urgencyCounts),
           datasets: [{
-            label: 'จำนวน',
+            label: 'จำนวนเหตุการณ์',
             data: Object.values(urgencyCounts),
             backgroundColor: ['#ef4444', '#f59e0b', '#10b981'],
-            borderRadius: 6
+            borderRadius: 8,
+            borderWidth: 0
           }]
         },
         options: {
@@ -472,77 +656,56 @@
           maintainAspectRatio: false,
           plugins: { legend: { display: false } },
           scales: {
-            x: { ticks: { color: '#94a3b8', font: { family: 'Prompt', size: 10 } }, grid: { display: false } },
-            y: { ticks: { color: '#94a3b8', stepSize: 1 }, grid: { color: '#1e293b' } }
+            x: { ticks: { color: '#94a3b8', font: chartFont }, grid: { display: false } },
+            y: { ticks: { color: '#94a3b8', stepSize: 1, font: chartFont }, grid: { color: '#1e293b' } }
+          }
+        }
+      });
+
+      // Chart 4: Response Status (Horizontal Bar Chart)
+      const ctxStatus = document.getElementById('statusChart').getContext('2d');
+      if (statusChartInstance) statusChartInstance.destroy();
+
+      statusChartInstance = new Chart(ctxStatus, {
+        type: 'bar',
+        data: {
+          labels: Object.keys(statusCounts),
+          datasets: [{
+            label: 'จำนวนเรื่อง',
+            data: Object.values(statusCounts),
+            backgroundColor: ['#64748b', '#f59e0b', '#10b981'],
+            borderRadius: 8
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#94a3b8', stepSize: 1, font: chartFont }, grid: { color: '#1e293b' } },
+            y: { ticks: { color: '#94a3b8', font: chartFont }, grid: { display: false } }
           }
         }
       });
     }
 
-    // 6. Render Map Markers (Leaflet)
-    function renderMap(incidents) {
-      markersLayer.clearLayers();
-      const bounds = [];
-
-      incidents.forEach(item => {
-        if (!item.lat || !item.lon || (item.lat === 0 && item.lon === 0)) return;
-
-        let markerColor = '#f59e0b';
-        let isCritical = false;
-        if (item.urgency.includes('วิกฤต')) {
-          markerColor = '#ef4444';
-          isCritical = true;
-        } else if (item.urgency.includes('เฝ้าระวัง')) {
-          markerColor = '#10b981';
-        }
-
-        const customIcon = L.divIcon({
-          className: 'custom-pin',
-          html: `<div style="background-color: ${markerColor};" class="w-4 h-4 rounded-full border-2 border-white shadow-lg ${isCritical ? 'pulse-radar' : ''}"></div>`,
-          iconSize: [16, 16],
-          iconAnchor: [8, 8]
-        });
-
-        const imgUrl = getDirectImageUrl(item.media_url);
-        let imgHtml = '';
-        if (imgUrl) {
-          imgHtml = `<div class="mt-2 rounded-lg overflow-hidden border border-slate-700 max-h-36 flex items-center justify-center bg-black/40">
-            <img src="${imgUrl}" alt="หลักฐาน" class="w-full object-cover cursor-pointer" onclick="openModal('${imgUrl}', '${item.title}', '${item.address}')">
-          </div>`;
-        }
-
-        const popupContent = `
-          <div class="text-xs space-y-1.5 p-1 max-w-[240px]">
-            <div class="font-bold text-sky-400 text-sm">${item.title}</div>
-            <div class="text-slate-300"><strong>ประเภท:</strong> ${item.raw_type}</div>
-            <div class="text-slate-300"><strong>สถานที่:</strong> ${item.address}</div>
-            <div class="text-slate-300"><strong>สถานะ:</strong> <span class="text-amber-400">${item.status}</span></div>
-            <div class="text-[11px] text-slate-400"><strong>ผู้แจ้ง:</strong> ${item.reporter}</div>
-            ${imgHtml}
-          </div>
-        `;
-
-        const marker = L.marker([item.lat, item.lon], { icon: customIcon }).bindPopup(popupContent);
-        markersLayer.addLayer(marker);
-        bounds.push([item.lat, item.lon]);
-      });
-
-      if (bounds.length > 0) {
-        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
-      }
-    }
-
-    // 7. Render Table
+    // 5. Render Incidents Table
     function renderTable(incidents) {
       const tbody = document.getElementById('incidentsTableBody');
+      const tableSummary = document.getElementById('tableSummary');
+
       if (!incidents || incidents.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-6 text-slate-500">ไม่พบรายการข้อมูลที่ค้นหา</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-slate-500">ไม่พบรายการข้อมูลตามเงื่อนไขที่เลือก</td></tr>`;
+        tableSummary.innerText = `แสดงผล 0 รายการ`;
         return;
       }
 
+      tableSummary.innerText = `แสดงผล ${incidents.length} จากทั้งหมด ${rawIncidents.length} รายการ`;
       tbody.innerHTML = '';
-      incidents.slice().reverse().forEach((item, idx) => {
-        // Format Urgency Badge
+
+      incidents.slice().reverse().forEach((item) => {
+        // Urgency Badge
         let urgencyBadge = '<span class="px-2 py-0.5 rounded text-xs bg-amber-500/20 text-amber-400 border border-amber-500/30">🟡 ปานกลาง</span>';
         if (item.urgency.includes('วิกฤต')) {
           urgencyBadge = '<span class="px-2 py-0.5 rounded text-xs bg-rose-500/20 text-rose-400 border border-rose-500/30 font-semibold animate-pulse">🔴 วิกฤต</span>';
@@ -550,15 +713,29 @@
           urgencyBadge = '<span class="px-2 py-0.5 rounded text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">🟢 เฝ้าระวัง</span>';
         }
 
-        // Format Status Badge
-        let statusBadge = `<span class="text-slate-300">${item.status}</span>`;
+        // Status Select Dropdown
+        let statusBorder = 'border-slate-700 text-slate-300';
         if (item.status.includes('เสร็จ') || item.status.includes('เรียบร้อย')) {
-          statusBadge = `<span class="px-2 py-0.5 rounded text-xs bg-emerald-500/20 text-emerald-400 font-medium">✅ ${item.status}</span>`;
+          statusBorder = 'border-emerald-500/40 text-emerald-400 bg-emerald-950/20';
         } else if (item.status.includes('ดำเนิน')) {
-          statusBadge = `<span class="px-2 py-0.5 rounded text-xs bg-amber-500/20 text-amber-400 font-medium">🟡 ${item.status}</span>`;
+          statusBorder = 'border-amber-500/40 text-amber-400 bg-amber-950/20';
+        } else if (item.status.includes('รอ')) {
+          statusBorder = 'border-sky-500/40 text-sky-400 bg-sky-950/20';
         }
 
-        // Format Photo Thumbnail
+        const safeTime = encodeURIComponent(item.timestamp || '');
+        const safeTitle = encodeURIComponent(item.title || '');
+
+        const statusSelectHtml = `
+          <select data-prev="${item.status}" onchange="updateIncidentStatus(this, '${safeTime}', '${safeTitle}')" class="px-2 py-1 text-xs rounded-lg bg-slate-900 border ${statusBorder} font-medium focus:outline-none focus:border-sky-500 transition-colors cursor-pointer">
+            <option value="⏳ รอดำเนินการ" ${item.status.includes('รอ') ? 'selected' : ''}>⏳ รอดำเนินการ</option>
+            <option value="🟡 กำลังดำเนินการ" ${item.status.includes('ดำเนิน') ? 'selected' : ''}>🟡 กำลังดำเนินการ</option>
+            <option value="🟢 แก้ไขแล้วเสร็จ" ${item.status.includes('เสร็จ') || item.status.includes('เรียบร้อย') ? 'selected' : ''}>🟢 แก้ไขแล้วเสร็จ</option>
+            <option value="❌ ยกเลิก/ระงับเหตุ" ${item.status.includes('ยกเลิก') ? 'selected' : ''}>❌ ยกเลิก/ระงับเหตุ</option>
+          </select>
+        `;
+
+        // Media Thumbnail
         const directImg = getDirectImageUrl(item.media_url);
         let mediaHtml = '<span class="text-slate-600">-</span>';
         if (directImg) {
@@ -576,22 +753,23 @@
         tr.innerHTML = `
           <td class="px-4 py-3 whitespace-nowrap text-slate-400 text-xs">${dateStr}</td>
           <td class="px-4 py-3 font-medium text-white">${item.title}</td>
-          <td class="px-4 py-3">${item.raw_type}</td>
+          <td class="px-4 py-3 text-slate-300">${item.raw_type}</td>
           <td class="px-4 py-3 whitespace-nowrap">${urgencyBadge}</td>
-          <td class="px-4 py-3 max-w-[200px] truncate text-slate-300" title="${item.address}">${item.address}</td>
+          <td class="px-4 py-3 max-w-[220px] truncate text-slate-300" title="${item.address}">${item.address}</td>
           <td class="px-4 py-3 text-slate-300">${item.reporter}</td>
-          <td class="px-4 py-3 whitespace-nowrap">${statusBadge}</td>
+          <td class="px-4 py-3 whitespace-nowrap">${statusSelectHtml}</td>
           <td class="px-4 py-3 text-center">${mediaHtml}</td>
         `;
         tbody.appendChild(tr);
       });
     }
 
-    // 8. Filter Table logic
+    // 6. Filter Table Logic
     function filterTable() {
       const search = document.getElementById('searchInput').value.toLowerCase();
       const typeVal = document.getElementById('typeFilter').value;
       const urgencyVal = document.getElementById('urgencyFilter').value;
+      const statusVal = document.getElementById('statusFilter').value;
 
       const filtered = rawIncidents.filter(item => {
         const matchesSearch = item.title.toLowerCase().includes(search) || 
@@ -599,13 +777,155 @@
                               item.reporter.toLowerCase().includes(search);
         const matchesType = !typeVal || item.incident_type === typeVal;
         const matchesUrgency = !urgencyVal || item.urgency.includes(urgencyVal);
-        return matchesSearch && matchesType && matchesUrgency;
+        const matchesStatus = !statusVal || item.status.includes(statusVal);
+        return matchesSearch && matchesType && matchesUrgency && matchesStatus;
       });
 
       renderTable(filtered);
     }
 
-    // 9. Modal handlers
+    // 7. Update Incident Status API call
+    async function updateIncidentStatus(selectEl, encTimestamp, encTitle) {
+      const timestamp = decodeURIComponent(encTimestamp);
+      const title = decodeURIComponent(encTitle);
+      const newStatus = selectEl.value;
+      const prevValue = selectEl.getAttribute('data-prev') || selectEl.value;
+
+      selectEl.disabled = true;
+      selectEl.classList.add('opacity-50');
+
+      try {
+        let resData;
+        try {
+          const res = await fetch('/api/incident/update-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, timestamp, status: newStatus })
+          });
+          resData = await res.json();
+        } catch (apiErr) {
+          // Direct fallback to Google Sheets Web App
+          const res = await fetch(DATA_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'update_status', title, timestamp, status: newStatus })
+          });
+          resData = await res.json();
+        }
+
+        if (resData && (resData.status === 'success' || resData.updated_row)) {
+          showToast(`✅ ปรับสถานะเป็น "${newStatus}" เรียบร้อยแล้ว`);
+          selectEl.setAttribute('data-prev', newStatus);
+
+          // อัปเดตสีขอบของ Dropdown
+          if (newStatus.includes('เสร็จ') || newStatus.includes('เรียบร้อย')) {
+            selectEl.className = 'px-2 py-1 text-xs rounded-lg bg-slate-900 border border-emerald-500/40 text-emerald-400 bg-emerald-950/20 font-medium focus:outline-none focus:border-sky-500 transition-colors cursor-pointer';
+          } else if (newStatus.includes('ดำเนิน')) {
+            selectEl.className = 'px-2 py-1 text-xs rounded-lg bg-slate-900 border border-amber-500/40 text-amber-400 bg-amber-950/20 font-medium focus:outline-none focus:border-sky-500 transition-colors cursor-pointer';
+          } else {
+            selectEl.className = 'px-2 py-1 text-xs rounded-lg bg-slate-900 border border-sky-500/40 text-sky-400 bg-sky-950/20 font-medium focus:outline-none focus:border-sky-500 transition-colors cursor-pointer';
+          }
+
+          // อัปเดตข้อมูลในเครื่องและคำนวณ KPI ใหม่ทันที
+          const item = rawIncidents.find(x => (timestamp && x.timestamp === timestamp) || (title && x.title === title));
+          if (item) {
+            item.status = newStatus;
+          }
+          recalculateStats();
+        } else {
+          alert("⚠️ ไม่สามารถอัปเดตสถานะได้: " + (resData ? resData.message : 'ไม่พบแถวข้อมูล'));
+          selectEl.value = prevValue;
+        }
+      } catch (err) {
+        console.error("Update error:", err);
+        alert("❌ เกิดข้อผิดพลาดในการเชื่อมต่อเพื่ออัปเดตสถานะ");
+        selectEl.value = prevValue;
+      } finally {
+        selectEl.disabled = false;
+        selectEl.classList.remove('opacity-50');
+      }
+    }
+
+    // Recalculate Stats without full refetch
+    function recalculateStats() {
+      let total = rawIncidents.length;
+      let critical = 0, inProgress = 0, resolved = 0;
+      let statusCounts = { '⏳ รอดำเนินการ': 0, '🟡 กำลังดำเนินการ': 0, '🟢 แก้ไขแล้วเสร็จ': 0 };
+
+      rawIncidents.forEach(item => {
+        if (item.urgency.includes('วิกฤต')) critical++;
+        if (item.status.includes('เสร็จ') || item.status.includes('เรียบร้อย')) {
+          resolved++;
+          statusCounts['🟢 แก้ไขแล้วเสร็จ']++;
+        } else if (item.status.includes('ดำเนิน')) {
+          inProgress++;
+          statusCounts['🟡 กำลังดำเนินการ']++;
+        } else {
+          statusCounts['⏳ รอดำเนินการ']++;
+        }
+      });
+
+      const rate = total > 0 ? Math.round((resolved / total) * 100) : 0;
+      document.getElementById('statTotal').innerText = total;
+      document.getElementById('statCritical').innerText = critical;
+      document.getElementById('statInProgress').innerText = inProgress;
+      document.getElementById('statResolved').innerText = resolved;
+      document.getElementById('statRate').innerText = `${rate}%`;
+
+      if (statusChartInstance) {
+        statusChartInstance.data.datasets[0].data = Object.values(statusCounts);
+        statusChartInstance.update();
+      }
+    }
+
+    // Toast Notification
+    function showToast(msg) {
+      let toast = document.getElementById('toast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast';
+        toast.className = 'fixed bottom-5 right-5 z-50 px-4 py-2.5 rounded-xl bg-slate-900 border border-emerald-500/40 text-emerald-400 font-medium shadow-2xl transition-all duration-300 transform translate-y-10 opacity-0 text-xs md:text-sm flex items-center gap-2';
+        document.body.appendChild(toast);
+      }
+      toast.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> <span>${msg}</span>`;
+      toast.classList.remove('translate-y-10', 'opacity-0');
+      setTimeout(() => {
+        toast.classList.add('translate-y-10', 'opacity-0');
+      }, 3000);
+    }
+
+    // 8. Export CSV
+    function exportCSV() {
+      if (!rawIncidents || rawIncidents.length === 0) {
+        alert("ไม่มีข้อมูลสำหรับส่งออก");
+        return;
+      }
+
+      let csv = "\uFEFFวันเวลา,รหัส/หัวข้อ,ประเภท,ความเร่งด่วน,สถานที่,ผู้แจ้ง,สถานะ,ลิงก์ไฟล์\n";
+      rawIncidents.forEach(item => {
+        const row = [
+          `"${item.timestamp}"`,
+          `"${item.title.replace(/"/g, '""')}"`,
+          `"${item.raw_type.replace(/"/g, '""')}"`,
+          `"${item.urgency.replace(/"/g, '""')}"`,
+          `"${item.address.replace(/"/g, '""')}"`,
+          `"${item.reporter.replace(/"/g, '""')}"`,
+          `"${item.status.replace(/"/g, '""')}"`,
+          `"${item.media_url}"`
+        ];
+        csv += row.join(",") + "\n";
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `rtsd_incidents_report_${new Date().toISOString().slice(0,10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // 8. Image Modal
     function openModal(imgSrc, title, addr) {
       document.getElementById('modalImg').src = imgSrc;
       document.getElementById('modalTitle').innerText = title;
@@ -618,7 +938,7 @@
       document.getElementById('imageModal').classList.add('hidden');
     }
 
-    // 10. Live Clock
+    // 9. Live Clock
     function updateClock() {
       const now = new Date();
       const str = now.toLocaleDateString('th-TH', { 
@@ -628,13 +948,192 @@
       document.getElementById('liveClock').innerText = str + " น.";
     }
 
-    // Initialize
+    // =========================================================================
+    // 🛡️ AUTHENTICATION & OTP LOGIC
+    // =========================================================================
+    let countdownInterval = null;
+
+    function checkAuthStatus() {
+      const token = localStorage.getItem('rtsd_auth_token') || sessionStorage.getItem('rtsd_auth_token');
+      const userJson = localStorage.getItem('rtsd_user') || sessionStorage.getItem('rtsd_user');
+      
+      if (token && userJson) {
+        try {
+          const user = JSON.parse(userJson);
+          document.getElementById('userNameDisplay').innerText = user.name || 'เจ้าหน้าที่';
+          document.getElementById('userBadge').classList.remove('hidden');
+          document.getElementById('userBadge').classList.add('flex');
+          document.getElementById('authModal').classList.add('hidden');
+          fetchData();
+          return true;
+        } catch(e) {}
+      }
+      
+      document.getElementById('authModal').classList.remove('hidden');
+      return false;
+    }
+
+    function switchAuthTab(tab) {
+      const tabOtpBtn = document.getElementById('tabOtpBtn');
+      const tabPinBtn = document.getElementById('tabPinBtn');
+      const otpSection = document.getElementById('otpSection');
+      const pinSection = document.getElementById('pinSection');
+      
+      if (tab === 'otp') {
+        tabOtpBtn.className = "flex-1 py-2 rounded-lg bg-sky-600 text-white transition-all cursor-pointer";
+        tabPinBtn.className = "flex-1 py-2 rounded-lg text-slate-400 hover:text-white transition-all cursor-pointer";
+        otpSection.classList.remove('hidden');
+        pinSection.classList.add('hidden');
+      } else {
+        tabPinBtn.className = "flex-1 py-2 rounded-lg bg-sky-600 text-white transition-all cursor-pointer";
+        tabOtpBtn.className = "flex-1 py-2 rounded-lg text-slate-400 hover:text-white transition-all cursor-pointer";
+        pinSection.classList.remove('hidden');
+        otpSection.classList.add('hidden');
+      }
+    }
+
+    async function handleRequestOtp() {
+      const phone = document.getElementById('authPhone').value.trim();
+      const btn = document.getElementById('requestOtpBtn');
+      const hint = document.getElementById('otpHint');
+      
+      if (!phone || phone.length < 9) {
+        alert("กรุณาระบุเบอร์โทรศัพท์ 9-10 หลัก");
+        return;
+      }
+      
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ส่ง...';
+      
+      try {
+        const res = await fetch('/api/auth/request-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone })
+        });
+        const data = await res.json();
+        
+        if (res.ok && data.status === 'success') {
+          document.getElementById('otpInputGroup').classList.remove('hidden');
+          hint.innerHTML = `<span class="text-emerald-400">✅ ${data.message}</span>`;
+          if (data.demo_otp) {
+            hint.innerHTML += `<br><span class="text-amber-400 font-mono">🔑 รหัส OTP ทดสอบ: <b>${data.demo_otp}</b></span>`;
+          }
+          startOtpCountdown(300);
+        } else {
+          alert("⚠️ " + (data.message || "ไม่สามารถส่ง OTP ได้"));
+        }
+      } catch(e) {
+        alert("❌ การเชื่อมต่อขัดข้อง กรุณาลองใหม่อีกครั้ง");
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'ขอ OTP';
+      }
+    }
+
+    function startOtpCountdown(sec) {
+      clearInterval(countdownInterval);
+      const cd = document.getElementById('otpCountdown');
+      let remaining = sec;
+      
+      countdownInterval = setInterval(() => {
+        const m = Math.floor(remaining / 60);
+        const s = remaining % 60;
+        cd.innerText = `หมดอายุใน ${m}:${s < 10 ? '0' : ''}${s} นาที`;
+        remaining--;
+        if (remaining < 0) {
+          clearInterval(countdownInterval);
+          cd.innerText = 'รหัส OTP หมดอายุแล้ว';
+        }
+      }, 1000);
+    }
+
+    async function handleVerifyOtp() {
+      const phone = document.getElementById('authPhone').value.trim();
+      const otp = document.getElementById('authOtp').value.trim();
+      const remember = document.getElementById('rememberMe').checked;
+      
+      if (!otp || otp.length < 4) {
+        alert("กรุณาระบุรหัส OTP ให้ครบถ้วน");
+        return;
+      }
+      
+      try {
+        const res = await fetch('/api/auth/verify-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone, otp })
+        });
+        const data = await res.json();
+        
+        if (res.ok && data.status === 'success') {
+          const storage = remember ? localStorage : sessionStorage;
+          storage.setItem('rtsd_auth_token', data.token);
+          storage.setItem('rtsd_user', JSON.stringify(data.user));
+          
+          showToast(`🎉 ยินดีต้อนรับคุณ ${data.user.name || 'เจ้าหน้าที่'}`);
+          checkAuthStatus();
+        } else {
+          alert("❌ " + (data.message || "รหัส OTP ไม่ถูกต้อง"));
+        }
+      } catch(e) {
+        alert("❌ ไม่สามารถยืนยันตัวตนได้ในขณะนี้");
+      }
+    }
+
+    async function handleVerifyPin() {
+      const pin = document.getElementById('authPin').value.trim();
+      const remember = document.getElementById('rememberMe').checked;
+      
+      if (!pin) {
+        alert("กรุณาระบุ Master PIN");
+        return;
+      }
+      
+      try {
+        const res = await fetch('/api/auth/verify-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ master_pin: pin })
+        });
+        const data = await res.json();
+        
+        if (res.ok && data.status === 'success') {
+          const storage = remember ? localStorage : sessionStorage;
+          storage.setItem('rtsd_auth_token', data.token);
+          storage.setItem('rtsd_user', JSON.stringify(data.user));
+          
+          showToast(`⚔️ ปลดล็อกระบบศูนย์บัญชาการสำเร็จ`);
+          checkAuthStatus();
+        } else {
+          alert("❌ รหัส Master PIN ไม่ถูกต้อง");
+        }
+      } catch(e) {
+        alert("❌ ไม่สามารถตรวจสอบ PIN ได้");
+      }
+    }
+
+    function logout() {
+      if (confirm("ต้องการออกจากระบบศูนย์บัญชาการ RTSD หรือไม่?")) {
+        localStorage.removeItem('rtsd_auth_token');
+        localStorage.removeItem('rtsd_user');
+        sessionStorage.removeItem('rtsd_auth_token');
+        sessionStorage.removeItem('rtsd_user');
+        document.getElementById('userBadge').classList.add('hidden');
+        document.getElementById('userBadge').classList.remove('flex');
+        document.getElementById('authModal').classList.remove('hidden');
+      }
+    }
+
+    // Init on Load
     window.onload = () => {
-      initMap();
-      fetchData();
+      checkAuthStatus();
       updateClock();
       setInterval(updateClock, 1000);
-      setInterval(fetchData, 30000); // อัปเดตข้อมูลอัตโนมัติทุกๆ 30 วินาที
+      setInterval(() => {
+        if (!document.getElementById('authModal').classList.contains('hidden')) return;
+        fetchData();
+      }, 30000);
     };
   </script>
 </body>
