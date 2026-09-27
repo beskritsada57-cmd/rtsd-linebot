@@ -120,6 +120,28 @@ def callback():
 
 
 
+# =========================================================================
+# 🔴 3. Google Sheets Webhook URL
+# =========================================================================
+GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbw5Gepu7a5s9j1vXtgE55403L0K3sKtOcpUNArNCm6RJO1ulNp735XyZgAbTlMBwxI/exec"
+
+
+def save_to_google_sheet(lat, lon, title, address):
+    """ส่งข้อมูลไปบันทึกลงตาราง Google Sheets อัตโนมัติ"""
+    try:
+        payload = {
+            "title": str(title),
+            "address": str(address),
+            "latitude": float(lat),
+            "longitude": float(lon)
+        }
+        res = requests.post(GOOGLE_SHEET_URL, json=payload, timeout=10)
+        return res.status_code == 200
+    except Exception as e:
+        print(f"Error saving to Google Sheets: {e}")
+        return False
+
+
 # กรณีผู้ใช้แชร์พิกัดสถานที่ (Location)
 @handler.add(MessageEvent, message=LocationMessageContent)
 def handle_location(event):
@@ -128,16 +150,14 @@ def handle_location(event):
     address = event.message.address or "ไม่ระบุที่อยู่"
     title = event.message.title or "จุดแจ้งเหตุ"
 
-    # บันทึกลง ArcGIS Portal RTSD
-    saved = add_to_geoportal(lat, lon, f"แจ้งเหตุ: {title}", address)
+    # 1. บันทึกลง Google Sheets ทันที
+    sheet_saved = save_to_google_sheet(lat, lon, title, address)
 
-    if saved:
-        reply = (f"✅ ได้รับรายงานเหตุการณ์เรียบร้อยแล้ว!\n\n"
-                 f"📍 พิกัด: {lat}, {lon}\n"
-                 f"🏠 สถานที่: {address}\n\n"
-                 f"ระบบได้ปักหมุดข้อมูลลงบนแผนที่ Geoportal RTSD ให้ทันทีแล้วครับ!")
-    else:
-        reply = "⚠️ ได้รับพิกัดแล้ว แต่ระบบ GIS ขัดข้องชั่วคราว"
+    # 2. ตอบกลับผู้ใช้ใน LINE
+    reply = (f"✅ ได้รับรายงานเหตุการณ์เรียบร้อยแล้ว!\n\n"
+             f"📍 พิกัด: {lat}, {lon}\n"
+             f"🏠 สถานที่: {address}\n\n"
+             f"ระบบได้บันทึกข้อมูลเข้าสู่ฐานข้อมูลเรียบร้อยแล้วครับ")
 
     with ApiClient(configuration) as api_client:
         line_bot_api = MessagingApi(api_client)
@@ -147,6 +167,14 @@ def handle_location(event):
                 messages=[TextMessage(text=reply)]
             )
         )
+
+    # 3. พยายามปักหมุดลง ArcGIS Portal RTSD เบื้องหลัง
+    try:
+        add_to_geoportal(lat, lon, f"แจ้งเหตุ: {title}", address)
+    except Exception as e:
+        print(f"GIS Background push error: {e}")
+
+
 
 
 # กรณีผู้ใช้พิมพ์ข้อความธรรมดา
