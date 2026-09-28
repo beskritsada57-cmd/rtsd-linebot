@@ -259,8 +259,12 @@ def sync_once(synced_history):
     return synced_history
 
 
+# บันทึกประวัติ Timestamp ล่าสุดของแต่ละหน่วย เพื่อไม่ให้ส่งจุดซ้ำซ้อน
+last_synced_tracker_pings = {}
+
 def sync_live_trackers_to_rtsd(token):
-    """ดึงพิกัดสดของหน่วยกำลังพลจากเซิร์ฟเวอร์ แล้วอัปเดตหมุดบน Geoportal RTSD แบบเรียลไทม์"""
+    """ดึงพิกัดสดของหน่วยกำลังพลจากเซิร์ฟเวอร์ แล้วบันทึกลง Geoportal RTSD แบบ Log Track เส้นทางประวัติการเคลื่อนที่"""
+    global last_synced_tracker_pings
     try:
         res = requests.get(TRACKER_UNITS_URL, timeout=10)
         if res.status_code != 200:
@@ -270,23 +274,20 @@ def sync_live_trackers_to_rtsd(token):
             return
 
         headers = {'referer': PORTAL_URL}
-
-        # Query รายการเดิมใน rtsd_live_trackers
-        q_res = requests.get(f"{TRACKER_LAYER_URL}/query", params={
-            'where': '1=1', 'outFields': 'objectid,unit_id', 'f': 'json', 'token': token
-        }, headers=headers, verify=False, timeout=10)
-
-        existing_features = q_res.json().get('features', [])
-        unit_map = {f['attributes']['unit_id']: f['attributes']['objectid'] for f in existing_features if f.get('attributes', {}).get('unit_id')}
-
         adds = []
-        updates = []
 
         for u in units:
             unit_id = str(u.get('unit_id', 'UNIT-01')).strip()
             lat = float(u.get('latitude', 0))
             lon = float(u.get('longitude', 0))
+            last_update = str(u.get('last_update', ''))[:50]
+
             if lat == 0 or lon == 0:
+                continue
+
+            # ตรวจสอบว่าพิกัดนี้เป็นสัญญาณใหม่หรือไม่ (ป้องกันการปักหมุดซ้ำซ้อนขณะยังไม่มีสัญญาณใหม่)
+            prev_update = last_synced_tracker_pings.get(unit_id)
+            if prev_update == last_update:
                 continue
 
             feature_geom = {
@@ -302,28 +303,18 @@ def sync_live_trackers_to_rtsd(token):
                 "heading": float(u.get('heading', 0)),
                 "battery": int(u.get('battery', 100)),
                 "status": str(u.get('status', '🟢 กำลังปฏิบัติภารกิจ'))[:50],
-                "last_update": str(u.get('last_update', ''))[:50]
+                "last_update": last_update
             }
 
-            if unit_id in unit_map:
-                feature_attrs["objectid"] = unit_map[unit_id]
-                updates.append({"geometry": feature_geom, "attributes": feature_attrs})
-            else:
-                adds.append({"geometry": feature_geom, "attributes": feature_attrs})
+            adds.append({"geometry": feature_geom, "attributes": feature_attrs})
+            last_synced_tracker_pings[unit_id] = last_update
 
-        # อัปเดตตำแหน่งเดิม
-        if updates:
-            requests.post(f"{TRACKER_LAYER_URL}/updateFeatures", data={
-                'features': json.dumps(updates), 'token': token, 'f': 'json'
-            }, headers=headers, verify=False, timeout=15)
-            print(f"🛰️ อัปเดตพิกัดสดบน RTSD สำเร็จ {len(updates)} หน่วย")
-
-        # เพิ่มหน่วยใหม่
+        # บันทึกจุดพิกัดใหม่เพิ่มลงในเลเยอร์เสมอ เพื่อสร้าง Log Track เส้นทางการเคลื่อนที่
         if adds:
-            requests.post(f"{TRACKER_LAYER_URL}/addFeatures", data={
+            r = requests.post(f"{TRACKER_LAYER_URL}/addFeatures", data={
                 'features': json.dumps(adds), 'token': token, 'f': 'json'
             }, headers=headers, verify=False, timeout=15)
-            print(f"🛰️ เพิ่มหน่วยกำลังพลใหม่บน RTSD สำเร็จ {len(adds)} หน่วย")
+            print(f"🛰️ บันทึก Log Track พิกัดใหม่บน RTSD สำเร็จ {len(adds)} จุด")
 
     except Exception as e:
         # ไม่แสดง error ถ้าเซิร์ฟเวอร์ยังไม่มี tracker เชื่อมต่อ

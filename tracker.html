@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>RTSD Tactical Live GPS Tracker | กรมแผนที่ทหาร</title>
+  <!-- Google Fonts: Prompt -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Prompt', 'sans-serif'] },
+          colors: {
+            tactical: {
+              bg: '#080e1e',
+              card: '#0f172a',
+              input: '#1e293b',
+              border: '#334155',
+              green: '#10b981',
+              cyan: '#06b6d4',
+              gold: '#f59e0b',
+              red: '#ef4444'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Prompt', sans-serif;
+      background: radial-gradient(circle at top, #0d1b38 0%, #080e1e 100%);
+      color: #f1f5f9;
+      touch-action: manipulation;
+    }
+    .radar-beam {
+      position: relative;
+    }
+    .radar-beam::after {
+      content: '';
+      position: absolute;
+      inset: -6px;
+      border-radius: 9999px;
+      border: 2px solid #10b981;
+      opacity: 0;
+      animation: radarPing 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+    }
+    @keyframes radarPing {
+      0% { transform: scale(0.9); opacity: 0.8; }
+      100% { transform: scale(1.6); opacity: 0; }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between p-4 max-w-md mx-auto">
+
+  <!-- ========================================================================= -->
+  <!-- 🛰️ TOP TACTICAL HEADER -->
+  <!-- ========================================================================= -->
+  <div class="space-y-3.5">
+    <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+      <div class="flex items-center space-x-2.5">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-sky-600 flex items-center justify-center text-white text-lg shadow-lg shadow-emerald-500/20">
+          <i class="fa-solid fa-satellite-dish"></i>
+        </div>
+        <div>
+          <h1 class="text-sm font-bold text-white tracking-wide flex items-center gap-1.5">
+            RTSD LIVE GPS TRACKER
+          </h1>
+          <p class="text-[11px] text-slate-400">ระบบติดตามกำลังพลสด กรมแผนที่ทหาร</p>
+        </div>
+      </div>
+      <span id="badgeStatus" class="px-2.5 py-1 text-[11px] font-semibold rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+        ⚪ สแตนด์บาย
+      </span>
+    </div>
+
+    <!-- UNIT PROFILE SETUP -->
+    <div class="bg-tactical-card border border-slate-800 rounded-2xl p-4 shadow-xl space-y-2.5 text-xs">
+      <div class="flex items-center justify-between text-sky-400 font-semibold uppercase tracking-wider">
+        <span class="flex items-center gap-1.5"><i class="fa-solid fa-id-card"></i> ข้อมูลผู้ปฏิบัติการ</span>
+        <span id="wakeLockStatus" class="text-[10px] text-slate-500 normal-case"><i class="fa-solid fa-lock text-[9px]"></i> Screen Awake</span>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="text-slate-400 block mb-1">รหัสชุด / หมายเลข:</label>
+          <input type="text" id="unitId" value="UNIT-01" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-white font-medium focus:outline-none focus:border-emerald-500">
+        </div>
+        <div>
+          <label class="text-slate-400 block mb-1">ยศ-ชื่อ / ผู้ถือเครื่อง:</label>
+          <input type="text" id="commander" value="กำลังพล RTSD" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-white focus:outline-none focus:border-emerald-500">
+        </div>
+      </div>
+      <div>
+        <label class="text-slate-400 block mb-1">สังกัดหน่วยงาน / ภารกิจ:</label>
+        <input type="text" id="unitName" value="ชุดปฏิบัติการช่วยเหลือผู้ประสบภัย" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500">
+      </div>
+    </div>
+
+    <!-- MISSION STATUS & INTERVAL SELECTOR -->
+    <div class="bg-tactical-card border border-slate-800 rounded-2xl p-3 shadow-xl">
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <div>
+          <label class="text-slate-400 block mb-1">สถานะภารกิจ:</label>
+          <select id="missionStatus" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2 py-2 text-white focus:outline-none focus:border-emerald-500">
+            <option value="🟢 ลาดตระเวน / ตรวจการณ์">🟢 ลาดตระเวน</option>
+            <option value="🚗 กำลังเดินทาง / เคลื่อนย้าย">🚗 กำลังเดินทาง</option>
+            <option value="🛑 จุดตรวจ / สกัดกั้น">🛑 จุดตรวจ/สกัด</option>
+            <option value="⚠️ เผชิญเหตุ / ขอสนับสนุน">⚠️ เผชิญเหตุ</option>
+            <option value="⚪ สแตนด์บาย / พักคอย">⚪ พักคอย</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-slate-400 block mb-1">ความถี่ส่งพิกัด:</label>
+          <select id="pingInterval" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2 py-2 text-white focus:outline-none focus:border-emerald-500">
+            <option value="15" selected>ทุก 15 วินาที (แนะนำ)</option>
+            <option value="30">ทุก 30 วินาที</option>
+            <option value="60">ทุก 1 นาที (ประหยัดแบต)</option>
+            <option value="10">ทุก 10 วินาที (รถยนต์)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- TELEMETRY SENSORS -->
+    <div class="grid grid-cols-2 gap-2 text-xs">
+      <div class="bg-tactical-card border border-slate-800 rounded-xl p-2.5 flex flex-col justify-between">
+        <span class="text-slate-400 flex items-center gap-1">
+          <i class="fa-solid fa-gauge text-sky-400"></i> ความเร็ว
+        </span>
+        <div class="mt-1 flex items-baseline gap-1">
+          <span id="speedVal" class="text-xl font-bold text-white">0</span>
+          <span class="text-[10px] text-slate-500">กม./ชม.</span>
+        </div>
+      </div>
+
+      <div class="bg-tactical-card border border-slate-800 rounded-xl p-2.5 flex flex-col justify-between">
+        <span class="text-slate-400 flex items-center gap-1">
+          <i class="fa-solid fa-battery-half text-emerald-400"></i> แบตเตอรี่
+        </span>
+        <div class="mt-1 flex items-baseline gap-1">
+          <span id="batteryVal" class="text-xl font-bold text-white">--</span>
+          <span class="text-[10px] text-slate-500">%</span>
+        </div>
+      </div>
+
+      <div class="bg-tactical-card border border-slate-800 rounded-xl p-2.5 flex flex-col justify-between">
+        <span class="text-slate-400 flex items-center gap-1">
+          <i class="fa-solid fa-crosshairs text-amber-400"></i> ความแม่นยำ GPS
+        </span>
+        <div class="mt-1 flex items-baseline gap-1">
+          <span id="accuracyVal" class="text-lg font-bold text-white">--</span>
+          <span class="text-[10px] text-slate-500">เมตร</span>
+        </div>
+      </div>
+
+      <div class="bg-tactical-card border border-slate-800 rounded-xl p-2.5 flex flex-col justify-between">
+        <span class="text-slate-400 flex items-center gap-1">
+          <i class="fa-solid fa-signal text-indigo-400"></i> ส่งสัญญาณแล้ว
+        </span>
+        <div class="mt-1 flex items-baseline gap-1">
+          <span id="pingCount" class="text-lg font-bold text-white">0</span>
+          <span class="text-[10px] text-slate-500">ครั้ง</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- CURRENT POSITION LOG -->
+    <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5 text-xs space-y-1">
+      <div class="flex justify-between text-slate-400 text-[11px]">
+        <span>📍 พิกัด GPS สด:</span>
+        <span id="lastPingTime" class="text-slate-500">ยังไม่เริ่มส่ง</span>
+      </div>
+      <div id="coordsVal" class="font-mono text-emerald-400 font-semibold text-xs sm:text-sm">
+        13.785700, 100.591200
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 🔘 MAIN ACTION BUTTONS & STEALTH MODE -->
+  <!-- ========================================================================= -->
+  <div class="py-4 space-y-2.5">
+    <button id="btnToggle" onclick="toggleTracking()" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-base shadow-xl shadow-emerald-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer">
+      <i class="fa-solid fa-play"></i>
+      <span>เริ่มปฏิบัติภารกิจ (ส่งพิกัดสด)</span>
+    </button>
+
+    <div class="grid grid-cols-2 gap-2">
+      <button id="btnStealth" onclick="enterStealthMode()" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white font-medium text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer">
+        <i class="fa-solid fa-moon text-amber-400"></i>
+        <span>พรางหน้าจอ (OLED)</span>
+      </button>
+
+      <a href="https://geoportal.rtsd.mi.th/portal/home/webmap/viewer.html?url=https://geoportal.rtsd.mi.th/arcgis/rest/services/Hosted/rtsd_live_trackers/FeatureServer/0" target="_blank" class="w-full py-2.5 rounded-xl bg-sky-950/60 hover:bg-sky-900/60 border border-sky-600/40 text-sky-300 font-medium text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer text-center">
+        <i class="fa-solid fa-map-location-dot text-sky-400"></i>
+        <span>ดูแผนที่ RTSD</span>
+      </a>
+    </div>
+
+    <p class="text-center text-[11px] text-slate-500">
+      💡 ระบบป้องกันจอดับอัตโนมัติ (WakeLock) กดพรางหน้าจอเพื่อประหยัดแบตเตอรี่ได้
+    </p>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 🕶️ STEALTH BLACK MODE OVERLAY (OLED BATTERY SAVING & NO GLOW) -->
+  <!-- ========================================================================= -->
+  <div id="stealthOverlay" class="fixed inset-0 z-[200] bg-black hidden flex flex-col justify-between p-6 select-none cursor-pointer" onclick="handleStealthTap()">
+    <!-- Top Faint HUD -->
+    <div class="flex items-center justify-between text-neutral-800 text-[11px] font-mono">
+      <span class="flex items-center gap-1.5">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping"></span>
+        <span class="text-neutral-700 font-semibold tracking-wider">RTSD STEALTH GPS LIVE</span>
+      </span>
+      <span id="stealthBattery" class="text-neutral-700">--%</span>
+    </div>
+
+    <!-- Center Clock & Minimal HUD -->
+    <div class="text-center space-y-2 my-auto">
+      <div id="stealthClock" class="font-mono text-4xl text-neutral-800 font-light tracking-widest">
+        00:00:00
+      </div>
+      <div id="stealthCoords" class="font-mono text-[11px] text-neutral-800">
+        13.785700, 100.591200
+      </div>
+      <div class="pt-1">
+        <span id="stealthPingCount" class="text-[10px] text-neutral-800 font-mono px-2 py-0.5 rounded border border-neutral-900">
+          PING #0
+        </span>
+      </div>
+    </div>
+
+    <!-- Bottom Instruction -->
+    <div class="text-center space-y-1 text-neutral-800 text-[11px]">
+      <p>🕶️ โหมดพรางหน้าจอ (จอดำ OLED ประหยัดพลังงาน จอไม่ดับ)</p>
+      <p class="text-neutral-700 font-semibold">แตะ 2 ครั้ง เพื่อปลดล็อกกลับสู่หน้าปกติ</p>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- ⚙️ TRACKER JAVASCRIPT ENGINE -->
+  <!-- ========================================================================= -->
+  <script>
+    // Auto-detect API Base
+    const API_BASE = (window.location.protocol === 'file:' || !window.location.host.includes('onrender.com')) 
+      ? 'https://rtsd-linebot.onrender.com' 
+      : '';
+
+    let isTracking = false;
+    let watchId = null;
+    let pingIntervalId = null;
+    let wakeLock = null;
+    let currentCoords = { lat: 13.7857, lon: 100.5912, speed: 0, heading: 0, accuracy: 10 };
+    let pingCount = 0;
+    let lastTapTime = 0;
+
+    // Load registered user from localStorage if exists
+    try {
+      const savedUserStr = localStorage.getItem('rtsd_user') || sessionStorage.getItem('rtsd_user');
+      if (savedUserStr) {
+        const u = JSON.parse(savedUserStr);
+        if (u.name) document.getElementById('commander').value = u.name;
+        if (u.unit) document.getElementById('unitName').value = u.unit;
+        if (u.phone) document.getElementById('unitId').value = 'RTSD-' + u.phone.slice(-4);
+      }
+    } catch(e) {}
+
+    // Battery API
+    if (navigator.getBattery) {
+      navigator.getBattery().then(battery => {
+        updateBattery(battery);
+        battery.addEventListener('levelchange', () => updateBattery(battery));
+      });
+    }
+
+    function updateBattery(battery) {
+      const level = Math.round(battery.level * 100);
+      document.getElementById('batteryVal').innerText = level;
+      document.getElementById('stealthBattery').innerText = level + '%';
+    }
+
+    // Screen WakeLock to prevent sleep
+    async function requestWakeLock() {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLock = await navigator.wakeLock.request('screen');
+          document.getElementById('wakeLockStatus').innerHTML = '<i class="fa-solid fa-lock text-emerald-400 text-[9px]"></i> Screen Kept Awake';
+          wakeLock.addEventListener('release', () => {
+            document.getElementById('wakeLockStatus').innerHTML = '<i class="fa-solid fa-lock-open text-slate-500 text-[9px]"></i> Screen Sleep Normal';
+          });
+        }
+      } catch (err) {
+        console.warn('WakeLock warning:', err);
+      }
+    }
+
+    function releaseWakeLock() {
+      if (wakeLock !== null) {
+        wakeLock.release().then(() => { wakeLock = null; });
+      }
+    }
+
+    // Stealth Mode Handling (Double tap to exit)
+    function enterStealthMode() {
+      document.getElementById('stealthOverlay').classList.remove('hidden');
+      requestWakeLock();
+    }
+
+    function handleStealthTap() {
+      const now = Date.now();
+      if (now - lastTapTime < 400) {
+        // Double tap confirmed
+        document.getElementById('stealthOverlay').classList.add('hidden');
+      }
+      lastTapTime = now;
+    }
+
+    // Digital Clock
+    function updateClock() {
+      const now = new Date();
+      const h = now.getHours().toString().padStart(2, '0');
+      const m = now.getMinutes().toString().padStart(2, '0');
+      const s = now.getSeconds().toString().padStart(2, '0');
+      document.getElementById('stealthClock').innerText = `${h}:${m}:${s}`;
+    }
+    setInterval(updateClock, 1000);
+
+    function toggleTracking() {
+      if (!isTracking) {
+        startTracking();
+      } else {
+        stopTracking();
+      }
+    }
+
+    function startTracking() {
+      if (!navigator.geolocation) {
+        alert("อุปกรณ์ของคุณไม่รองรับ Geolocation GPS");
+        return;
+      }
+
+      isTracking = true;
+      requestWakeLock();
+
+      const btn = document.getElementById('btnToggle');
+      btn.className = "w-full py-3.5 rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-base shadow-xl shadow-rose-600/30 transition-all flex items-center justify-center gap-2 radar-beam cursor-pointer";
+      btn.innerHTML = '<i class="fa-solid fa-stop"></i> <span>ยุติภารกิจ (หยุดส่งพิกัด)</span>';
+
+      const badge = document.getElementById('badgeStatus');
+      badge.className = "px-2.5 py-1 text-[11px] font-semibold rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-pulse";
+      badge.innerHTML = "🟢 กำลังส่งสัญญาณสด";
+
+      // Lock inputs
+      document.getElementById('unitId').disabled = true;
+      document.getElementById('unitName').disabled = true;
+      document.getElementById('commander').disabled = true;
+
+      // Watch GPS position
+      watchId = navigator.geolocation.watchPosition(
+        pos => {
+          currentCoords.lat = pos.coords.latitude;
+          currentCoords.lon = pos.coords.longitude;
+          currentCoords.accuracy = Math.round(pos.coords.accuracy || 10);
+          currentCoords.speed = pos.coords.speed ? Math.round(pos.coords.speed * 3.6) : 0;
+          currentCoords.heading = pos.coords.heading || 0;
+
+          const coordText = `${currentCoords.lat.toFixed(6)}, ${currentCoords.lon.toFixed(6)}`;
+          document.getElementById('coordsVal').innerText = coordText;
+          document.getElementById('stealthCoords').innerText = coordText;
+          document.getElementById('speedVal').innerText = currentCoords.speed;
+          document.getElementById('accuracyVal').innerText = `±${currentCoords.accuracy}`;
+        },
+        err => console.warn("GPS error:", err),
+        { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+      );
+
+      // Send first ping immediately
+      sendTelemetry();
+
+      // Read interval from dropdown
+      const sec = parseInt(document.getElementById('pingInterval').value) || 15;
+      pingIntervalId = setInterval(sendTelemetry, sec * 1000);
+    }
+
+    function stopTracking() {
+      isTracking = false;
+      if (watchId) navigator.geolocation.clearWatch(watchId);
+      if (pingIntervalId) clearInterval(pingIntervalId);
+      releaseWakeLock();
+
+      const btn = document.getElementById('btnToggle');
+      btn.className = "w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-base shadow-xl shadow-emerald-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer";
+      btn.innerHTML = '<i class="fa-solid fa-play"></i> <span>เริ่มปฏิบัติภารกิจ (ส่งพิกัดสด)</span>';
+
+      const badge = document.getElementById('badgeStatus');
+      badge.className = "px-2.5 py-1 text-[11px] font-semibold rounded-full bg-slate-800 text-slate-400 border border-slate-700";
+      badge.innerHTML = "⚪ สแตนด์บาย";
+
+      document.getElementById('unitId').disabled = false;
+      document.getElementById('unitName').disabled = false;
+      document.getElementById('commander').disabled = false;
+
+      sendTelemetry("🔴 สิ้นสุดภารกิจ");
+    }
+
+    async function sendTelemetry(customStatus) {
+      const unitId = document.getElementById('unitId').value.trim() || 'UNIT-01';
+      const unitName = document.getElementById('unitName').value.trim() || 'ชุดปฏิบัติการ RTSD';
+      const commander = document.getElementById('commander').value.trim() || 'หัวหน้าชุด';
+      const batteryStr = document.getElementById('batteryVal').innerText;
+      const battery = parseInt(batteryStr) || 90;
+      const selectedStatus = document.getElementById('missionStatus').value;
+      const status = customStatus || (currentCoords.speed > 10 ? "🚗 กำลังเดินทาง" : selectedStatus);
+
+      const payload = {
+        unit_id: unitId,
+        unit_name: unitName,
+        commander: commander,
+        latitude: currentCoords.lat,
+        longitude: currentCoords.lon,
+        speed: currentCoords.speed,
+        heading: currentCoords.heading,
+        accuracy: currentCoords.accuracy,
+        battery: battery,
+        status: status,
+        timestamp: new Date().toISOString()
+      };
+
+      try {
+        const res = await fetch(API_BASE + '/api/tracker/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          pingCount++;
+          document.getElementById('pingCount').innerText = pingCount;
+          document.getElementById('stealthPingCount').innerText = `PING #${pingCount}`;
+          const now = new Date();
+          const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+          document.getElementById('lastPingTime').innerText = `ส่งแล้ว ${timeStr} น.`;
+        }
+      } catch (err) {
+        console.error("Telemetry upload error:", err);
+      }
+    }
+  </script>
+</body>
+</html>

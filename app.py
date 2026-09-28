@@ -1198,15 +1198,20 @@ def handle_text(event):
         reply_message = TextMessage(text=reply_msg, quick_reply=quick_reply)
         
     # ด่านเปิดระบบ Live GPS Tracker สำหรับเจ้าหน้าที่
-    elif user_text in ['แทร็กกิ้ง', 'แทร็ก', 'gps', 'พิกัดสด', 'tracking', 'แชร์พิกัดสด', 'ภารกิจ']:
+    elif user_text in ['แทร็กกิ้ง', 'แทร็ก', 'gps', 'พิกัดสด', 'tracking', 'แชร์พิกัดสด', 'ภารกิจ', 'แชร์ตำแหน่ง', 'ระบบแทร็กกิ่ง']:
         tracker_url = "https://rtsd-linebot.onrender.com/tracker"
-        reply_msg = (f"🛰️ ระบบติดตามกำลังพลและยานพาหนะ (Live GPS Tracker)\n"
-                     f"──────────────────────\n"
-                     f"สำหรับเจ้าหน้าที่ภาคสนามหรือพลขับรถบรรเทาทุกข์ กรมแผนที่ทหาร\n\n"
-                     f"👉 กรุณากดลิงก์ด้านล่างเพื่อเปิดหน้าส่งพิกัดสด:\n"
-                     f"{tracker_url}\n\n"
-                     f"💡 วิธีใช้งาน: กรอกรหัสชุดปฏิบัติการ แล้วกด 'เริ่มปฏิบัติภารกิจ' จากนั้นวางมือถือไว้หน้ารถได้เลยครับ ระบบจะยิงพิกัด GPS อัตโนมัติทุก 10 วินาทีเข้าสู่ศูนย์วอร์รูม RTSD ทันที")
+        portal_map_url = "https://geoportal.rtsd.mi.th/portal/home/webmap/viewer.html?url=https://geoportal.rtsd.mi.th/arcgis/rest/services/Hosted/rtsd_live_trackers/FeatureServer/0"
+        reply_msg = (f"🛰️ ระบบติดตามกำลังพลภาคสนาม RTSD (Live GPS Tracker)\n"
+                     f"━━━━━━━━━━━━━━━━━━\n"
+                     f"สำหรับเจ้าหน้าที่ออกปฏิบัติการ กรมแผนที่ทหาร:\n\n"
+                     f"1️⃣ เปิดระบบส่งพิกัดสดต่อเนื่อง (มีโหมดพรางหน้าจอ/ประหยัดแบตเตอรี่):\n"
+                     f"👉 {tracker_url}\n\n"
+                     f"2️⃣ เปิดดูแผนที่ติดตามกำลังพลบน Portal RTSD:\n"
+                     f"👉 {portal_map_url}\n"
+                     f"━━━━━━━━━━━━━━━━━━\n"
+                     f"💡 หรือกดปุ่ม '📍 ส่งตำแหน่งปัจจุบัน' ด้านล่างเพื่อเช็กอินจุดพิกัดทันทีได้เลยครับ")
         quick_reply = QuickReply(items=[
+            QuickReplyItem(action=LocationAction(label="📍 ส่งตำแหน่งปัจจุบัน")),
             QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุเตือนภัย", text="แจ้งเหตุ")),
             QuickReplyItem(action=MessageAction(label="🔍 ติดตามสถานะ", text="ติดตามสถานะ"))
         ])
