@@ -253,6 +253,18 @@
             </div>
             <p class="text-[11px] text-slate-400 mt-1">เพื่อให้ระบบส่ง OTP และแจ้งเตือนไปยังแชตของท่านได้ทันที</p>
           </div>
+
+          <!-- ลิงก์รูปโปรไฟล์ -->
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-medium text-slate-300 mb-1">
+              ลิงก์รูปโปรไฟล์ (URL ภาพ ถ้ามี)
+            </label>
+            <div class="relative">
+              <input type="url" id="userPictureProfile" placeholder="https://... (เว้นว่างไว้ได้ ระบบจะดึงจากโปรไฟล์ LINE ให้อัตโนมัติ)" class="w-full pl-10 pr-3 py-2.5 rounded-xl bg-slate-800/90 border border-slate-600 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition">
+              <i class="fa-solid fa-image-portrait absolute left-3.5 top-3 text-cyan-400 text-sm"></i>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-1">สามารถใส่ลิงก์รูปภาพ หรือเว้นว่างไว้เพื่อดึงภาพโปรไฟล์ LINE อัตโนมัติ</p>
+          </div>
         </div>
       </div>
 
@@ -391,7 +403,8 @@
           phone_number: phone,
           line_user_id: lineId,
           role: role,
-          purpose: purpose
+          purpose: purpose,
+          picture_profile: (document.getElementById('userPictureProfile') ? document.getElementById('userPictureProfile').value.trim() : '') || '-'
         };
 
         let data;

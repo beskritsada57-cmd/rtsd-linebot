@@ -106,29 +106,62 @@ def fetch_registered_users():
         "line_user_id": phone_to_user.get("0863390614", {}).get("line_user_id", "-")
     }
     try:
-        res = requests.post(GOOGLE_SHEET_URL, json={"action": "get_users"}, timeout=10)
+        # ใช้คำสั่ง GET ?sheet=users (Read-Only) ปลอดภัย 100% ไม่สร้างแถวใหม่ใน Google Sheets
+        res = requests.get(f"{GOOGLE_SHEET_URL}?sheet=users", timeout=10)
         if res.status_code == 200:
             users = res.json()
             if isinstance(users, list):
                 for u in users:
-                    lid = str(u.get("line_user_id", "")).strip()
-                    phone = str(u.get("phone_number", "")).strip().replace("-", "").replace(" ", "")
-                    name = str(u.get("full_name", "")).strip()
-                    role = str(u.get("role", "ผู้ใช้งานทั่วไป")).strip()
+                    picture_profile = "-"
+                    if isinstance(u, dict):
+                        lid = str(u.get("line_user_id", "")).strip()
+                        phone = str(u.get("phone_number", "")).strip().replace("-", "").replace(" ", "")
+                        name = str(u.get("full_name", "")).strip()
+                        role = str(u.get("role", "ผู้ใช้งานทั่วไป")).strip()
+                        picture_profile = str(u.get("picture_profile", u.get("picture_url", "-"))).strip()
+                    elif isinstance(u, list) and len(u) >= 4:
+                        if str(u[0]).lower() == "registered_at":
+                            continue
+                        lid = str(u[1]).strip()
+                        name = str(u[2]).strip()
+                        phone = str(u[3]).strip().replace("-", "").replace(" ", "")
+                        role = str(u[4]).strip() if len(u) > 4 else "ผู้ใช้งานทั่วไป"
+                        picture_profile = str(u[9]).strip() if len(u) > 9 else "-"
+                    else:
+                        continue
+
                     if phone in ADMIN_PHONES:
                         role = "ผู้ดูแลระบบ (Admin)"
-                    if lid:
-                        registered_users[lid] = {"name": name, "phone": phone, "role": role}
+                    user_data_item = {
+                        "name": name,
+                        "phone": phone,
+                        "role": role,
+                        "picture_profile": picture_profile
+                    }
+                    if lid and lid != "-":
+                        registered_users[lid] = user_data_item
                     if phone:
-                        phone_to_user[phone] = {"line_user_id": lid, "name": name, "role": role}
+                        phone_to_user[phone] = {"line_user_id": lid, **user_data_item}
     except Exception as e:
         print(f"Error fetching users: {e}")
 
 
-def save_registered_user(line_user_id, name, phone, role="ผู้ใช้งาน", unit="-", position="-", status="อนุมัติแล้ว", purpose="-"):
-    """บันทึกข้อมูลผู้ใช้ใหม่ลง Google Sheets และแคชในหน่วยความจำ"""
+def save_registered_user(line_user_id, name, phone, role="ผู้ใช้งาน", unit="-", position="-", status="อนุมัติแล้ว", purpose="-", picture_profile="-"):
+    """บันทึกข้อมูลผู้ใช้ใหม่ลง Google Sheets และแคชในหน่วยความจำ พร้อมรูปโปรไฟล์"""
     global registered_users, phone_to_user
     clean_phone = phone.replace("-", "").replace(" ", "")
+
+    # หากมี LINE User ID และยังไม่มีรูปโปรไฟล์ ให้ดึงรูปจาก LINE อัตโนมัติ
+    if line_user_id and str(line_user_id).startswith("U") and (not picture_profile or picture_profile == "-"):
+        try:
+            with ApiClient(configuration) as api_client:
+                line_bot_api = MessagingApi(api_client)
+                prof = line_bot_api.get_profile(line_user_id)
+                if prof.picture_url:
+                    picture_profile = prof.picture_url
+        except Exception:
+            pass
+
     user_data = {
         "name": name,
         "phone": clean_phone,
@@ -136,7 +169,8 @@ def save_registered_user(line_user_id, name, phone, role="ผู้ใช้ง�
         "unit": unit,
         "position": position,
         "status": status,
-        "purpose": purpose
+        "purpose": purpose,
+        "picture_profile": picture_profile or "-"
     }
     registered_users[line_user_id] = user_data
     phone_to_user[clean_phone] = {"line_user_id": line_user_id, **user_data}
@@ -150,7 +184,8 @@ def save_registered_user(line_user_id, name, phone, role="ผู้ใช้ง�
             "unit": unit,
             "position": position,
             "approval_status": status,
-            "purpose": purpose
+            "purpose": purpose,
+            "picture_profile": picture_profile or "-"
         }
         requests.post(GOOGLE_SHEET_URL, json=payload, timeout=10)
         return True
@@ -501,6 +536,7 @@ def api_register_request():
     role = str(data.get("role", "ผู้ใช้งานทั่วไป")).strip()
     purpose = str(data.get("purpose", "-")).strip()
     line_user_id = str(data.get("line_user_id", "")).strip()
+    picture_profile = str(data.get("picture_profile", "-")).strip()
 
     if not phone or len(phone) < 9 or len(phone) > 10:
         return jsonify({"status": "error", "message": "หมายเลขโทรศัพท์ไม่ถูกต้อง (ต้องเป็น 10 หลัก)"}), 400
@@ -519,7 +555,8 @@ def api_register_request():
         unit=unit,
         position=position,
         status="อนุมัติแล้ว",
-        purpose=purpose
+        purpose=purpose,
+        picture_profile=picture_profile
     )
 
     # หากมี LINE User ID หรือเบอร์ตรงกับผู้ใช้ LINE ให้ Push แจ้งเตือนทาง LINE ทันที
@@ -577,7 +614,8 @@ def api_admin_get_users():
             "unit": u.get("unit", "-"),
             "position": u.get("position", "-"),
             "role": u.get("role", "ผู้ใช้งานทั่วไป"),
-            "line_user_id": u.get("line_user_id", "-")
+            "line_user_id": u.get("line_user_id", "-"),
+            "picture_profile": u.get("picture_profile", "-")
         })
     return jsonify(users_list), 200
 
