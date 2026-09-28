@@ -18,7 +18,8 @@ from linebot.v3.messaging import (
     QuickReply,
     QuickReplyItem,
     MessageAction,
-    LocationAction
+    LocationAction,
+    URIAction
 )
 from linebot.v3.webhooks import (
     MessageEvent,
@@ -83,6 +84,12 @@ phone_to_user = {
     }
 }
 otp_cache = {}         # { phone: {"otp": "123456", "expires_at": timestamp, "user_info": ...} }
+
+# 🌐 การตั้งค่าความมั่นคงระบบ (System Security Settings)
+# ควบคุมการอนุญาตให้แชร์และแนบลิงก์ Google Maps ใน LINE Bot สำหรับทีมสนาม (สลับเปิด/ปิดได้โดยแอดมิน)
+SYSTEM_SETTINGS = {
+    "enable_google_maps": True  # ค่าเริ่มต้น: เปิดใช้งาน
+}
 
 
 def fetch_registered_users():
@@ -314,6 +321,18 @@ def api_tracker_update():
 def api_tracker_units():
     """ส่งรายการพิกัดสดของทุกหน่วยให้ Dashboard และ Geoportal RTSD Sync"""
     return jsonify(list(active_trackers.values())), 200
+
+
+@app.route("/api/system/settings", methods=['GET', 'POST'])
+def api_system_settings():
+    """ดึงหรือปรับปรุงการตั้งค่าระบบ (เช่น เปิด/ปิด Google Maps Sharing)"""
+    global SYSTEM_SETTINGS
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        if "enable_google_maps" in data:
+            SYSTEM_SETTINGS["enable_google_maps"] = bool(data["enable_google_maps"])
+        return jsonify({"status": "success", "settings": SYSTEM_SETTINGS}), 200
+    return jsonify(SYSTEM_SETTINGS), 200
 
 
 @app.route("/api/incidents", methods=['GET'])
@@ -773,19 +792,26 @@ def handle_image(event):
     # บันทึกข้อมูลและรูปเข้า Google Sheets + Drive
     save_to_google_sheet(lat, lon, title, address, reporter, urgency, incident_type, file_base64, file_name, mime_type)
 
+    gmap_text = f"\n🧭 นำทาง Google Maps: https://www.google.com/maps/dir/?api=1&destination={lat},{lon}\n" if (SYSTEM_SETTINGS.get("enable_google_maps") and lat and lon) else ""
+
     reply = (f"✅ บันทึกข้อมูลและรูปถ่ายหลักฐานสำเร็จ!\n\n"
              f"🆔 รหัสติดตามเหตุ: #{report_id}\n"
              f"👤 ผู้แจ้ง: {reporter}\n"
              f"🚨 เหตุการณ์: {incident_type}\n"
              f"⚠️ ความเร่งด่วน: {urgency}\n"
              f"⏳ สถานะ: ⏳ รอดำเนินการ\n"
-             f"📸 รูปถ่าย: บันทึกลง Drive RTSD เรียบร้อยแล้วครับ\n\n"
+             f"📸 รูปถ่าย: บันทึกลง Drive RTSD เรียบร้อยแล้วครับ\n"
+             f"{gmap_text}\n"
              f"💡 ท่านสามารถกดปุ่ม '🔍 ติดตาม #{report_id}' ด้านล่าง เพื่อเช็กความคืบหน้าได้ตลอดเวลาครับ")
 
-    quick_reply = QuickReply(items=[
+    quick_items = [
         QuickReplyItem(action=MessageAction(label=f"🔍 ติดตาม #{report_id}", text=f"ติดตาม {report_id}")),
         QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุใหม่", text="แจ้งเหตุ"))
-    ])
+    ]
+    if SYSTEM_SETTINGS.get("enable_google_maps") and lat and lon:
+        quick_items.insert(1, QuickReplyItem(action=URIAction(label="🧭 นำทาง Google Maps", uri=f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}")))
+
+    quick_reply = QuickReply(items=quick_items)
 
     with ApiClient(configuration) as api_client:
         line_bot_api = MessagingApi(api_client)
@@ -833,19 +859,26 @@ def handle_video(event):
     # บันทึกข้อมูลและคลิปเข้า Google Sheets + Drive
     save_to_google_sheet(lat, lon, title, address, reporter, urgency, incident_type, file_base64, file_name, mime_type)
 
+    gmap_text = f"\n🧭 นำทาง Google Maps: https://www.google.com/maps/dir/?api=1&destination={lat},{lon}\n" if (SYSTEM_SETTINGS.get("enable_google_maps") and lat and lon) else ""
+
     reply = (f"✅ บันทึกข้อมูลและคลิปวิดีโอหลักฐานสำเร็จ!\n\n"
              f"🆔 รหัสติดตามเหตุ: #{report_id}\n"
              f"👤 ผู้แจ้ง: {reporter}\n"
              f"🚨 เหตุการณ์: {incident_type}\n"
              f"⚠️ ความเร่งด่วน: {urgency}\n"
              f"⏳ สถานะ: ⏳ รอดำเนินการ\n"
-             f"🎥 คลิปวิดีโอ: บันทึกลง Drive RTSD เรียบร้อยแล้วครับ\n\n"
+             f"🎥 คลิปวิดีโอ: บันทึกลง Drive RTSD เรียบร้อยแล้วครับ\n"
+             f"{gmap_text}\n"
              f"💡 ท่านสามารถกดปุ่ม '🔍 ติดตาม #{report_id}' ด้านล่าง เพื่อเช็กความคืบหน้าได้ตลอดเวลาครับ")
 
-    quick_reply = QuickReply(items=[
+    quick_items = [
         QuickReplyItem(action=MessageAction(label=f"🔍 ติดตาม #{report_id}", text=f"ติดตาม {report_id}")),
         QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุใหม่", text="แจ้งเหตุ"))
-    ])
+    ]
+    if SYSTEM_SETTINGS.get("enable_google_maps") and lat and lon:
+        quick_items.insert(1, QuickReplyItem(action=URIAction(label="🧭 นำทาง Google Maps", uri=f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}")))
+
+    quick_reply = QuickReply(items=quick_items)
 
     with ApiClient(configuration) as api_client:
         line_bot_api = MessagingApi(api_client)
@@ -973,6 +1006,53 @@ def handle_text(event):
             )
         return
 
+    # 0.6. คำสั่งพิเศษสำหรับแอดมิน: เปิด/ปิด การแชร์ Google Maps (Security OPSEC Toggle)
+    clean_map_cmd = clean_cmd_text.lower()
+    if any(k in clean_map_cmd for k in ["เปิดแชร์แผนที่", "เปิดgooglemap", "เปิดgooglemaps", "เปิดแมพ", "เปิดแผนที่", "เปิดgoogle", "enablemaps"]):
+        is_sender_admin = (user_info and any(k in user_info.get("role", "") for k in ["แอดมิน", "ผู้ดูแล", "บัญชา"])) or (user_info and user_info.get("phone") in ADMIN_PHONES)
+        if not is_sender_admin:
+            reply_msg = "⛔ ขออภัยครับ เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่สามารถปรับการตั้งค่านี้ได้ครับ"
+        else:
+            SYSTEM_SETTINGS["enable_google_maps"] = True
+            reply_msg = ("✅ เปิดระบบแชร์ Google Maps เรียบร้อยแล้ว!\n"
+                         "━━━━━━━━━━━━━━━━━━\n"
+                         "🗺️ สถานะ: 🟢 เปิดใช้งาน (Active)\n"
+                         "📍 ทุกการ์ดแจ้งเหตุและติดตามสถานะจะแสดงลิงก์นำทาง Google Maps ให้ทีมสนามใช้งานได้ทันทีครับ")
+        with ApiClient(configuration) as api_client:
+            line_bot_api = MessagingApi(api_client)
+            line_bot_api.reply_message(ReplyMessageRequest(reply_token=event.reply_token, messages=[TextMessage(text=reply_msg)]))
+        return
+
+    if any(k in clean_map_cmd for k in ["ปิดแชร์แผนที่", "ปิดgooglemap", "ปิดgooglemaps", "ปิดแมพ", "ปิดแผนที่", "ปิดgoogle", "disablemaps"]):
+        is_sender_admin = (user_info and any(k in user_info.get("role", "") for k in ["แอดมิน", "ผู้ดูแล", "บัญชา"])) or (user_info and user_info.get("phone") in ADMIN_PHONES)
+        if not is_sender_admin:
+            reply_msg = "⛔ ขออภัยครับ เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่สามารถปรับการตั้งค่านี้ได้ครับ"
+        else:
+            SYSTEM_SETTINGS["enable_google_maps"] = False
+            reply_msg = ("🔒 ปิดระบบแชร์ Google Maps เรียบร้อยแล้ว!\n"
+                         "━━━━━━━━━━━━━━━━━━\n"
+                         "🛡️ สถานะ: 🔴 ปิดการใช้งาน (โหมดความมั่นคงทางยุทธวิธี)\n"
+                         "🚫 ระบบจะซ่อนลิงก์ Google Maps ภายนอกทั้งหมด พิกัดจะถูกเก็บไว้เฉพาะใน Portal RTSD เท่านั้นครับ")
+        with ApiClient(configuration) as api_client:
+            line_bot_api = MessagingApi(api_client)
+            line_bot_api.reply_message(ReplyMessageRequest(reply_token=event.reply_token, messages=[TextMessage(text=reply_msg)]))
+        return
+
+    if any(k in clean_map_cmd for k in ["สถานะระบบ", "เช็กระบบ", "systemstatus"]):
+        is_sender_admin = (user_info and any(k in user_info.get("role", "") for k in ["แอดมิน", "ผู้ดูแล", "บัญชา"])) or (user_info and user_info.get("phone") in ADMIN_PHONES)
+        map_status = "🟢 เปิดใช้งาน (พร้อมลิงก์นำทาง)" if SYSTEM_SETTINGS.get("enable_google_maps") else "🔴 ปิดใช้งาน (โหมดความมั่นคง)"
+        reply_msg = (f"⚙️ ข้อมูลสถานะระบบศูนย์บัญชาการ RTSD\n"
+                     f"━━━━━━━━━━━━━━━━━━\n"
+                     f"🗺️ ระบบแชร์ Google Maps: {map_status}\n"
+                     f"🛰️ หน่วยติดตามสด (Active Units): {len(active_trackers)} หน่วย\n"
+                     f"👥 กำลังพลที่ลงทะเบียน: {len(registered_users)} นาย\n"
+                     f"━━━━━━━━━━━━━━━━━━\n"
+                     f"💡 แอดมินสามารถพิมพ์ 'เปิดแชร์แผนที่' หรือ 'ปิดแชร์แผนที่' เพื่อควบคุมระบบได้ตลอดเวลาครับ")
+        with ApiClient(configuration) as api_client:
+            line_bot_api = MessagingApi(api_client)
+            line_bot_api.reply_message(ReplyMessageRequest(reply_token=event.reply_token, messages=[TextMessage(text=reply_msg)]))
+        return
+
     # 1. ผู้ใช้พิมพ์เบอร์โทรศัพท์เข้ามา เพื่อลงทะเบียนยืนยันตัวตน
     clean_text_digits = re.sub(r'[\s\-]', '', user_text)
     phone_match = re.search(r'(0[689]\d{8}|0[2-9]\d{7})', clean_text_digits)
@@ -1059,6 +1139,8 @@ def handle_text(event):
 
         save_to_google_sheet(lat, lon, title, address, user_name, urgency, incident_type)
 
+        gmap_text = f"\n🧭 นำทาง Google Maps: https://www.google.com/maps/dir/?api=1&destination={lat},{lon}\n" if (SYSTEM_SETTINGS.get("enable_google_maps") and lat and lon) else ""
+
         reply = (f"✅ บันทึกข้อมูลเรียบร้อยแล้ว!\n\n"
                  f"🆔 รหัสติดตามเหตุ: #{report_id}\n"
                  f"👤 ผู้แจ้ง: {user_name}\n"
@@ -1066,13 +1148,18 @@ def handle_text(event):
                  f"⚠️ ความเร่งด่วน: {urgency}\n"
                  f"⏳ สถานะ: ⏳ รอดำเนินการ\n"
                  f"📍 พิกัด: {lat}, {lon}\n"
-                 f"🏠 สถานที่: {address}\n\n"
+                 f"🏠 สถานที่: {address}\n"
+                 f"{gmap_text}\n"
                  f"💡 ท่านสามารถกดปุ่ม '🔍 ติดตาม #{report_id}' ด้านล่าง เพื่อเช็กความคืบหน้าได้ตลอดเวลาครับ")
 
-        quick_reply = QuickReply(items=[
+        quick_items = [
             QuickReplyItem(action=MessageAction(label=f"🔍 ติดตาม #{report_id}", text=f"ติดตาม {report_id}")),
             QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุใหม่", text="แจ้งเหตุ"))
-        ])
+        ]
+        if SYSTEM_SETTINGS.get("enable_google_maps") and lat and lon:
+            quick_items.insert(1, QuickReplyItem(action=URIAction(label="🧭 นำทาง Google Maps", uri=f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}")))
+
+        quick_reply = QuickReply(items=quick_items)
 
         with ApiClient(configuration) as api_client:
             line_bot_api = MessagingApi(api_client)

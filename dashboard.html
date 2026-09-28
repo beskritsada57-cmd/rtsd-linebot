@@ -473,6 +473,33 @@
         </button>
       </div>
 
+      <!-- Security & OPSEC Settings Panel -->
+      <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
+        <div class="flex items-start gap-3">
+          <div class="w-9 h-9 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center text-base border border-sky-500/30 shrink-0 mt-0.5">
+            <i class="fa-solid fa-map-location-dot"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h4 class="font-semibold text-white text-sm">การแชร์ลิงก์ Google Maps ใน LINE Bot</h4>
+              <span id="gmapStatusBadge" class="px-2 py-0.5 text-[10px] font-medium rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                🟢 เปิดใช้งาน
+              </span>
+            </div>
+            <p class="text-xs text-slate-400 mt-0.5 leading-relaxed">
+              เปิด/ปิด การส่งลิงก์นำทาง Google Maps ในแชต LINE (หากปิด: จะเข้าโหมดความมั่นคงทางยุทธวิธี OPSEC พิกัดจะดูได้เฉพาะใน ArcGIS Portal เท่านั้น)
+            </p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 shrink-0 self-end md:self-center">
+          <span class="text-xs text-slate-400 font-medium hidden sm:inline" id="gmapToggleLabel">อนุญาตแชร์</span>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="gmapToggleSwitch" class="sr-only peer" checked onchange="toggleGoogleMapsSetting(this.checked)">
+            <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+          </label>
+        </div>
+      </div>
+
       <!-- Quick Search & Refresh -->
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
         <div class="relative flex-1 max-w-sm">
@@ -1379,11 +1406,65 @@
 
     async function openUserManagementModal() {
       document.getElementById('userManagementModal').classList.remove('hidden');
-      await fetchAdminUsers();
+      await Promise.all([
+        fetchAdminUsers(),
+        fetchSystemSettings()
+      ]);
     }
 
     function closeUserManagementModal() {
       document.getElementById('userManagementModal').classList.add('hidden');
+    }
+
+    // --- 🌐 Google Maps OPSEC Settings ---
+    async function fetchSystemSettings() {
+      try {
+        const res = await fetch(API_BASE + '/api/system/settings');
+        if (res.ok) {
+          const data = await res.json();
+          const isEnabled = !!data.enable_google_maps;
+          updateGoogleMapsUI(isEnabled);
+        }
+      } catch (err) {
+        console.warn("Could not fetch system settings:", err);
+      }
+    }
+
+    function updateGoogleMapsUI(isEnabled) {
+      const toggle = document.getElementById('gmapToggleSwitch');
+      const badge = document.getElementById('gmapStatusBadge');
+      const label = document.getElementById('gmapToggleLabel');
+      if (toggle) toggle.checked = isEnabled;
+      if (badge) {
+        if (isEnabled) {
+          badge.className = "px-2 py-0.5 text-[10px] font-medium rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+          badge.innerText = "🟢 เปิดใช้งาน";
+        } else {
+          badge.className = "px-2 py-0.5 text-[10px] font-medium rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30";
+          badge.innerText = "🔴 ปิดใช้งาน (OPSEC)";
+        }
+      }
+      if (label) {
+        label.innerText = isEnabled ? "อนุญาตแชร์" : "ซ่อนแผนที่";
+      }
+    }
+
+    async function toggleGoogleMapsSetting(isEnabled) {
+      updateGoogleMapsUI(isEnabled);
+      try {
+        const res = await fetch(API_BASE + '/api/system/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enable_google_maps: isEnabled })
+        });
+        if (res.ok) {
+          showToast(isEnabled ? "🗺️ เปิดระบบแชร์ Google Maps เรียบร้อยแล้ว" : "🔒 ปิดระบบแชร์ Google Maps (โหมดความมั่นคง) เรียบร้อยแล้ว");
+        } else {
+          showToast("⚠️ ไม่สามารถบันทึกการตั้งค่าได้");
+        }
+      } catch (err) {
+        showToast("❌ เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
+      }
     }
 
     async function fetchAdminUsers() {
