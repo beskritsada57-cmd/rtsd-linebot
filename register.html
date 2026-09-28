@@ -254,16 +254,47 @@
             <p class="text-[11px] text-slate-400 mt-1">เพื่อให้ระบบส่ง OTP และแจ้งเตือนไปยังแชตของท่านได้ทันที</p>
           </div>
 
-          <!-- ลิงก์รูปโปรไฟล์ -->
-          <div class="sm:col-span-2">
-            <label class="block text-xs font-medium text-slate-300 mb-1">
-              ลิงก์รูปโปรไฟล์ (URL ภาพ ถ้ามี)
+          <!-- รูปโปรไฟล์ (อัปโหลดจาก Gallery หรือใส่ URL) -->
+          <div class="sm:col-span-2 p-3.5 rounded-xl bg-slate-900/90 border border-slate-700/80">
+            <label class="block text-xs font-semibold text-cyan-400 mb-2 flex items-center gap-1.5">
+              <i class="fa-solid fa-camera"></i>
+              <span>รูปภาพโปรไฟล์ (เลือกจากคลังภาพ Gallery หรือ ถ่ายรูป)</span>
             </label>
-            <div class="relative">
-              <input type="url" id="userPictureProfile" placeholder="https://... (เว้นว่างไว้ได้ ระบบจะดึงจากโปรไฟล์ LINE ให้อัตโนมัติ)" class="w-full pl-10 pr-3 py-2.5 rounded-xl bg-slate-800/90 border border-slate-600 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition">
-              <i class="fa-solid fa-image-portrait absolute left-3.5 top-3 text-cyan-400 text-sm"></i>
+            
+            <div class="flex flex-col sm:flex-row items-center gap-4">
+              <!-- Avatar Preview Container -->
+              <div class="relative group cursor-pointer" onclick="document.getElementById('profileFileInput').click()" title="แตะเพื่อเลือกรูปจากแกลเลอรี">
+                <div id="avatarPreviewContainer" class="w-20 h-20 rounded-full border-2 border-dashed border-cyan-500/50 bg-slate-800/80 flex flex-col items-center justify-center text-slate-400 overflow-hidden shadow-md transition hover:border-cyan-400">
+                  <i id="avatarIcon" class="fa-solid fa-cloud-arrow-up text-xl text-cyan-400 mb-1"></i>
+                  <span id="avatarText" class="text-[10px] text-center text-slate-400 px-1 leading-tight">เลือกภาพ</span>
+                  <img id="avatarPreviewImg" class="w-full h-full object-cover hidden" alt="Profile Preview">
+                </div>
+                <div class="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-cyan-600 text-white flex items-center justify-center text-xs shadow-md border border-slate-900">
+                  <i class="fa-solid fa-images"></i>
+                </div>
+              </div>
+
+              <!-- Action Controls -->
+              <div class="flex-1 w-full space-y-2">
+                <div class="flex flex-wrap items-center gap-2">
+                  <input type="file" id="profileFileInput" accept="image/*" class="hidden" onchange="handleProfileImageSelect(event)">
+                  <button type="button" onclick="document.getElementById('profileFileInput').click()" class="px-3 py-1.5 rounded-lg bg-cyan-600/30 hover:bg-cyan-600/50 text-cyan-300 border border-cyan-500/40 text-xs font-medium transition flex items-center gap-1.5 cursor-pointer shadow">
+                    <i class="fa-solid fa-photo-film text-cyan-400"></i>
+                    <span>เลือกรูปจากแกลเลอรี (Gallery)</span>
+                  </button>
+                  <button type="button" id="removePhotoBtn" onclick="removeSelectedPhoto()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-rose-950/60 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-500/40 text-xs transition hidden items-center gap-1 cursor-pointer">
+                    <i class="fa-solid fa-trash-can"></i>
+                    <span>ลบรูป</span>
+                  </button>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  📱 รองรับไฟล์ภาพจากมือถือ (ระบบจะย่อขนาดให้อัตโนมัติ) หรือเว้นว่างไว้เพื่อดึงภาพโปรไฟล์จาก LINE อัตโนมัติ
+                </p>
+                <div class="pt-1">
+                  <input type="url" id="userPictureProfile" placeholder="หรือวางลิงก์รูปภาพ URL ที่นี่ (ถ้ามี)..." class="w-full px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition">
+                </div>
+              </div>
             </div>
-            <p class="text-[11px] text-slate-400 mt-1">สามารถใส่ลิงก์รูปภาพ หรือเว้นว่างไว้เพื่อดึงภาพโปรไฟล์ LINE อัตโนมัติ</p>
           </div>
         </div>
       </div>
@@ -360,6 +391,68 @@
       }
     }
 
+    // 📸 จัดการการเลือกรูปภาพจาก Gallery และย่อขนาดด้วย Canvas (Base64)
+    let selectedProfileBase64 = "";
+
+    function handleProfileImageSelect(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const img = new Image();
+        img.onload = function() {
+          // ย่อขนาดรูปภาพให้พอดี (Max 400x400) เพื่อให้อัปโหลดไวและประหยัดเน็ต
+          const canvas = document.createElement('canvas');
+          const maxDim = 400;
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > maxDim) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // แปลงเป็น Base64 JPEG
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          selectedProfileBase64 = dataUrl.split(',')[1];
+
+          // แสดงรูป Preview
+          const previewImg = document.getElementById('avatarPreviewImg');
+          previewImg.src = dataUrl;
+          previewImg.classList.remove('hidden');
+          document.getElementById('avatarIcon').classList.add('hidden');
+          document.getElementById('avatarText').classList.add('hidden');
+          document.getElementById('removePhotoBtn').classList.remove('hidden');
+          document.getElementById('removePhotoBtn').classList.add('flex');
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function removeSelectedPhoto() {
+      selectedProfileBase64 = "";
+      document.getElementById('profileFileInput').value = "";
+      const previewImg = document.getElementById('avatarPreviewImg');
+      previewImg.src = "";
+      previewImg.classList.add('hidden');
+      document.getElementById('avatarIcon').classList.remove('hidden');
+      document.getElementById('avatarText').classList.remove('hidden');
+      document.getElementById('removePhotoBtn').classList.add('hidden');
+      document.getElementById('removePhotoBtn').classList.remove('flex');
+    }
+
     async function handleFormSubmit(e) {
       e.preventDefault();
       const submitBtn = document.getElementById('submitBtn');
@@ -404,7 +497,8 @@
           line_user_id: lineId,
           role: role,
           purpose: purpose,
-          picture_profile: (document.getElementById('userPictureProfile') ? document.getElementById('userPictureProfile').value.trim() : '') || '-'
+          picture_profile: (document.getElementById('userPictureProfile') ? document.getElementById('userPictureProfile').value.trim() : '') || '-',
+          picture_base64: selectedProfileBase64 || ''
         };
 
         let data;

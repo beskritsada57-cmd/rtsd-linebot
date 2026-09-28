@@ -146,13 +146,13 @@ def fetch_registered_users():
         print(f"Error fetching users: {e}")
 
 
-def save_registered_user(line_user_id, name, phone, role="ผู้ใช้งาน", unit="-", position="-", status="อนุมัติแล้ว", purpose="-", picture_profile="-"):
-    """บันทึกข้อมูลผู้ใช้ใหม่ลง Google Sheets และแคชในหน่วยความจำ พร้อมรูปโปรไฟล์"""
+def save_registered_user(line_user_id, name, phone, role="ผู้ใช้งาน", unit="-", position="-", status="อนุมัติแล้ว", purpose="-", picture_profile="-", picture_base64=""):
+    """บันทึกข้อมูลผู้ใช้ใหม่ลง Google Sheets และแคชในหน่วยความจำ พร้อมรูปโปรไฟล์ (รองรับทั้ง URL และ Base64 จาก Gallery)"""
     global registered_users, phone_to_user
     clean_phone = phone.replace("-", "").replace(" ", "")
 
     # หากมี LINE User ID และยังไม่มีรูปโปรไฟล์ ให้ดึงรูปจาก LINE อัตโนมัติ
-    if line_user_id and str(line_user_id).startswith("U") and (not picture_profile or picture_profile == "-"):
+    if line_user_id and str(line_user_id).startswith("U") and (not picture_profile or picture_profile == "-") and not picture_base64:
         try:
             with ApiClient(configuration) as api_client:
                 line_bot_api = MessagingApi(api_client)
@@ -185,7 +185,8 @@ def save_registered_user(line_user_id, name, phone, role="ผู้ใช้ง�
             "position": position,
             "approval_status": status,
             "purpose": purpose,
-            "picture_profile": picture_profile or "-"
+            "picture_profile": picture_profile or "-",
+            "picture_base64": picture_base64 or ""
         }
         requests.post(GOOGLE_SHEET_URL, json=payload, timeout=10)
         return True
@@ -537,6 +538,7 @@ def api_register_request():
     purpose = str(data.get("purpose", "-")).strip()
     line_user_id = str(data.get("line_user_id", "")).strip()
     picture_profile = str(data.get("picture_profile", "-")).strip()
+    picture_base64 = str(data.get("picture_base64", "")).strip()
 
     if not phone or len(phone) < 9 or len(phone) > 10:
         return jsonify({"status": "error", "message": "หมายเลขโทรศัพท์ไม่ถูกต้อง (ต้องเป็น 10 หลัก)"}), 400
@@ -556,7 +558,8 @@ def api_register_request():
         position=position,
         status="อนุมัติแล้ว",
         purpose=purpose,
-        picture_profile=picture_profile
+        picture_profile=picture_profile,
+        picture_base64=picture_base64
     )
 
     # หากมี LINE User ID หรือเบอร์ตรงกับผู้ใช้ LINE ให้ Push แจ้งเตือนทาง LINE ทันที
