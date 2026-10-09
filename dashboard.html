@@ -4072,7 +4072,20 @@
 
     function updateRadarSweepPosition() {
       const group = document.getElementById('radarCenterGroup');
+      const fullH = document.getElementById('radarFullCrosshairH');
+      const fullV = document.getElementById('radarFullCrosshairV');
       if (!group || !tacticalMap) return;
+
+      if (!isRadarSweepActive) {
+        group.classList.add('hidden');
+        if (fullH) fullH.classList.add('hidden');
+        if (fullV) fullV.classList.add('hidden');
+        return;
+      }
+
+      group.classList.remove('hidden');
+      if (fullH) fullH.classList.remove('hidden');
+      if (fullV) fullV.classList.remove('hidden');
 
       let centerLatLng;
       if (lockedTargetCoords) {
@@ -4192,8 +4205,6 @@
       }
 
       // Sync Full Screen Crosshairs with locked target or center
-      const fullH = document.getElementById('radarFullCrosshairH');
-      const fullV = document.getElementById('radarFullCrosshairV');
       if (fullH && fullV) {
         if (lockedTargetCoords) {
           try {
@@ -4268,16 +4279,31 @@
 
     function toggleRadarSweep() {
       const beam = document.getElementById('radarSweepCone');
+      const group = document.getElementById('radarCenterGroup');
       const text = document.getElementById('radarStateText');
-      if (!beam || !text) return;
+      const icon = document.querySelector('#toggleRadarBtn i');
+      const fullH = document.getElementById('radarFullCrosshairH');
+      const fullV = document.getElementById('radarFullCrosshairV');
+      const infoEl = document.getElementById('radarRangeInfoText');
+      if (!text) return;
 
       isRadarSweepActive = !isRadarSweepActive;
       if (isRadarSweepActive) {
-        beam.classList.remove('hidden');
+        if (group) group.classList.remove('hidden');
+        if (beam) beam.classList.remove('hidden');
+        if (fullH) fullH.classList.remove('hidden');
+        if (fullV) fullV.classList.remove('hidden');
         text.innerText = 'เปิด';
+        if (icon) icon.className = 'fa-solid fa-radar text-red-400 mr-0.5';
+        updateRadarSweepPosition();
       } else {
-        beam.classList.add('hidden');
+        if (group) group.classList.add('hidden');
+        if (beam) beam.classList.add('hidden');
+        if (fullH) fullH.classList.add('hidden');
+        if (fullV) fullV.classList.add('hidden');
         text.innerText = 'ปิด';
+        if (icon) icon.className = 'fa-solid fa-radar text-slate-500 mr-0.5';
+        if (infoEl) infoEl.innerText = '🎯 รัศมีเรดาร์: ปิดการทำงาน (STANDBY)';
       }
     }
 
