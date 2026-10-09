@@ -379,7 +379,7 @@
     <div id="tacticalContainer" class="flex-1 min-h-0 w-full flex flex-col md:flex-row gap-2.5 overflow-hidden">
       
       <!-- LEFT 50%: TACTICAL RADAR MAP -->
-      <div class="w-full md:w-1/2 flex flex-col h-full min-h-0 bg-rtsd-card border border-slate-800 rounded-xl p-2.5 shadow-2xl relative overflow-hidden">
+      <div id="tacticalMapPanel" class="w-full md:w-1/2 flex flex-col h-full min-h-0 bg-rtsd-card border border-slate-800 rounded-xl p-2.5 shadow-2xl relative overflow-hidden transition-all duration-200">
         <!-- Radar Header -->
         <div class="shrink-0 flex items-center justify-between pb-1.5 border-b border-slate-800/80 mb-1.5">
           <div class="flex items-center gap-2">
@@ -426,6 +426,10 @@
 
             <button onclick="fitMapToAllUnits()" class="p-1 px-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 cursor-pointer text-xs" title="รวมทุกจุด">
               <i class="fa-solid fa-expand text-slate-400"></i>
+            </button>
+            <button id="btnMapFullscreen" onclick="toggleMapFullscreen()" class="px-2 py-0.5 text-[11px] rounded-lg bg-slate-800 hover:bg-sky-600 text-slate-300 hover:text-white border border-slate-700 cursor-pointer transition-all flex items-center gap-1 shadow-sm" title="ขยายแผนที่เต็มหน้าจอ (Fullscreen)">
+              <i id="btnMapFullscreenIcon" class="fa-solid fa-maximize text-sky-400"></i>
+              <span id="btnMapFullscreenText" class="font-medium text-[11px]">เต็มจอ</span>
             </button>
           </div>
         </div>
@@ -3636,6 +3640,81 @@
       const group = L.featureGroup(Object.values(tacticalMarkers));
       tacticalMap.fitBounds(group.getBounds().pad(0.3));
     }
+
+    let isMapFullscreen = false;
+
+    function toggleMapFullscreen() {
+      const mapPanel = document.getElementById('tacticalMapPanel');
+      const btnIcon = document.getElementById('btnMapFullscreenIcon');
+      const btnText = document.getElementById('btnMapFullscreenText');
+      const btn = document.getElementById('btnMapFullscreen');
+      if (!mapPanel) return;
+
+      isMapFullscreen = !isMapFullscreen;
+
+      if (isMapFullscreen) {
+        // Expand map to full viewport overlay
+        mapPanel.classList.add('fixed', 'inset-0', 'z-[999]', 'w-screen', 'h-screen', 'rounded-none', 'p-3', 'bg-[#080e1e]');
+        mapPanel.classList.remove('w-full', 'md:w-1/2', 'h-full', 'rounded-xl');
+
+        if (btnIcon) btnIcon.className = 'fa-solid fa-compress text-amber-400';
+        if (btnText) btnText.innerText = 'ย่อจอ';
+        if (btn) {
+          btn.classList.add('bg-amber-500/20', 'border-amber-500/50', 'text-amber-300');
+          btn.title = 'ย่อหน้าต่างกลับสู่ขนาดปกติ (ESC)';
+        }
+
+        // Request browser native fullscreen if supported
+        try {
+          if (!document.fullscreenElement && mapPanel.requestFullscreen) {
+            mapPanel.requestFullscreen().catch(() => {});
+          }
+        } catch (e) {}
+      } else {
+        // Restore standard 50/50 split layout
+        mapPanel.classList.remove('fixed', 'inset-0', 'z-[999]', 'w-screen', 'h-screen', 'rounded-none', 'p-3', 'bg-[#080e1e]');
+        mapPanel.classList.add('w-full', 'md:w-1/2', 'h-full', 'rounded-xl');
+
+        if (btnIcon) btnIcon.className = 'fa-solid fa-maximize text-sky-400';
+        if (btnText) btnText.innerText = 'เต็มจอ';
+        if (btn) {
+          btn.classList.remove('bg-amber-500/20', 'border-amber-500/50', 'text-amber-300');
+          btn.title = 'ขยายแผนที่เต็มหน้าจอ (Fullscreen)';
+        }
+
+        // Exit native fullscreen if active
+        try {
+          if (document.fullscreenElement && document.exitFullscreen) {
+            document.exitFullscreen().catch(() => {});
+          }
+        } catch (e) {}
+      }
+
+      // Force Leaflet to re-calculate map canvas size and update radar HUD
+      [50, 150, 300, 500].forEach(delay => {
+        setTimeout(() => {
+          if (tacticalMap) {
+            tacticalMap.invalidateSize(true);
+            if (typeof updateRadarSweepPosition === 'function') updateRadarSweepPosition();
+            if (typeof updateMapBorderRulers === 'function') updateMapBorderRulers();
+            if (typeof updateRadarRings === 'function') updateRadarRings();
+          }
+        }, delay);
+      });
+    }
+
+    // Escape key and native fullscreen change listeners
+    document.addEventListener('fullscreenchange', () => {
+      if (!document.fullscreenElement && isMapFullscreen) {
+        toggleMapFullscreen();
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && isMapFullscreen) {
+        toggleMapFullscreen();
+      }
+    });
 
     function getCommanderProfilePic(commanderName, unitId, directPic) {
       if (directPic && directPic !== '-' && directPic.trim() !== '') {
