@@ -2362,6 +2362,7 @@
       const loginId = document.getElementById('authLoginId').value.trim();
       const password = document.getElementById('authPassword').value.trim();
       const remember = document.getElementById('rememberMe').checked;
+      const submitBtn = document.querySelector('#pwdSection button[onclick="handleLoginPassword()"]');
 
       if (!loginId) {
         alert("กรุณาระบุเบอร์โทรศัพท์ หรือ Username");
@@ -2372,13 +2373,19 @@
         return;
       }
 
+      const origBtnHtml = submitBtn ? submitBtn.innerHTML : '';
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> กำลังเข้าสู่ระบบ...';
+      }
+
       try {
         const res = await fetch(API_BASE + '/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ phone: loginId, username: loginId, password: password })
         });
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
 
         if (res.ok && data.status === 'success') {
           const storage = remember ? localStorage : sessionStorage;
@@ -2389,12 +2396,17 @@
           checkAuthStatus();
           return;
         } else {
-          alert("❌ " + (data.message || "ชื่อผู้ใช้ หรือ รหัสผ่าน/PIN ไม่ถูกต้อง"));
+          alert("❌ " + (data.message || `ไม่สามารถเข้าสู่ระบบได้ (สถานะ: ${res.status})`));
           return;
         }
       } catch (err) {
         console.error("Login error:", err);
-        alert("❌ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง");
+        alert("❌ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง (" + (err.message || 'Network Error') + ")");
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = origBtnHtml;
+        }
       }
     }
 

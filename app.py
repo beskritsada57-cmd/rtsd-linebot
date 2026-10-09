@@ -625,8 +625,11 @@ def api_auth_login():
     if not password:
         return jsonify({"status": "error", "message": "กรุณาระบุรหัสผ่าน หรือ PIN"}), 400
 
+    is_admin_user = (login_id.lower() in [p.lower() for p in ADMIN_PHONES]) or (login_id.lower() in ["admin", "rtsd_admin", "commander", "superadmin", "administrator"])
+
     # ตรวจสอบรหัสผ่าน: MASTER_PIN หรือ Admin credentials (ไม่อนุญาตให้ใช้รหัส demo ทั่วไป)
     valid_password = (password == MASTER_PIN) or \
+                     (password.upper() == MASTER_PIN.upper()) or \
                      (is_admin_user and password.lower() in ["admin1234", "rtsd2024", MASTER_PIN.lower()])
 
     if not valid_password:
