@@ -505,6 +505,193 @@ def api_update_incident_status():
     return jsonify(result), 200
 
 
+# =========================================================================
+# 📍 TACTICAL PINS & FIELD DISPATCH MANAGEMENT ENGINE
+# =========================================================================
+TACTICAL_PINS_FILE = os.path.join(os.path.dirname(__file__), "tactical_pins.json")
+TACTICAL_PINS = []
+
+PIN_CATEGORY_NAMES = {
+    "incident": "🚨 จุดเกิดเหตุ / พื้นที่ประสบภัย",
+    "target": "🎯 พิกัดเป้าหมาย / จุดนัดหมาย (RV)",
+    "command": "⛺ กองอำนวยการ / ศูนย์ประสานงาน",
+    "helipad": "🚁 ลานจอด ฮ. / จุดส่งกำลังบำรุง",
+    "hazard": "🚧 สิ่งกีดขวาง / ดินถล่ม / น้ำท่วม",
+    "checkpoint": "📍 จุดตรวจ / จุดสังเกตการณ์"
+}
+
+def load_tactical_pins():
+    global TACTICAL_PINS
+    if os.path.exists(TACTICAL_PINS_FILE):
+        try:
+            with open(TACTICAL_PINS_FILE, "r", encoding="utf-8") as f:
+                TACTICAL_PINS = json.load(f)
+        except Exception as e:
+            print(f"Error loading tactical_pins.json: {e}")
+            TACTICAL_PINS = []
+    else:
+        TACTICAL_PINS = []
+
+def save_tactical_pins():
+    try:
+        with open(TACTICAL_PINS_FILE, "w", encoding="utf-8") as f:
+            json.dump(TACTICAL_PINS, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Error saving tactical_pins.json: {e}")
+
+load_tactical_pins()
+
+def notify_tactical_pin(pin):
+    """ส่ง Push Message ทาง LINE ให้เจ้าหน้าที่ที่ถูกแท็กในหมุดยุทธวิธี"""
+    try:
+        tagged_units = pin.get("tagged_units", [])
+        if not tagged_units:
+            return 0
+        
+        cat_name = PIN_CATEGORY_NAMES.get(pin.get("category"), "📍 จุดยุทธวิธี")
+        title = pin.get("title", "ภารกิจยุทธวิธี")
+        creator = pin.get("creator", "ศูนย์ยุทธวิธี RTSD")
+        notes = pin.get("notes", "-")
+        lat = float(pin.get("latitude", 0))
+        lon = float(pin.get("longitude", 0))
+        nav_url = f"https://www.google.com/maps/dir/?api=1&destination={lat:.6f},{lon:.6f}"
+
+        msg = (
+            f"🚨 [คำสั่งยุทธวิธีด่วนจาก RTSD Command]\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"📌 จุดหมาย: {title}\n"
+            f"🏷️ ประเภท: {cat_name}\n"
+            f"👨‍✈️ สั่งการโดย: {creator}\n"
+            f"📍 พิกัด GPS: {lat:.6f}, {lon:.6f}\n"
+            f"📝 รายละเอียด: {notes}\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"🧭 กดนำทางทันที:\n{nav_url}"
+        )
+
+        target_lids = set()
+        is_broadcast = ("ALL" in tagged_units) or ("all" in tagged_units)
+
+        if is_broadcast:
+            for p, u in phone_to_user.items():
+                lid = u.get("line_user_id")
+                if lid and str(lid).startswith("U"):
+                    target_lids.add(lid)
+        else:
+            for tag in tagged_units:
+                tag_str = str(tag).strip()
+                clean_p = tag_str.replace("-", "").replace(" ", "")
+                if clean_p in phone_to_user:
+                    lid = phone_to_user[clean_p].get("line_user_id")
+                    if lid and str(lid).startswith("U"):
+                        target_lids.add(lid)
+                for uid, tr in active_trackers.items():
+                    if uid == tag_str or tr.get("commander") == tag_str:
+                        for p, u in phone_to_user.items():
+                            if u.get("name") == tr.get("commander"):
+                                lid = u.get("line_user_id")
+                                if lid and str(lid).startswith("U"):
+                                    target_lids.add(lid)
+
+        sent_count = 0
+        with ApiClient(configuration) as api_client:
+            line_bot_api = MessagingApi(api_client)
+            for lid in target_lids:
+                try:
+                    line_bot_api.push_message(
+                        PushMessageRequest(to=lid, messages=[TextMessage(text=msg)])
+                    )
+                    sent_count += 1
+                except Exception as push_err:
+                    print(f"Error pushing pin alert to {lid}: {push_err}")
+        return sent_count
+    except Exception as e:
+        print(f"Error in notify_tactical_pin: {e}")
+        return 0
+
+
+@app.route("/api/tactical-pins", methods=['GET', 'POST'])
+def api_tactical_pins():
+    """ดึงหรือบันทึกหมุดยุทธการ (Tactical Pins) พร้อมส่งแจ้งเตือนกำลังพลที่ถูกแท็ก"""
+    global TACTICAL_PINS
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        lat = data.get("latitude")
+        lon = data.get("longitude")
+        if lat is None or lon is None:
+            return jsonify({"status": "error", "message": "พิกัดไม่ถูกต้อง"}), 400
+
+        pin_id = str(data.get("id") or f"PIN-{int(time.time() * 1000) % 1000000:06d}")
+        tagged_units = data.get("tagged_units", [])
+        if isinstance(tagged_units, str):
+            tagged_units = [tagged_units]
+
+        new_pin = {
+            "id": pin_id,
+            "latitude": float(lat),
+            "longitude": float(lon),
+            "category": str(data.get("category", "checkpoint")),
+            "title": str(data.get("title", "จุดยุทธวิธี")),
+            "creator": str(data.get("creator", "ศูนย์ยุทธวิธี RTSD")),
+            "notes": str(data.get("notes", "")),
+            "tagged_units": tagged_units,
+            "created_at": str(data.get("created_at") or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
+        }
+
+        # อัปเดตรายการหมุด (ถ้ามี id เดิมให้แทนที่ ถ้าไม่มีให้เพิ่ม)
+        existing_idx = next((i for i, p in enumerate(TACTICAL_PINS) if p.get("id") == pin_id), None)
+        if existing_idx is not None:
+            TACTICAL_PINS[existing_idx] = new_pin
+        else:
+            TACTICAL_PINS.append(new_pin)
+
+        save_tactical_pins()
+
+        # ส่งข้อความ Push แจ้งเตือนไปยัง LINE ของกำลังพลที่ถูกแท็ก
+        sent_line = notify_tactical_pin(new_pin)
+
+        return jsonify({
+            "status": "success",
+            "pin": new_pin,
+            "line_notified_count": sent_line
+        }), 200
+
+    return jsonify(TACTICAL_PINS), 200
+
+
+@app.route("/api/tactical-pins/my-alerts", methods=['GET'])
+def api_tactical_pin_alerts():
+    """สำหรับ Mobile App เพื่อตรวจสอบหมุดใหม่ที่ตนเองถูกแท็ก"""
+    phone = str(request.args.get("phone", "")).strip().replace("-", "").replace(" ", "")
+    unit_id = str(request.args.get("unit_id", "")).strip()
+
+    my_alerts = []
+    # ดึงหมุดที่สร้างขึ้นและมีการแท็กตนเอง หรือ Broadcast ALL
+    for p in reversed(TACTICAL_PINS[-30:]): # ดู 30 หมุดล่าสุด
+        tags = p.get("tagged_units", [])
+        if "ALL" in tags or "all" in tags:
+            my_alerts.append(p)
+        elif phone and phone in tags:
+            my_alerts.append(p)
+        elif unit_id and unit_id in tags:
+            my_alerts.append(p)
+
+    return jsonify(my_alerts), 200
+
+
+@app.route("/api/tactical-pins/delete", methods=['POST'])
+def api_delete_tactical_pin():
+    """ลบหมุดยุทธการ"""
+    global TACTICAL_PINS
+    data = request.get_json(silent=True) or {}
+    pin_id = str(data.get("id", "")).strip()
+    if not pin_id:
+        return jsonify({"status": "error", "message": "กรุณาระบุ ID ของหมุด"}), 400
+
+    TACTICAL_PINS = [p for p in TACTICAL_PINS if p.get("id") != pin_id]
+    save_tactical_pins()
+    return jsonify({"status": "success", "id": pin_id}), 200
+
+
 @app.route("/api/auth/request-otp", methods=['POST'])
 def api_request_otp():
     """สร้างรหัส OTP 6 หลัก แล้วส่งเข้าแชท LINE ของเจ้าหน้าที่โดยตรง"""

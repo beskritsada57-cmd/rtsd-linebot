@@ -1599,6 +1599,27 @@
           <textarea id="pinNotes" rows="2" placeholder="เช่น ดินสไลด์ทับผิวถนน 2 ช่องทาง รถเล็กไม่สามารถผ่านได้ ต้องการรถแบ็คโฮ" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-sky-500"></textarea>
         </div>
 
+        <!-- 🎯 TAG & DISPATCH TARGET PERSONNEL -->
+        <div class="border border-slate-800 rounded-xl p-2.5 bg-slate-950/70 space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="text-slate-300 font-semibold text-xs flex items-center gap-1.5">
+              <i class="fa-solid fa-bullhorn text-amber-400"></i>
+              <span>แท็กแจ้งเตือนกำลังพล (Notify Field Units)</span>
+            </label>
+            <label class="inline-flex items-center gap-1.5 text-[11px] text-amber-300 cursor-pointer select-none">
+              <input type="checkbox" id="pinBroadcastAll" class="rounded border-slate-700 text-amber-500 focus:ring-0 cursor-pointer" onchange="toggleBroadcastAll(this.checked)">
+              <span>แจ้งทุกคน (Broadcast)</span>
+            </label>
+          </div>
+          <div id="pinActiveUnitsList" class="max-h-28 overflow-y-auto space-y-1 pr-1 text-[11px]">
+            <!-- Dynamic active units checkboxes inserted here -->
+          </div>
+          <p class="text-[10px] text-slate-400 flex items-center gap-1 pt-1 border-t border-slate-800/80">
+            <i class="fa-brands fa-line text-emerald-400"></i>
+            <span>ระบบจะส่ง Push Notification แจ้งเตือนเข้า App มือถือ และ LINE ทันที</span>
+          </p>
+        </div>
+
         <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
           <button type="button" onclick="closeTacticalPinModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer font-medium">
             ยกเลิก
@@ -3599,10 +3620,19 @@
       openTacticalPinModal(latlng.lat, latlng.lng);
     }
 
+    function toggleBroadcastAll(isChecked) {
+      const checkboxes = document.querySelectorAll('.tag-unit-checkbox');
+      checkboxes.forEach(cb => {
+        cb.checked = isChecked;
+      });
+    }
+
     function openTacticalPinModal(lat, lon) {
       const modal = document.getElementById('tacticalPinModal');
       const coordsInput = document.getElementById('pinCoordsDisplay');
       const creatorInput = document.getElementById('pinCreator');
+      const activeUnitsList = document.getElementById('pinActiveUnitsList');
+      const bcastAllCheckbox = document.getElementById('pinBroadcastAll');
       if (!modal) return;
 
       if (coordsInput) {
@@ -3616,6 +3646,36 @@
           const u = JSON.parse(storedUser);
           creatorInput.value = u.name || 'เจ้าหน้าที่ RTSD';
         } catch(e) {}
+      }
+
+      // Populate active units for tagging
+      if (bcastAllCheckbox) bcastAllCheckbox.checked = false;
+      if (activeUnitsList) {
+        if (!activeTacticalUnits || activeTacticalUnits.length === 0) {
+          activeUnitsList.innerHTML = `
+            <div class="text-slate-400 italic py-1 flex items-center gap-1.5 text-[11px]">
+              <i class="fa-solid fa-circle-info text-amber-400"></i>
+              <span>ยังไม่มีกำลังพลส่งพิกัดสด (ติ๊ก "แจ้งทุกคน" เพื่อ Broadcast ได้)</span>
+            </div>
+          `;
+        } else {
+          activeUnitsList.innerHTML = activeTacticalUnits.map((u, i) => {
+            const uid = u.unit_id || `UNIT-${i+1}`;
+            const name = u.commander || u.unit_name || uid;
+            const phone = u.phone || '';
+            const val = phone ? phone : uid;
+            return `
+              <label class="flex items-center gap-2 p-1.5 rounded hover:bg-slate-900 cursor-pointer text-slate-300">
+                <input type="checkbox" name="taggedUnit" value="${val}" class="tag-unit-checkbox rounded border-slate-700 text-cyan-500 focus:ring-0 cursor-pointer">
+                <div class="flex items-center gap-1.5 truncate">
+                  <span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
+                  <span class="font-bold text-white">${uid}</span>
+                  <span class="text-slate-400 truncate text-[10px]">(${name})</span>
+                </div>
+              </label>
+            `;
+          }).join('');
+        }
       }
 
       modal.classList.remove('hidden');
@@ -3645,6 +3705,15 @@
         return;
       }
 
+      const isBroadcast = document.getElementById('pinBroadcastAll')?.checked;
+      let tagged = [];
+      if (isBroadcast) {
+        tagged = ['ALL'];
+      } else {
+        const checkboxes = document.querySelectorAll('.tag-unit-checkbox:checked');
+        checkboxes.forEach(cb => tagged.push(cb.value));
+      }
+
       const newPin = {
         id: 'PIN-' + Date.now().toString().slice(-6),
         latitude: pendingPinLatLng.lat,
@@ -3653,6 +3722,7 @@
         title: title,
         creator: creator,
         notes: notes,
+        tagged_units: tagged,
         created_at: new Date().toISOString()
       };
 
@@ -3660,6 +3730,17 @@
       saveTacticalPinsToStorage();
       renderCustomPinOnMap(newPin);
       updatePinCountBadge();
+
+      // บันทึกขึ้น Cloud และส่ง Push Notification ผ่าน Backend
+      fetch(API_BASE + '/api/tactical-pins', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newPin)
+      }).then(r => r.json()).then(res => {
+        if (res && res.line_notified_count > 0) {
+          showToast(`📲 ส่งข้อความแจ้งเตือนทาง LINE ถึงเจ้าหน้าที่ ${res.line_notified_count} ท่านแล้ว`);
+        }
+      }).catch(err => console.warn('Sync tactical pin error:', err));
 
       closeTacticalPinModal();
       document.getElementById('pinTitle').value = '';
@@ -3827,10 +3908,18 @@
       customTacticalPins = customTacticalPins.filter(p => p.id !== pinId);
       saveTacticalPinsToStorage();
       updatePinCountBadge();
+
+      // Delete from cloud backend
+      fetch(API_BASE + '/api/tactical-pins/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: pinId })
+      }).catch(err => console.warn('Delete pin error:', err));
+
       showToast('🗑️ ลบหมุดยุทธวิธีเรียบร้อยแล้ว');
     }
 
-    function loadSavedTacticalPins() {
+    async function loadSavedTacticalPins() {
       try {
         const saved = localStorage.getItem('rtsd_tactical_pins');
         if (saved) {
@@ -3840,9 +3929,30 @@
           }
         }
       } catch(e) {
-        console.warn('Load tactical pins error:', e);
+        console.warn('Load local tactical pins error:', e);
       }
       updatePinCountBadge();
+
+      // Also sync from Cloud Server
+      try {
+        const res = await fetch(API_BASE + '/api/tactical-pins');
+        if (res.ok) {
+          const cloudPins = await res.json();
+          if (Array.isArray(cloudPins)) {
+            const existingIds = new Set(customTacticalPins.map(p => p.id));
+            cloudPins.forEach(cp => {
+              if (!existingIds.has(cp.id)) {
+                customTacticalPins.push(cp);
+                renderCustomPinOnMap(cp);
+              }
+            });
+            saveTacticalPinsToStorage();
+            updatePinCountBadge();
+          }
+        }
+      } catch(e) {
+        console.warn('Sync cloud pins error:', e);
+      }
     }
 
     function saveTacticalPinsToStorage() {
@@ -3903,14 +4013,14 @@
       // 1. OpenStreetMap Basemap (OSM France HOT CDN - genuine OpenStreetMap tiles with Esri Street fallback)
       osmBasemapLayer = createSafeTileLayer(
         'https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
-        { maxZoom: 20, maxNativeZoom: 19, subdomains: ['a', 'b'], attribution: '&copy; OpenStreetMap' },
+        { maxZoom: 20, maxNativeZoom: 18, subdomains: ['a', 'b'], attribution: '&copy; OpenStreetMap' },
         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'
       );
 
       // 2. Satellite Basemap (Esri World Imagery)
       satelliteBasemapLayer = createSafeTileLayer(
         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        { maxZoom: 20, maxNativeZoom: 19, attribution: '&copy; Esri World Imagery' },
+        { maxZoom: 20, maxNativeZoom: 18, attribution: '&copy; Esri World Imagery' },
         null
       );
 
@@ -4581,6 +4691,8 @@
               <p><i class="fa-solid fa-compass text-sky-400 mr-1.5"></i> <strong>ทิศทาง (Heading):</strong> ${Math.round(heading)}° (${getCompassDirection(heading)})</p>
               <p><i class="fa-solid fa-battery-half text-emerald-400 mr-1.5"></i> <strong>แบตเตอรี่:</strong> ${u.battery || 78}%</p>
               <p><i class="fa-solid fa-gauge text-amber-400 mr-1.5"></i> <strong>ความเร็ว:</strong> ${speed} กม./ชม.</p>
+              ${u.vehicle_type ? `<p><i class="fa-solid fa-truck-pickup text-cyan-400 mr-1.5"></i> <strong>ยานพาหนะ:</strong> ${u.vehicle_type}</p>` : ''}
+              ${u.unit_size ? `<p><i class="fa-solid fa-users text-purple-400 mr-1.5"></i> <strong>ขนาดหน่วย:</strong> ${u.unit_size}</p>` : ''}
               <p class="font-mono text-[10px] text-slate-400"><i class="fa-solid fa-location-crosshairs text-sky-400 mr-1"></i> ${lat.toFixed(5)}, ${lon.toFixed(5)}</p>
               <p class="text-[10px] text-slate-500"><i class="fa-regular fa-clock text-slate-500 mr-1"></i> ${u.last_update || '-'}</p>
             </div>
@@ -4755,6 +4867,9 @@
                 <span class="px-3 py-0.5 text-xs font-mono font-bold rounded-full tracking-wider uppercase ${statusObj.badgeClass}">
                   ${statusObj.label}
                 </span>
+
+                ${u.vehicle_type ? `<span class="px-2 py-0.5 text-[10px] rounded bg-slate-800/90 text-sky-300 border border-slate-700 font-medium">${u.vehicle_type}</span>` : ''}
+                ${u.unit_size ? `<span class="px-2 py-0.5 text-[10px] rounded bg-slate-800/90 text-purple-300 border border-slate-700 font-medium">${u.unit_size}</span>` : ''}
 
                 <!-- Segmented Battery Gauge -->
                 ${renderSegmentedBattery(battery, statusObj.type)}
