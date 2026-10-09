@@ -307,8 +307,12 @@
       <div class="flex items-center space-x-2 text-xs">
         <!-- User Profile Badge & Logout -->
         <div id="userBadge" class="hidden items-center space-x-2 px-2.5 py-1 rounded-lg bg-sky-950/70 border border-sky-500/40 text-sky-300">
-          <i class="fa-solid fa-user-shield text-sky-400"></i>
-          <span id="userNameDisplay">เจ้าหน้าที่</span>
+          <div onclick="openEditProfileModal()" class="flex items-center gap-1.5 cursor-pointer hover:text-white transition-colors" title="คลิกเพื่อแก้ไขโปรไฟล์ส่วนตัวและเปลี่ยนรูป">
+            <img id="userAvatarDisplay" src="" alt="Avatar" class="w-6 h-6 rounded-full object-cover border border-sky-400 bg-slate-800 hidden">
+            <i id="userAvatarFallbackIcon" class="fa-solid fa-user-shield text-sky-400"></i>
+            <span id="userNameDisplay" class="font-medium max-w-[130px] truncate">เจ้าหน้าที่</span>
+            <i class="fa-solid fa-pen-to-square text-[10px] text-sky-400/70 ml-0.5"></i>
+          </div>
           <button onclick="logout()" title="ออกจากระบบ" class="ml-1 text-slate-400 hover:text-rose-400 cursor-pointer">
             <i class="fa-solid fa-right-from-bracket"></i>
           </button>
@@ -964,6 +968,98 @@
           <input type="checkbox" id="rememberMe" checked class="rounded bg-slate-900 border-slate-700 text-sky-600 focus:ring-0">
           <span>จดจำฉันไว้ในอุปกรณ์นี้ (Remember Me)</span>
         </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 👤 USER EDIT PROFILE MODAL (PERSONAL PROFILE EDIT) -->
+  <!-- ========================================================================= -->
+  <div id="editProfileModal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-[115] hidden flex items-center justify-center p-4">
+    <div class="bg-rtsd-card border border-sky-500/40 rounded-2xl max-w-lg w-full p-5 sm:p-6 relative shadow-2xl shadow-sky-950/60 space-y-5">
+      <!-- Header -->
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-sky-600/20 text-sky-400 flex items-center justify-center text-lg border border-sky-500/30 shadow-inner">
+            <i class="fa-solid fa-id-badge"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-white text-base flex items-center gap-2">
+              แก้ไขข้อมูลโปรไฟล์ส่วนตัว
+              <span id="editProfileRoleBadge" class="px-2 py-0.5 text-[10px] font-semibold rounded bg-sky-500/20 text-sky-300 border border-sky-500/30">USER</span>
+            </h3>
+            <p class="text-xs text-slate-400">อัปเดตรูปถ่ายประจำตัว ชื่อ ยศ สังกัด และตำแหน่ง</p>
+          </div>
+        </div>
+        <button onclick="closeEditProfileModal()" class="text-slate-400 hover:text-white text-xl px-2 py-1 rounded-lg hover:bg-slate-800 cursor-pointer transition-colors">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Avatar Edit Section -->
+      <div class="flex flex-col items-center justify-center gap-3">
+        <div class="relative group cursor-pointer" onclick="document.getElementById('editProfilePhotoInput').click()">
+          <div class="w-24 h-24 rounded-full overflow-hidden border-2 border-sky-400 shadow-[0_0_15px_rgba(56,189,248,0.4)] bg-slate-900 flex items-center justify-center">
+            <img id="editProfileAvatarPreview" src="" alt="Avatar" class="w-full h-full object-cover hidden">
+            <i id="editProfileAvatarIcon" class="fa-solid fa-user-shield text-4xl text-slate-600"></i>
+          </div>
+          <div class="absolute inset-0 rounded-full bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs gap-1">
+            <i class="fa-solid fa-camera text-base"></i>
+            <span>เปลี่ยนรูป</span>
+          </div>
+        </div>
+        <input type="file" id="editProfilePhotoInput" accept="image/*" class="hidden" onchange="handleEditProfileImageSelect(event)">
+        <button type="button" onclick="document.getElementById('editProfilePhotoInput').click()" class="px-3 py-1.5 rounded-lg bg-sky-600/20 hover:bg-sky-600/30 border border-sky-500/40 text-sky-300 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer">
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+          <span>เลือกรูปภาพจากเครื่อง</span>
+        </button>
+      </div>
+
+      <!-- Form Inputs -->
+      <div class="space-y-3.5 text-left text-xs">
+        <div>
+          <label class="block text-slate-300 font-medium mb-1">เบอร์โทรศัพท์ (ใช้ระบุตัวตน ไม่สามารถเปลี่ยนได้)</label>
+          <div class="relative">
+            <i class="fa-solid fa-phone absolute left-3.5 top-2.5 text-slate-500 text-xs"></i>
+            <input type="text" id="editProfilePhone" disabled class="w-full bg-slate-900/60 border border-slate-700/80 rounded-xl pl-9 pr-3 py-2 text-slate-400 font-mono cursor-not-allowed">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-300 font-medium mb-1">ชื่อ - นามสกุล (พร้อมยศ)</label>
+          <div class="relative">
+            <i class="fa-solid fa-user absolute left-3.5 top-2.5 text-slate-500 text-xs"></i>
+            <input type="text" id="editProfileName" placeholder="เช่น ร.อ. สมชาย รักชาติ" class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-sky-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-300 font-medium mb-1">หน่วยงาน / สังกัด</label>
+            <div class="relative">
+              <i class="fa-solid fa-building-shield absolute left-3.5 top-2.5 text-slate-500 text-xs"></i>
+              <input type="text" id="editProfileUnit" placeholder="เช่น กรมแผนที่ทหาร (RTSD)" class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-sky-500">
+            </div>
+          </div>
+          <div>
+            <label class="block text-slate-300 font-medium mb-1">ตำแหน่งหน้าที่</label>
+            <div class="relative">
+              <i class="fa-solid fa-briefcase absolute left-3.5 top-2.5 text-slate-500 text-xs"></i>
+              <input type="text" id="editProfilePosition" placeholder="เช่น นายทหารยุทธการ" class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-sky-500">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="pt-3 border-t border-slate-800 flex items-center justify-end gap-2.5">
+        <button type="button" onclick="closeEditProfileModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium cursor-pointer transition-colors">
+          ยกเลิก
+        </button>
+        <button id="saveProfileBtn" type="button" onclick="handleSaveUserProfile()" class="px-5 py-2 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-lg shadow-sky-600/30 flex items-center gap-1.5 cursor-pointer transition-all">
+          <i class="fa-solid fa-floppy-disk"></i>
+          <span>บันทึกข้อมูล</span>
+        </button>
       </div>
     </div>
   </div>
@@ -1697,6 +1793,20 @@
         try {
           const user = JSON.parse(userJson);
           document.getElementById('userNameDisplay').innerText = user.name || 'เจ้าหน้าที่';
+          
+          const avatarImg = document.getElementById('userAvatarDisplay');
+          const fallbackIcon = document.getElementById('userAvatarFallbackIcon');
+          if (user.picture_profile && user.picture_profile !== '-') {
+            if (avatarImg) {
+              avatarImg.src = user.picture_profile;
+              avatarImg.classList.remove('hidden');
+            }
+            if (fallbackIcon) fallbackIcon.classList.add('hidden');
+          } else {
+            if (avatarImg) avatarImg.classList.add('hidden');
+            if (fallbackIcon) fallbackIcon.classList.remove('hidden');
+          }
+
           document.getElementById('userBadge').classList.remove('hidden');
           document.getElementById('userBadge').classList.add('flex');
 
@@ -1728,6 +1838,153 @@
 
       document.getElementById('authModal').classList.remove('hidden');
       return false;
+    }
+
+    // 👤 จัดการการแก้ไขข้อมูลโปรไฟล์ส่วนตัว (Personal Profile Edit)
+    let editProfileSelectedBase64 = "";
+
+    function openEditProfileModal() {
+      const userJson = localStorage.getItem('rtsd_user') || sessionStorage.getItem('rtsd_user');
+      if (!userJson) return;
+      try {
+        const user = JSON.parse(userJson);
+        document.getElementById('editProfilePhone').value = user.phone || '';
+        document.getElementById('editProfileName').value = user.name || '';
+        document.getElementById('editProfileUnit').value = (user.unit && user.unit !== '-') ? user.unit : '';
+        document.getElementById('editProfilePosition').value = (user.position && user.position !== '-') ? user.position : '';
+        
+        const badge = document.getElementById('editProfileRoleBadge');
+        if (badge) badge.innerText = (user.role || 'USER').toUpperCase();
+
+        const previewImg = document.getElementById('editProfileAvatarPreview');
+        const fallbackIcon = document.getElementById('editProfileAvatarIcon');
+        editProfileSelectedBase64 = "";
+
+        if (user.picture_profile && user.picture_profile !== '-') {
+          previewImg.src = user.picture_profile;
+          previewImg.classList.remove('hidden');
+          fallbackIcon.classList.add('hidden');
+        } else {
+          previewImg.classList.add('hidden');
+          fallbackIcon.classList.remove('hidden');
+        }
+
+        document.getElementById('editProfileModal').classList.remove('hidden');
+      } catch (e) {
+        console.error("Error opening profile modal:", e);
+      }
+    }
+
+    function closeEditProfileModal() {
+      document.getElementById('editProfileModal').classList.add('hidden');
+    }
+
+    function handleEditProfileImageSelect(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          const maxDim = 400;
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > maxDim) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          editProfileSelectedBase64 = dataUrl.split(',')[1];
+
+          const previewImg = document.getElementById('editProfileAvatarPreview');
+          previewImg.src = dataUrl;
+          previewImg.classList.remove('hidden');
+          document.getElementById('editProfileAvatarIcon').classList.add('hidden');
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function handleSaveUserProfile() {
+      const token = localStorage.getItem('rtsd_auth_token') || sessionStorage.getItem('rtsd_auth_token');
+      const phone = document.getElementById('editProfilePhone').value.trim();
+      const name = document.getElementById('editProfileName').value.trim();
+      const unit = document.getElementById('editProfileUnit').value.trim();
+      const position = document.getElementById('editProfilePosition').value.trim();
+      const btn = document.getElementById('saveProfileBtn');
+
+      if (!name) {
+        alert("กรุณาระบุชื่อ-นามสกุล");
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> บันทึก...';
+
+      try {
+        const payload = {
+          token: token,
+          phone: phone,
+          name: name,
+          unit: unit,
+          position: position,
+          picture_base64: editProfileSelectedBase64
+        };
+
+        const res = await fetch(API_BASE + '/api/user/update-profile', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (res.ok && data.status === 'success') {
+          const updatedUser = data.user;
+          if (localStorage.getItem('rtsd_user')) {
+            localStorage.setItem('rtsd_user', JSON.stringify(updatedUser));
+          } else {
+            sessionStorage.setItem('rtsd_user', JSON.stringify(updatedUser));
+          }
+
+          document.getElementById('userNameDisplay').innerText = updatedUser.name || name;
+          const avatarImg = document.getElementById('userAvatarDisplay');
+          const fallbackIcon = document.getElementById('userAvatarFallbackIcon');
+          if (updatedUser.picture_profile && updatedUser.picture_profile !== '-') {
+            avatarImg.src = updatedUser.picture_profile;
+            avatarImg.classList.remove('hidden');
+            fallbackIcon.classList.add('hidden');
+          }
+
+          closeEditProfileModal();
+          showToast("🎉 บันทึกข้อมูลโปรไฟล์และรูปภาพสำเร็จแล้ว!");
+        } else {
+          alert("❌ " + (data.message || "ไม่สามารถบันทึกข้อมูลได้"));
+        }
+      } catch (err) {
+        console.error("Error saving profile:", err);
+        alert("❌ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้");
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> <span>บันทึกข้อมูล</span>';
+      }
     }
 
     function switchAuthTab(tab) {
@@ -1778,7 +2035,7 @@
       }
 
       try {
-        const res = await fetch(API_BASE + '/api/auth/verify-otp', {
+        const res = await fetch(API_BASE + '/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ phone: loginId, username: loginId, password: password })
@@ -1798,27 +2055,8 @@
           return;
         }
       } catch (err) {
-        // Direct client-side offline fallback
-        const cleanId = loginId.replace(/[- ]/g, '').toLowerCase();
-        const isAdmin = cleanId === '0863390614' || cleanId === 'admin' || cleanId === 'superadmin' || cleanId === 'commander';
-        const isMasterPin = password === 'RTSD2024' || (isAdmin && (password.toLowerCase() === 'admin1234' || password.toLowerCase() === 'rtsd2024'));
-
-        if (isMasterPin) {
-          const mockUser = {
-            name: isAdmin ? "ผู้ดูแลระบบสูงสุด (Master Admin)" : `เจ้าหน้าที่ (${loginId})`,
-            phone: isAdmin ? "0863390614" : loginId,
-            role: isAdmin ? "ผู้ดูแลระบบ (Admin)" : "ผู้ใช้งานทั่วไป",
-            unit: "กรมแผนที่ทหาร (RTSD)",
-            position: isAdmin ? "Super Admin" : "Officer"
-          };
-          const storage = remember ? localStorage : sessionStorage;
-          storage.setItem('rtsd_auth_token', 'token-offline-' + Date.now());
-          storage.setItem('rtsd_user', JSON.stringify(mockUser));
-          showToast(`⚔️ เข้าสู่ระบบสำเร็จ (${mockUser.role})`);
-          checkAuthStatus();
-          return;
-        }
-        alert("❌ เบอร์โทร/Username หรือ รหัสผ่าน/PIN ไม่ถูกต้อง (รหัส Master PIN คือ RTSD2024)");
+        console.error("Login error:", err);
+        alert("❌ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง");
       }
     }
 
@@ -1833,7 +2071,7 @@
       }
       
       btn.disabled = true;
-      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ส่ง...';
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังส่ง...';
       
       try {
         const res = await fetch(API_BASE + '/api/auth/request-otp', {
@@ -1845,25 +2083,17 @@
         
         if (res.ok && data.status === 'success') {
           document.getElementById('otpInputGroup').classList.remove('hidden');
-          hint.innerHTML = `<span class="text-emerald-400">✅ ${data.message}</span>`;
-          if (data.demo_otp) {
-            hint.innerHTML += `<br><span class="text-amber-400 font-mono">🔑 รหัส OTP ทดสอบ: <b>${data.demo_otp}</b></span>`;
-          }
+          hint.innerHTML = `<span class="text-emerald-400 font-medium">✅ ส่งรหัส OTP ไปยังแชต LINE เรียบร้อยแล้ว (เปิด LINE เพื่อดูรหัส)</span>`;
           startOtpCountdown(300);
         } else {
           alert("⚠️ " + (data.message || "ไม่สามารถส่ง OTP ได้"));
         }
       } catch(e) {
-        // Fallback for offline or local preview mode: generate client-side test OTP
-        console.warn("API request-otp failed, fallback to local test OTP mode", e);
-        const demoOtp = "123456";
-        window._localOtp = { phone: phone.replace(/[- ]/g, ''), otp: demoOtp, exp: Date.now() + 300000 };
-        document.getElementById('otpInputGroup').classList.remove('hidden');
-        hint.innerHTML = `<span class="text-amber-400">⚠️ โหมดทดสอบตรง (เชื่อมต่อเซิร์ฟเวอร์ไม่ได้)</span><br><span class="text-emerald-400 font-mono">🔑 รหัส OTP ทดสอบ: <b>${demoOtp}</b></span>`;
-        startOtpCountdown(300);
+        console.error("API request-otp error:", e);
+        alert("❌ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต");
       } finally {
         btn.disabled = false;
-        btn.innerText = 'ขอ OTP';
+        btn.innerHTML = '<i class="fa-brands fa-line mr-1"></i> ขอ OTP';
       }
     }
 
@@ -1915,25 +2145,8 @@
           return;
         }
       } catch(e) {
-        // Fallback if localOtp was issued
-        const cleanPhone = phone.replace(/[- ]/g, '');
-        if (window._localOtp && window._localOtp.phone === cleanPhone && window._localOtp.otp === otp) {
-          const isAdmin = cleanPhone === '0863390614';
-          const mockUser = {
-            name: isAdmin ? "ผู้ดูแลระบบสูงสุด (Master Admin)" : `ผู้ใช้งาน (${cleanPhone})`,
-            phone: cleanPhone,
-            role: isAdmin ? "ผู้ดูแลระบบ (Admin)" : "ผู้ใช้งานทั่วไป",
-            unit: "กรมแผนที่ทหาร (RTSD)",
-            position: isAdmin ? "Super Admin" : "Officer"
-          };
-          const storage = remember ? localStorage : sessionStorage;
-          storage.setItem('rtsd_auth_token', 'local_token_' + Date.now());
-          storage.setItem('rtsd_user', JSON.stringify(mockUser));
-          showToast(`🎉 ยินดีต้อนรับคุณ ${mockUser.name}`);
-          checkAuthStatus();
-          return;
-        }
-        alert("❌ ไม่สามารถยืนยันตัวตนได้ในขณะนี้ กรุณาตรวจสอบการเชื่อมต่อ");
+        console.error("API verify-otp error:", e);
+        alert("❌ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์เพื่อตรวจสอบ OTP ได้");
       }
     }
 
@@ -2441,73 +2654,7 @@
     let pendingPinLatLng = null;
     let currentRadarRangeMode = 'auto'; // 'auto' or fixed meters (e.g. 500, 1000, 3000, 5000, 10000)
 
-    const DEFAULT_TACTICAL_UNITS = [
-      {
-        unit_id: "TL-1",
-        unit_name: "MAE SAI TACTICAL UNIT",
-        commander: "CAPT. SOMCHAI S. (UNIT LEAD)",
-        latitude: 20.0210,
-        longitude: 99.8760,
-        speed: 45,
-        heading: 45,
-        battery: 78,
-        status: "ACTIVE",
-        picture_profile: "https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=256&q=80",
-        last_update: "2026-10-08 14:32:01"
-      },
-      {
-        unit_id: "TL-2",
-        unit_name: "MUEANG RESCUE UNIT",
-        commander: "CAPT. MAE RESCUE UNIT",
-        latitude: 19.9890,
-        longitude: 99.8430,
-        speed: 0,
-        heading: 0,
-        battery: 78,
-        status: "EN ROUTE",
-        picture_profile: "https://images.unsplash.com/photo-1508873696983-2df5293cb32f?auto=format&fit=crop&w=256&q=80",
-        last_update: "2026-10-08 14:32:01"
-      },
-      {
-        unit_id: "TL-3",
-        unit_name: "MAE PAKI PATROL",
-        commander: "LT. NOY P.",
-        latitude: 20.0810,
-        longitude: 99.8250,
-        speed: 62,
-        heading: 120,
-        battery: 78,
-        status: "STANDBY",
-        picture_profile: "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=256&q=80",
-        last_update: "2026-10-08 14:32:01"
-      },
-      {
-        unit_id: "TL-4",
-        unit_name: "WIANG PANG KHAM QRF",
-        commander: "LT. NOY P.",
-        latitude: 20.0450,
-        longitude: 99.8920,
-        speed: 62,
-        heading: 90,
-        battery: 78,
-        status: "STANDBY",
-        picture_profile: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=256&q=80",
-        last_update: "2026-10-08 14:32:01"
-      },
-      {
-        unit_id: "TL-5",
-        unit_name: "WIANGPAI TACTICAL UNIT",
-        commander: "CAPT. SOMCHAI S. (UNIT LEAD)",
-        latitude: 19.9500,
-        longitude: 99.7800,
-        speed: 45,
-        heading: 220,
-        battery: 85,
-        status: "ACTIVE",
-        picture_profile: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=256&q=80",
-        last_update: "2026-10-08 14:32:01"
-      }
-    ];
+    const DEFAULT_TACTICAL_UNITS = [];
 
     const SOLDIER_AVATARS = [
       'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=256&q=80',
@@ -3537,17 +3684,17 @@
         const res = await fetch(API_BASE + '/api/tracker/units');
         if (res.ok) {
           const units = await res.json();
-          activeTacticalUnits = (units && units.length > 0) ? units : DEFAULT_TACTICAL_UNITS;
+          activeTacticalUnits = (units && Array.isArray(units)) ? units : [];
           renderTacticalUnits(activeTacticalUnits);
           updateTacticalMapMarkers(activeTacticalUnits);
         } else {
-          activeTacticalUnits = DEFAULT_TACTICAL_UNITS;
+          activeTacticalUnits = [];
           renderTacticalUnits(activeTacticalUnits);
           updateTacticalMapMarkers(activeTacticalUnits);
         }
       } catch (err) {
         console.warn('Tactical telemetry fetch warning:', err);
-        activeTacticalUnits = DEFAULT_TACTICAL_UNITS;
+        activeTacticalUnits = [];
         renderTacticalUnits(activeTacticalUnits);
         updateTacticalMapMarkers(activeTacticalUnits);
       } finally {
@@ -3572,7 +3719,7 @@
     function updateTacticalMapMarkers(units) {
       if (!tacticalMap) return;
 
-      const displayUnits = (units && units.length > 0) ? units : DEFAULT_TACTICAL_UNITS;
+      const displayUnits = (units && Array.isArray(units)) ? units : [];
       const currentIds = new Set();
       const bounds = [];
 
@@ -3767,10 +3914,23 @@
       const countBadge = document.getElementById('activeUnitBadge');
       if (!container) return;
 
-      const displayUnits = (units && units.length > 0) ? units : DEFAULT_TACTICAL_UNITS;
+      const displayUnits = (units && Array.isArray(units)) ? units : [];
 
       if (countBadge) {
-        countBadge.innerText = `🟢 ${displayUnits.length} ACTIVE`;
+        countBadge.innerText = displayUnits.length > 0 ? `🟢 ${displayUnits.length} ACTIVE` : `⚪ 0 ACTIVE`;
+      }
+
+      if (displayUnits.length === 0) {
+        container.innerHTML = `
+          <div class="p-8 text-center border border-slate-800 rounded-2xl bg-[#0a101f]/60 my-auto">
+            <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-slate-800/80 flex items-center justify-center text-slate-500">
+              <i class="fa-solid fa-satellite-dish text-xl animate-pulse text-sky-400"></i>
+            </div>
+            <p class="text-sm font-semibold text-slate-200">ไม่มีกำลังพลส่งพิกัดสดในขณะนี้</p>
+            <p class="text-xs text-slate-400 mt-1">จอเรดาร์แสดงผลเฉพาะหน่วยที่ส่งพิกัด GPS สดจริงผ่านแอปเท่านั้น</p>
+          </div>
+        `;
+        return;
       }
 
       // Populate district filter if empty

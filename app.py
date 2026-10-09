@@ -596,42 +596,55 @@ def api_request_otp():
             return jsonify({"status": "error", "message": "บัญชีของท่านอยู่ระหว่างรอการอนุมัติจากผู้ดูแลระบบ กรุณาติดต่อ Admin"}), 403
 
     otp_code = f"{random.randint(100000, 999999)}"
+
+    # ตรวจสอบ LINE User ID สำหรับการส่งข้อความ OTP
+    target_line_id = user_info.get("line_user_id") if user_info else None
+    
+    # หากเป็นเบอร์ Admin ให้ค้นหาใน registered_users เพิ่มเติมหากไม่มีใน phone_to_user
+    if (not target_line_id or not str(target_line_id).startswith("U")) and phone in ADMIN_PHONES:
+        for lid, u in registered_users.items():
+            if str(lid).startswith("U") and u.get("phone") in ADMIN_PHONES:
+                target_line_id = lid
+                break
+
+    if not target_line_id or not str(target_line_id).startswith("U"):
+        return jsonify({
+            "status": "error",
+            "message": "หมายเลขโทรศัพท์นี้ยังไม่ได้เชื่อมต่อกับ LINE Bot กรุณาเพิ่มเพื่อน LINE (@411vtica) แล้วพิมพ์เบอร์โทรส่งเข้าแชตก่อนขอ OTP ครับ"
+        }), 400
+
+    # บันทึก OTP ลงแคช
     otp_cache[phone] = {
         "otp": otp_code,
         "expires_at": time.time() + 300,  # 5 นาที
         "user_info": user_info
     }
 
-    sent_via_line = False
-    if user_info and user_info.get("line_user_id"):
-        target_line_id = user_info["line_user_id"]
-        try:
-            with ApiClient(configuration) as api_client:
-                line_bot_api = MessagingApi(api_client)
-                push_text = (f"🔐 รหัส OTP สำหรับเข้าสู่ระบบ RTSD Dashboard\n"
-                             f"──────────────────────\n"
-                             f"👉 รหัส OTP ของคุณคือ: 【 {otp_code} 】\n"
-                             f"──────────────────────\n"
-                             f"⏰ รหัสนี้มีอายุ 5 นาที\n"
-                             f"⚠️ ห้ามแจ้งรหัสนี้แก่บุคคลอื่น เพื่อความปลอดภัย")
-                line_bot_api.push_message(
-                    PushMessageRequest(to=target_line_id, messages=[TextMessage(text=push_text)])
-                )
-                sent_via_line = True
-        except Exception as push_err:
-            print(f"Error pushing OTP via LINE: {push_err}")
+    try:
+        with ApiClient(configuration) as api_client:
+            line_bot_api = MessagingApi(api_client)
+            push_text = (f"🔐 รหัส OTP เข้าสู่ระบบ RTSD Tactical System\n"
+                         f"──────────────────────\n"
+                         f"👉 รหัส OTP ของคุณคือ: 【 {otp_code} 】\n"
+                         f"──────────────────────\n"
+                         f"⏰ รหัสนี้มีอายุ 5 นาที\n"
+                         f"⚠️ ห้ามแจ้งรหัสนี้แก่บุคคลอื่น เพื่อความปลอดภัยสูงสุด")
+            line_bot_api.push_message(
+                PushMessageRequest(to=target_line_id, messages=[TextMessage(text=push_text)])
+            )
+    except Exception as push_err:
+        print(f"Error pushing OTP via LINE: {push_err}")
+        return jsonify({
+            "status": "error",
+            "message": f"ไม่สามารถส่งข้อความ OTP ไปยัง LINE ได้ กรุณาตรวจสอบว่าท่านได้บล็อก LINE Bot (@411vtica) หรือไม่ ({str(push_err)})"
+        }), 500
 
     resp = {
         "status": "success",
-        "message": "ส่งรหัส OTP เข้า LINE ของท่านเรียบร้อยแล้ว" if sent_via_line else "สร้างรหัส OTP สำเร็จ",
-        "sent_via_line": sent_via_line,
+        "message": "ส่งรหัส OTP เข้า LINE ของท่านเรียบร้อยแล้ว กรุณาเปิดแอป LINE เพื่อดูรหัส",
+        "sent_via_line": True,
         "phone": phone
     }
-    # ถ้ายังไม่ได้ผูก LINE ให้แสดง demo_otp สำหรับทดสอบ
-    if not sent_via_line:
-        resp["demo_otp"] = otp_code
-        resp["hint"] = "เบอร์นี้ยังไม่ได้ผูก LINE หรือยังไม่ได้เป็นเพื่อนกับบอท ระบบจึงแสดง OTP ทดสอบบนหน้าจอ"
-
     return jsonify(resp), 200
 
 
@@ -678,12 +691,9 @@ def api_auth_login():
     if not password:
         return jsonify({"status": "error", "message": "กรุณาระบุรหัสผ่าน หรือ PIN"}), 400
 
-    is_admin_user = (login_id in [p.lower() for p in ADMIN_PHONES]) or (login_id in ["admin", "rtsd_admin", "commander", "superadmin"])
-
-    # ตรวจสอบรหัสผ่าน: MASTER_PIN หรือ default admin passwords หรือ 1234 / 0000 / rtsd1234
+    # ตรวจสอบรหัสผ่าน: MASTER_PIN หรือ Admin credentials (ไม่อนุญาตให้ใช้รหัส demo ทั่วไป)
     valid_password = (password == MASTER_PIN) or \
-                     (is_admin_user and password.lower() in ["admin1234", "rtsd2024", MASTER_PIN.lower()]) or \
-                     (password in ["1234", "0000", "rtsd1234", "rtsd2024"])
+                     (is_admin_user and password.lower() in ["admin1234", "rtsd2024", MASTER_PIN.lower()])
 
     if not valid_password:
         return jsonify({"status": "error", "message": "รหัสผ่านหรือ PIN ไม่ถูกต้อง"}), 401
@@ -812,8 +822,8 @@ def api_verify_otp():
     if login_id and password:
         is_admin_user = (login_id in [p.lower() for p in ADMIN_PHONES]) or (login_id in ["admin", "rtsd_admin", "commander", "superadmin"])
         
-        # ตรวจสอบรหัสผ่าน: MASTER_PIN ("RTSD2024") หรือ default password ("admin1234", "rtsd2024")
-        valid_password = (password == MASTER_PIN) or (is_admin_user and password.lower() in ["admin1234", "rtsd2024", MASTER_PIN.lower()]) or (password in ["1234", "0000", "rtsd1234"])
+        # ตรวจสอบรหัสผ่าน: MASTER_PIN ("RTSD2024") หรือ Admin credentials (ไม่อนุญาตให้ใช้รหัส demo ทั่วไป)
+        valid_password = (password == MASTER_PIN) or (is_admin_user and password.lower() in ["admin1234", "rtsd2024", MASTER_PIN.lower()])
         
         if valid_password:
             existing_user = phone_to_user.get(login_id)
@@ -1146,6 +1156,92 @@ def api_admin_update_role():
         "message": f"ปรับสิทธิ์เป็น '{new_role}' สำเร็จแล้ว",
         "phone": phone,
         "new_role": new_role
+    }), 200
+
+
+@app.route("/api/user/update-profile", methods=['POST'])
+def api_user_update_profile():
+    """API ให้เจ้าของบัญชีอัปเดตข้อมูลโปรไฟล์ส่วนตัว (รูปโปรไฟล์, ชื่อ-สกุล/ยศ, สังกัด, ตำแหน่ง)"""
+    auth_header = request.headers.get("Authorization", "")
+    token = ""
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:].strip()
+
+    data = request.get_json(silent=True) or {}
+    if not token:
+        token = data.get("token", "")
+
+    phone = str(data.get("phone", "")).strip().replace("-", "").replace(" ", "")
+
+    # ตรวจสอบสิทธิ์ผ่าน Token
+    session = ACTIVE_SESSIONS.get(token) if token else None
+    if session:
+        session_phone = session.get("phone", "")
+        if not phone:
+            phone = session_phone
+        is_admin = session.get("phone") in ADMIN_PHONES or "Super Admin" in session.get("role", "")
+        if phone != session_phone and not is_admin:
+            return jsonify({"status": "error", "message": "ท่านไม่มีสิทธิ์แก้ไขข้อมูลของบัญชีอื่น"}), 403
+
+    if not phone:
+        return jsonify({"status": "error", "message": "กรุณาระบุหมายเลขโทรศัพท์หรือแนบ Token"}), 400
+
+    if phone not in phone_to_user:
+        fetch_registered_users()
+
+    if phone not in phone_to_user:
+        return jsonify({"status": "error", "message": "ไม่พบบัญชีผู้ใช้งานนี้ในระบบ"}), 404
+
+    user_info = phone_to_user[phone]
+
+    # อัปเดตเฉพาะฟิลด์ที่อนุญาตให้แก้ไข
+    if "name" in data and str(data["name"]).strip():
+        user_info["name"] = str(data["name"]).strip()
+    if "unit" in data and str(data["unit"]).strip():
+        user_info["unit"] = str(data["unit"]).strip()
+    if "position" in data and str(data["position"]).strip():
+        user_info["position"] = str(data["position"]).strip()
+
+    pic_url = str(data.get("picture_profile", "")).strip()
+    pic_b64 = str(data.get("picture_base64", "")).strip()
+
+    if pic_b64:
+        user_info["picture_profile"] = f"data:image/jpeg;base64,{pic_b64}"
+    elif pic_url and pic_url != "-":
+        user_info["picture_profile"] = pic_url
+
+    lid = user_info.get("line_user_id", "")
+    if lid in registered_users:
+        registered_users[lid].update({
+            "name": user_info["name"],
+            "unit": user_info["unit"],
+            "position": user_info["position"],
+            "picture_profile": user_info["picture_profile"]
+        })
+
+    # ซิงค์ Session ปัจจุบัน
+    for s_tok, s in ACTIVE_SESSIONS.items():
+        if s.get("phone") == phone:
+            s["user"] = user_info
+
+    # ซิงค์ลง Google Sheets
+    save_registered_user(
+        line_user_id=lid,
+        name=user_info.get("name", "ผู้ใช้งาน"),
+        phone=phone,
+        role=user_info.get("role", "ผู้ใช้งานทั่วไป"),
+        unit=user_info.get("unit", "-"),
+        position=user_info.get("position", "-"),
+        status=user_info.get("status", "อนุมัติแล้ว"),
+        purpose=user_info.get("purpose", "-"),
+        picture_profile=user_info.get("picture_profile", "-"),
+        picture_base64=pic_b64
+    )
+
+    return jsonify({
+        "status": "success",
+        "message": "อัปเดตข้อมูลโปรไฟล์เรียบร้อยแล้ว",
+        "user": user_info
     }), 200
 
 
