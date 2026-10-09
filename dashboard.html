@@ -356,11 +356,10 @@
     <!-- 🎛️ PORTAL TOP NAVIGATION TABS (แถบนำทางหลัก 3 ส่วน) -->
     <div class="shrink-0 flex items-center justify-between gap-2 bg-slate-900/90 px-3 py-1.5 rounded-xl border border-slate-800 mb-2 shadow-lg backdrop-blur-md">
       <div class="flex items-center gap-1.5 sm:gap-2 overflow-x-auto">
-        <!-- 1. ระบบสมาชิก -->
-        <button id="viewMembersBtn" onclick="switchMainView('members')" class="flex items-center justify-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 font-semibold text-xs transition-all cursor-pointer shrink-0">
-          <i class="fa-solid fa-users text-purple-400"></i>
-          <span>ระบบสมาชิก</span>
-          <span id="topPendingBadge" class="hidden px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 text-[10px] font-bold animate-pulse">0</span>
+        <!-- 1. สมัครสมาชิก -->
+        <button id="viewRegisterBtn" onclick="switchMainView('register')" class="flex items-center justify-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 font-semibold text-xs transition-all cursor-pointer shrink-0">
+          <i class="fa-solid fa-user-plus text-cyan-400"></i>
+          <span>สมัครสมาชิก</span>
         </button>
 
         <!-- 2. แดชบอร์ด + แผนที่ -->
@@ -890,12 +889,319 @@
     </div> <!-- Close statsContainer -->
 
     <!-- ========================================================================= -->
-    <!-- 👥 3. MEMBERS & PERSONNEL MANAGEMENT PORTAL (ระบบสมาชิก) -->
+    <!-- 📝 3. USER REGISTRATION PORTAL (หน้าสมัครสมาชิก / ยื่นขอใช้งาน) -->
     <!-- ========================================================================= -->
-    <div id="membersContainer" class="hidden flex-1 min-h-0 w-full flex flex-col gap-2.5 overflow-hidden">
+    <div id="registerContainer" class="hidden flex-1 min-h-0 w-full overflow-y-auto custom-scrollbar p-2 sm:p-4">
+      <div class="max-w-3xl mx-auto bg-rtsd-card border border-cyan-500/30 rounded-2xl p-4 sm:p-7 shadow-2xl relative mb-6">
+        <!-- Top accent line -->
+        <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 via-sky-500 to-emerald-500 rounded-t-2xl"></div>
+
+        <!-- Header -->
+        <div class="text-center pb-5 mb-5 border-b border-slate-800">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/70 border border-cyan-500/40 text-cyan-400 text-xs font-semibold tracking-wider uppercase mb-2">
+            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+            RTSD PERSONNEL REGISTRATION & ACCESS REQUEST
+          </div>
+          <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center justify-center gap-2.5">
+            <i class="fa-solid fa-user-plus text-cyan-400"></i>
+            สมัครสมาชิกและยื่นขอใช้งานระบบ
+          </h2>
+          <p class="text-xs text-slate-400 mt-1 max-w-lg mx-auto">
+            กรอกข้อมูลกำลังพลเพื่อยื่นขออนุมัติเข้าใช้งานศูนย์ปฏิบัติการและสารสนเทศภูมิศาสตร์ กรมแผนที่ทหาร (RTSD)
+          </p>
+        </div>
+
+        <!-- Registration Form -->
+        <form id="portalRegisterForm" onsubmit="handlePortalRegisterSubmit(event)" class="space-y-5">
+          <!-- Section 1: ระบุตัวตน -->
+          <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-4">
+            <div class="flex items-center gap-2 text-cyan-400 font-semibold text-xs border-b border-slate-800/80 pb-2">
+              <i class="fa-solid fa-id-card"></i>
+              <span>1. ข้อมูลระบุตัวตนและหน่วยงานต้นสังกัด</span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+              <!-- ยศ / คำนำหน้า -->
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">
+                  ยศ / คำนำหน้า <span class="text-rose-400">*</span>
+                </label>
+                <select id="portalUserRank" required onchange="togglePortalRankOther(this.value)" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-cyan-400">
+                  <optgroup label="⭐ นายทหารชั้นนายพล">
+                    <option value="พล.อ.">พล.อ. / พล.ร.อ. / พล.อ.อ.</option>
+                    <option value="พล.ท.">พล.ท. / พล.ร.ท. / พล.อ.ท.</option>
+                    <option value="พล.ต.">พล.ต. / พล.ร.ต. / พล.อ.ต.</option>
+                  </optgroup>
+                  <optgroup label="🎖️ นายทหารสัญญาบัตร">
+                    <option value="พ.อ.(พิเศษ)">พ.อ.(พิเศษ) / น.อ.(พิเศษ)</option>
+                    <option value="พ.อ.">พ.อ. / น.อ.</option>
+                    <option value="พ.ท.">พ.ท. / น.ท.</option>
+                    <option value="พ.ต.">พ.ต. / น.ต.</option>
+                    <option value="ร.อ." selected>ร.อ.</option>
+                    <option value="ร.ท.">ร.ท.</option>
+                    <option value="ร.ต.">ร.ต.</option>
+                    <option value="ว่าที่ ร.ต.">ว่าที่ ร.ต.</option>
+                  </optgroup>
+                  <optgroup label="🔰 นายทหารประทวน">
+                    <option value="จ.ส.อ.">จ.ส.อ. / พ.จ.อ. / พ.อ.อ.</option>
+                    <option value="จ.ส.ท.">จ.ส.ท. / พ.จ.ท. / พ.อ.ท.</option>
+                    <option value="จ.ส.ต.">จ.ส.ต. / พ.จ.ต. / พ.อ.ต.</option>
+                    <option value="ส.อ.">ส.อ. / จ.อ. / จ.อ.</option>
+                    <option value="ส.ท.">ส.ท. / จ.ท. / จ.ท.</option>
+                    <option value="ส.ต.">ส.ต. / จ.ต. / จ.ต.</option>
+                    <option value="พลฯ">พลอาสาสมัคร / พลทหาร</option>
+                  </optgroup>
+                  <optgroup label="👮 ตำรวจ">
+                    <option value="พล.ต.อ.">พล.ต.อ.</option>
+                    <option value="พล.ต.ท.">พล.ต.ท.</option>
+                    <option value="พล.ต.ต.">พล.ต.ต.</option>
+                    <option value="พ.ต.อ.">พ.ต.อ.</option>
+                    <option value="พ.ต.ท.">พ.ต.ท.</option>
+                    <option value="พ.ต.ต.">พ.ต.ต.</option>
+                    <option value="ร.ต.อ.">ร.ต.อ.</option>
+                    <option value="ร.ต.ท.">ร.ต.ท.</option>
+                    <option value="ร.ต.ต.">ร.ต.ต.</option>
+                    <option value="ด.ต.">ด.ต.</option>
+                    <option value="ส.ต.ต.">ส.ต.ต. - ส.ต.อ.</option>
+                  </optgroup>
+                  <optgroup label="👤 พลเรือน / ข้าราชการทั่วไป">
+                    <option value="นาย">นาย</option>
+                    <option value="นาง">นาง</option>
+                    <option value="นางสาว">นางสาว</option>
+                    <option value="ดร.">ดร.</option>
+                    <option value="อื่นๆ">อื่นๆ (ระบุเอง)</option>
+                  </optgroup>
+                </select>
+                <input type="text" id="portalUserRankOther" placeholder="พิมพ์ยศ/คำนำหน้า..." class="w-full mt-1.5 px-3 py-1.5 rounded-lg bg-slate-950 border border-amber-500/60 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 hidden">
+              </div>
+
+              <!-- ชื่อ-นามสกุล -->
+              <div class="sm:col-span-2">
+                <label class="block text-xs font-medium text-slate-300 mb-1">
+                  ชื่อ - นามสกุล <span class="text-rose-400">*</span>
+                </label>
+                <input type="text" id="portalUserName" required placeholder="เช่น สมชาย ใจภักดี" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <!-- สังกัด / หน่วยงาน -->
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">
+                  สังกัด / หน่วยงาน <span class="text-rose-400">*</span>
+                </label>
+                <select id="portalUserUnitSelect" required onchange="togglePortalUnitOther(this.value)" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-cyan-400">
+                  <optgroup label="🗺️ กรมแผนที่ทหาร (RTSD) & บก.ทท.">
+                    <option value="กรมแผนที่ทหาร (ผท.บก.ทท.)" selected>กรมแผนที่ทหาร (ผท.บก.ทท.)</option>
+                    <option value="กองบริการแผนที่ (กบค.ผท.)">กองบริการแผนที่ (กบค.ผท.)</option>
+                    <option value="กองเทคโนโลยีภูมิสารสนเทศ (กทภ.ผท.)">กองเทคโนโลยีภูมิสารสนเทศ (กทภ.ผท.)</option>
+                    <option value="กองทำแผนที่ (กทผ.ผท.)">กองทำแผนที่ (กทผ.ผท.)</option>
+                    <option value="กองสารสนเทศและแผนที่ภาพ (กสภ.ผท.)">กองสารสนเทศและแผนที่ภาพ (กสภ.ผท.)</option>
+                    <option value="กองควบคุมทางอากาศและสำรวจรังวัด (กอส.ผท.)">กองควบคุมทางอากาศและสำรวจรังวัด (กอส.ผท.)</option>
+                    <option value="กองยีโอเดซีและภูมิศาสตร์ (กยภ.ผท.)">กองยีโอเดซีและภูมิศาสตร์ (กยภ.ผท.)</option>
+                    <option value="กองการสงครามแผนที่ (กสผ.ผท.)">กองการสงครามแผนที่ (กสผ.ผท.)</option>
+                    <option value="ศูนย์ปฏิบัติการร่วมแผนที่ (ศปก.ผท.)">ศูนย์ปฏิบัติการร่วมแผนที่ (ศปก.ผท.)</option>
+                    <option value="โรงเรียนแผนที่ กรมแผนที่ทหาร (รร.ผท.)">โรงเรียนแผนที่ กรมแผนที่ทหาร (รร.ผท.)</option>
+                    <option value="กองบัญชาการกองทัพไทย (บก.ทท.)">กองบัญชาการกองทัพไทย (บก.ทท.)</option>
+                    <option value="หน่วยบัญชาการทหารพัฒนา (นทพ.)">หน่วยบัญชาการทหารพัฒนา (นทพ.)</option>
+                    <option value="ศูนย์ปฏิบัติการต่อต้านการก่อการร้ายสากล (ศปภ.)">ศูนย์ปฏิบัติการต่อต้านการก่อการร้ายสากล (ศปภ.)</option>
+                    <option value="สำนักยุทธการทหาร (สยท.ทหาร)">สำนักยุทธการทหาร (สยท.ทหาร)</option>
+                    <option value="สำนักข่าวกรองทหาร (สขท.ทหาร)">สำนักข่าวกรองทหาร (สขท.ทหาร)</option>
+                  </optgroup>
+                  <optgroup label="⚔️ เหล่าทัพหลัก">
+                    <option value="ศูนย์ปฏิบัติการกองทัพบก (ศปก.ทบ.)">ศูนย์ปฏิบัติการกองทัพบก (ศปก.ทบ.)</option>
+                    <option value="กองทัพบก (ทบ.)">กองทัพบก (ทบ.)</option>
+                    <option value="ศูนย์ปฏิบัติการกองทัพเรือ (ศปก.ทร.)">ศูนย์ปฏิบัติการกองทัพเรือ (ศปก.ทร.)</option>
+                    <option value="กองทัพเรือ (ทร.)">กองทัพเรือ (ทร.)</option>
+                    <option value="ศูนย์ปฏิบัติการกองทัพอากาศ (ศปก.ทอ.)">ศูนย์ปฏิบัติการกองทัพอากาศ (ศปก.ทอ.)</option>
+                    <option value="กองทัพอากาศ (ทอ.)">กองทัพอากาศ (ทอ.)</option>
+                  </optgroup>
+                  <optgroup label="🛡️ ความมั่นคง / ปภ. / หน่วยงานร่วม">
+                    <option value="กรมป้องกันและบรรเทาสาธารณภัย (ปภ.)">กรมป้องกันและบรรเทาสาธารณภัย (ปภ.)</option>
+                    <option value="ศูนย์เตือนภัยพิบัติแห่งชาติ (ศภช.)">ศูนย์เตือนภัยพิบัติแห่งชาติ (ศภช.)</option>
+                    <option value="กองอำนวยการรักษาความมั่นคงภายใน (กอ.รมน.)">กองอำนวยการรักษาความมั่นคงภายใน (กอ.รมน.)</option>
+                    <option value="สำนักงานตำรวจแห่งชาติ (ตร.)">สำนักงานตำรวจแห่งชาติ (ตร.)</option>
+                    <option value="กองบัญชาการตำรวจตระเวนชายแดน (ตชด.)">กองบัญชาการตำรวจตระเวนชายแดน (ตชด.)</option>
+                    <option value="GISTDA (จิสด้า)">GISTDA (จิสด้า)</option>
+                    <option value="สถาบันสารสนเทศทรัพยากรน้ำ (สสน. / HII)">สถาบันสารสนเทศทรัพยากรน้ำ (สสน. / HII)</option>
+                    <option value="กรมอุตุนิยมวิทยา">กรมอุตุนิยมวิทยา</option>
+                    <option value="กรมชลประทาน">กรมชลประทาน</option>
+                    <option value="อื่นๆ">อื่นๆ (ระบุหน่วยงานเอง)</option>
+                  </optgroup>
+                </select>
+                <input type="text" id="portalUserUnitOther" placeholder="พิมพ์ชื่อหน่วยงาน/สังกัด..." class="w-full mt-1.5 px-3 py-1.5 rounded-lg bg-slate-950 border border-amber-500/60 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 hidden">
+              </div>
+
+              <!-- ตำแหน่ง -->
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">ตำแหน่งหน้าที่</label>
+                <input type="text" id="portalUserPosition" placeholder="เช่น ผบ.ร้อย / นายทหารแผนที่ / หน.ชุด" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400">
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 2: ความปลอดภัยและ OTP -->
+          <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-4">
+            <div class="flex items-center gap-2 text-cyan-400 font-semibold text-xs border-b border-slate-800/80 pb-2">
+              <i class="fa-solid fa-mobile-screen-button"></i>
+              <span>2. การยืนยันตัวตนและความปลอดภัย (สำคัญ)</span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <!-- เบอร์โทรศัพท์ -->
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">
+                  หมายเลขโทรศัพท์มือถือ (10 หลัก) <span class="text-rose-400">*</span>
+                </label>
+                <div class="relative">
+                  <i class="fa-solid fa-phone absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                  <input type="tel" id="portalUserPhone" required pattern="0[0-9]{9}" maxlength="10" placeholder="08xxxxxxxx" class="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 font-mono focus:outline-none focus:border-cyan-400">
+                </div>
+                <p class="text-[11px] text-amber-400 mt-1">
+                  <i class="fa-solid fa-circle-info"></i> เบอร์นี้ใช้รับ OTP ผ่าน LINE Bot เพื่อเข้าสู่ระบบ
+                </p>
+              </div>
+
+              <!-- LINE ID -->
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">ชื่อบัญชี LINE / LINE ID (ถ้ามี)</label>
+                <div class="relative">
+                  <i class="fa-brands fa-line absolute left-3 top-2 text-emerald-400 text-sm"></i>
+                  <input type="text" id="portalUserLineId" placeholder="เช่น somchai_line" class="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400">
+                </div>
+                <p class="text-[11px] text-slate-400 mt-1">ช่วยให้บอทส่ง OTP และสถานะอนุมัติถึงแชตท่านโดยตรง</p>
+              </div>
+
+              <!-- รูปถ่ายโปรไฟล์ -->
+              <div class="sm:col-span-2 p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                <label class="block text-xs font-semibold text-cyan-400 mb-2 flex items-center gap-1.5">
+                  <i class="fa-solid fa-camera"></i>
+                  <span>รูปภาพโปรไฟล์ (เลือกจาก Gallery หรือใส่ URL)</span>
+                </label>
+                <div class="flex flex-col sm:flex-row items-center gap-3.5">
+                  <!-- Avatar preview -->
+                  <div class="relative cursor-pointer" onclick="document.getElementById('portalProfileFileInput').click()" title="คลิกเพื่อเลือกภาพ">
+                    <div id="portalAvatarContainer" class="w-16 h-16 rounded-full border-2 border-dashed border-cyan-500/50 bg-slate-900 flex flex-col items-center justify-center text-slate-400 overflow-hidden">
+                      <i id="portalAvatarIcon" class="fa-solid fa-cloud-arrow-up text-lg text-cyan-400"></i>
+                      <span id="portalAvatarText" class="text-[9px] text-slate-400">เลือกภาพ</span>
+                      <img id="portalAvatarPreviewImg" class="w-full h-full object-cover hidden" alt="Preview">
+                    </div>
+                  </div>
+                  <!-- Controls -->
+                  <div class="flex-1 w-full space-y-1.5">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <input type="file" id="portalProfileFileInput" accept="image/*" class="hidden" onchange="handlePortalProfileImageSelect(event)">
+                      <button type="button" onclick="document.getElementById('portalProfileFileInput').click()" class="px-3 py-1.5 rounded-lg bg-cyan-600/30 hover:bg-cyan-600/50 text-cyan-300 border border-cyan-500/40 text-xs font-medium cursor-pointer">
+                        <i class="fa-solid fa-images mr-1"></i> เลือกรูปจากแกลเลอรี
+                      </button>
+                      <button type="button" id="portalRemovePhotoBtn" onclick="removePortalSelectedPhoto()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-rose-950/60 text-slate-400 hover:text-rose-300 border border-slate-700 text-xs hidden items-center gap-1 cursor-pointer">
+                        <i class="fa-solid fa-trash-can"></i> ลบรูป
+                      </button>
+                    </div>
+                    <input type="url" id="portalUserPictureProfile" placeholder="หรือวางลิงก์รูปภาพ URL (ถ้ามี)..." class="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-cyan-400">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 3: วัตถุประสงค์ -->
+          <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-2">
+            <label class="block text-xs font-medium text-slate-300">
+              3. วัตถุประสงค์การขอเข้าใช้งานระบบ (ถ้ามี)
+            </label>
+            <textarea id="portalUserPurpose" rows="2" placeholder="ระบุภารกิจหรือวัตถุประสงค์โดยย่อ เช่น สนับสนุนภารกิจช่วยเหลือผู้ประสบภัย, รายงานพิกัดภาคสนาม, ติดตามสถานการณ์..." class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 resize-none"></textarea>
+          </div>
+
+          <!-- ข้อตกลง -->
+          <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800 flex items-start gap-2.5 text-xs text-slate-400">
+            <input type="checkbox" id="portalAgreeTerms" required class="mt-0.5 rounded text-cyan-500 focus:ring-0">
+            <label for="portalAgreeTerms" class="cursor-pointer text-[11px] leading-relaxed">
+              ข้าพเจ้ารับรองว่าข้อมูลข้างต้นเป็นความจริงทุกประการ และยินยอมปฏิบัติตามระเบียบการรักษาความมั่นคงปลอดภัยสารสนเทศของศูนย์บัญชาการ กรมแผนที่ทหาร (RTSD) อย่างเคร่งครัด
+            </label>
+          </div>
+
+          <!-- Submit Button -->
+          <button type="submit" id="portalSubmitBtn" class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold text-xs shadow-lg shadow-cyan-900/40 flex items-center justify-center gap-2 transition cursor-pointer">
+            <i class="fa-solid fa-paper-plane"></i>
+            <span>ยื่นคำขอลงทะเบียน (Submit Request)</span>
+          </button>
+
+          <!-- Footer Switch to Login -->
+          <div class="pt-2 text-center text-xs text-slate-400">
+            <span>มีบัญชีผู้ใช้งานอยู่แล้ว?</span>
+            <button type="button" onclick="openAuthModal()" class="ml-1.5 text-cyan-400 hover:text-cyan-300 font-semibold underline cursor-pointer">
+              เข้าสู่ระบบที่นี่ (Log In)
+            </button>
+          </div>
+        </form>
+
+        <!-- Success Box (Hidden initially) -->
+        <div id="portalRegisterSuccessBox" class="hidden text-center py-6 space-y-4">
+          <div class="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto border border-emerald-500/40 text-2xl shadow-lg">
+            <i class="fa-solid fa-circle-check"></i>
+          </div>
+          <div>
+            <h3 class="text-xl font-bold text-white">ยื่นคำขอลงทะเบียนสำเร็จ!</h3>
+            <p class="text-xs text-amber-400 font-mono mt-0.5" id="portalSuccessReqId">REQUEST ID: RTSD-REQ-0000</p>
+          </div>
+
+          <div class="bg-slate-900/80 rounded-xl p-4 text-left text-xs space-y-2 border border-slate-800 max-w-md mx-auto text-slate-300">
+            <div><span class="text-slate-400">ชื่อ-สกุล:</span> <b class="text-white ml-1" id="portalSuccessName">-</b></div>
+            <div><span class="text-slate-400">หน่วยงาน:</span> <b class="text-white ml-1" id="portalSuccessUnit">-</b></div>
+            <div><span class="text-slate-400">เบอร์โทรศัพท์:</span> <b class="text-cyan-400 font-mono ml-1" id="portalSuccessPhone">-</b></div>
+            <div><span class="text-slate-400">สถานะคำขอ:</span> <span class="px-2 py-0.5 rounded text-[10px] bg-amber-950 text-amber-300 border border-amber-600 font-medium ml-1">⏳ รอการอนุมัติจาก Admin</span></div>
+          </div>
+
+          <p class="text-xs text-slate-300 max-w-md mx-auto leading-relaxed">
+            ระบบความปลอดภัย RTSD ได้รับคำขอของท่านแล้ว และส่งแจ้งเตือนไปยังผู้ดูแลระบบ (Admin) เรียบร้อยแล้ว<br>
+            <span class="text-amber-400 font-medium">เมื่อแอดมินอนุมัติสิทธิ์แล้ว ท่านสามารถเข้าสู่ระบบด้วยเบอร์โทรศัพท์และรหัส OTP ผ่าน LINE ได้ทันทีครับ</span>
+          </p>
+
+          <div class="flex items-center justify-center gap-3 pt-2">
+            <button onclick="openAuthModal()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white font-medium text-xs flex items-center gap-1.5 cursor-pointer shadow-lg shadow-sky-900/40">
+              <i class="fa-solid fa-arrow-right-to-bracket"></i>
+              <span>ไปหน้าเข้าสู่ระบบ (Log In)</span>
+            </button>
+            <button onclick="resetPortalRegisterForm()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs flex items-center gap-1.5 cursor-pointer border border-slate-700">
+              <i class="fa-solid fa-user-plus"></i>
+              <span>ลงทะเบียนเพิ่มอีกคน</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- 🛡️ ADMIN PERSONNEL & ACCESS CONTROL MODAL (จัดการสิทธิ์กำลังพล) -->
+  <!-- ========================================================================= -->
+  <div id="userManagementModal" class="fixed inset-0 z-[120] bg-black/85 backdrop-blur-md hidden flex items-center justify-center p-2 sm:p-4">
+    <div class="bg-rtsd-card border border-purple-500/40 rounded-2xl max-w-6xl w-full h-[92vh] p-3 sm:p-5 relative shadow-2xl shadow-purple-950/60 flex flex-col overflow-hidden">
+      <!-- Modal Header -->
+      <div class="shrink-0 flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center text-lg border border-purple-500/30 shadow-inner">
+            <i class="fa-solid fa-users-gear"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-white text-sm sm:text-base flex items-center gap-2">
+              ทะเบียนสมาชิกและควบคุมสิทธิ์กำลังพล
+              <span class="px-2 py-0.5 text-[10px] font-semibold rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">ADMIN ACCESS CONTROL</span>
+            </h3>
+            <p class="text-xs text-slate-400">ตรวจสอบรายชื่อ อนุมัติการเข้าใช้งาน และกำหนดระดับสิทธิ์ความมั่นคงทางยุทธวิธี</p>
+          </div>
+        </div>
+        <button onclick="closeUserManagementModal()" class="text-slate-400 hover:text-white text-xl px-2.5 py-1 rounded-lg hover:bg-slate-800 cursor-pointer transition-colors" title="ปิดหน้าต่าง">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
       <!-- Top Metrics Summary Cards -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 shrink-0">
-        <div class="bg-rtsd-card border border-slate-800 rounded-xl p-3 shadow-lg flex items-center justify-between">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 shrink-0 mb-3">
+        <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3 shadow flex items-center justify-between">
           <div>
             <p class="text-[11px] text-slate-400 uppercase font-mono">กำลังพลทั้งหมด</p>
             <h3 id="portalCountAllUsers" class="text-xl md:text-2xl font-bold text-white font-mono mt-0.5">0</h3>
@@ -905,7 +1211,7 @@
           </div>
         </div>
 
-        <div class="bg-rtsd-card border border-amber-500/30 bg-amber-950/10 rounded-xl p-3 shadow-lg flex items-center justify-between">
+        <div class="bg-slate-900/80 border border-amber-500/30 bg-amber-950/10 rounded-xl p-3 shadow flex items-center justify-between">
           <div>
             <p class="text-[11px] text-amber-400 uppercase font-mono flex items-center gap-1">
               <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> รอการอนุมัติ
@@ -917,7 +1223,7 @@
           </div>
         </div>
 
-        <div class="bg-rtsd-card border border-emerald-500/30 bg-emerald-950/10 rounded-xl p-3 shadow-lg flex items-center justify-between">
+        <div class="bg-slate-900/80 border border-emerald-500/30 bg-emerald-950/10 rounded-xl p-3 shadow flex items-center justify-between">
           <div>
             <p class="text-[11px] text-emerald-400 uppercase font-mono">อนุมัติแล้ว (Approved)</p>
             <h3 id="portalCountApprovedUsers" class="text-xl md:text-2xl font-bold text-emerald-300 font-mono mt-0.5">0</h3>
@@ -927,7 +1233,7 @@
           </div>
         </div>
 
-        <div class="bg-rtsd-card border border-sky-500/30 bg-sky-950/10 rounded-xl p-3 shadow-lg flex items-center justify-between">
+        <div class="bg-slate-900/80 border border-sky-500/30 bg-sky-950/10 rounded-xl p-3 shadow flex items-center justify-between">
           <div>
             <p class="text-[11px] text-sky-400 uppercase font-mono">ผู้ดูแลระบบ (Admin)</p>
             <h3 id="portalCountAdminUsers" class="text-xl md:text-2xl font-bold text-sky-300 font-mono mt-0.5">0</h3>
@@ -938,109 +1244,82 @@
         </div>
       </div>
 
-      <!-- Main Member Card with Table & Controls -->
-      <div class="flex-1 min-h-0 bg-rtsd-card border border-slate-800 rounded-xl p-3 sm:p-4 shadow-2xl flex flex-col overflow-hidden">
-        <!-- Sub-header & Security Panel -->
-        <div class="shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-800 mb-3">
-          <div class="flex items-center gap-2.5">
-            <div class="w-9 h-9 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center border border-purple-500/30 text-base shadow-inner">
-              <i class="fa-solid fa-id-card"></i>
-            </div>
-            <div>
-              <h3 class="font-bold text-sm md:text-base text-white flex items-center gap-2">
-                ทะเบียนสมาชิกและควบคุมสิทธิ์กำลังพล
-                <span class="px-2 py-0.2 text-[10px] font-semibold rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">PERSONNEL DIRECTORY</span>
-              </h3>
-              <p class="text-[11px] text-slate-400">ตรวจสอบรายชื่อ อนุมัติการเข้าใช้งาน และกำหนดระดับสิทธิ์ความมั่นคงทางยุทธวิธี</p>
-            </div>
-          </div>
-
-          <!-- Quick Security OPSEC Toggle & Register Link -->
-          <div class="flex items-center gap-2.5 flex-wrap">
-            <div class="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-xs shadow-sm">
-              <span class="text-slate-400 text-[11px]">แชร์ Google Maps ใน LINE:</span>
-              <span id="gmapStatusBadge" class="px-1.5 py-0.2 text-[9px] font-medium rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                🟢 เปิดใช้งาน
-              </span>
-              <label class="relative inline-flex items-center cursor-pointer ml-1">
-                <input type="checkbox" id="gmapToggleSwitch" class="sr-only peer" checked onchange="toggleGoogleMapsSetting(this.checked)">
-                <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
-              </label>
-            </div>
-            <a href="/register" target="_blank" class="px-3 py-1.5 text-xs rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-medium transition flex items-center gap-1.5 shadow-md shadow-purple-900/40">
-              <i class="fa-solid fa-user-plus"></i>
-              <span>ลงทะเบียนใหม่</span>
-            </a>
-          </div>
+      <!-- Controls & OPSEC Setting -->
+      <div class="shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-2.5 pb-2.5 mb-2.5 border-b border-slate-800 text-xs">
+        <!-- Status Filter Tabs -->
+        <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+          <button id="filterTabAll" onclick="setUserStatusFilter('all')" class="px-3 py-1 rounded-lg bg-purple-600 text-white font-medium transition cursor-pointer shrink-0 shadow-md shadow-purple-950/40">
+            ทั้งหมด (<span id="countAllUsers">0</span>)
+          </button>
+          <button id="filterTabPending" onclick="setUserStatusFilter('pending')" class="px-3 py-1 rounded-lg bg-slate-900 text-amber-300 hover:bg-slate-800 border border-amber-500/30 font-medium transition cursor-pointer shrink-0 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+            ⏳ รออนุมัติ (<span id="countPendingUsers">0</span>)
+          </button>
+          <button id="filterTabApproved" onclick="setUserStatusFilter('approved')" class="px-3 py-1 rounded-lg bg-slate-900 text-slate-300 hover:bg-slate-800 font-medium transition cursor-pointer shrink-0">
+            🟢 อนุมัติแล้ว (<span id="countApprovedUsers">0</span>)
+          </button>
+          <button id="filterTabSuspended" onclick="setUserStatusFilter('suspended')" class="px-3 py-1 rounded-lg bg-slate-900 text-slate-400 hover:bg-slate-800 font-medium transition cursor-pointer shrink-0">
+            🔴 ระงับสิทธิ์ (<span id="countSuspendedUsers">0</span>)
+          </button>
         </div>
 
-        <!-- Filter & Search Bar -->
-        <div class="shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-2.5 text-xs">
-          <!-- Status Filter Tabs -->
-          <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
-            <button id="filterTabAll" onclick="setUserStatusFilter('all')" class="px-3 py-1 rounded-lg bg-purple-600 text-white font-medium transition cursor-pointer shrink-0 shadow-md shadow-purple-950/40">
-              ทั้งหมด (<span id="countAllUsers">0</span>)
-            </button>
-            <button id="filterTabPending" onclick="setUserStatusFilter('pending')" class="px-3 py-1 rounded-lg bg-slate-900 text-amber-300 hover:bg-slate-800 border border-amber-500/30 font-medium transition cursor-pointer shrink-0 flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
-              ⏳ รออนุมัติ (<span id="countPendingUsers">0</span>)
-            </button>
-            <button id="filterTabApproved" onclick="setUserStatusFilter('approved')" class="px-3 py-1 rounded-lg bg-slate-900 text-slate-300 hover:bg-slate-800 font-medium transition cursor-pointer shrink-0">
-              🟢 อนุมัติแล้ว (<span id="countApprovedUsers">0</span>)
-            </button>
-            <button id="filterTabSuspended" onclick="setUserStatusFilter('suspended')" class="px-3 py-1 rounded-lg bg-slate-900 text-slate-400 hover:bg-slate-800 font-medium transition cursor-pointer shrink-0">
-              🔴 ระงับสิทธิ์ (<span id="countSuspendedUsers">0</span>)
-            </button>
+        <!-- Google Maps Toggle & Search & Refresh -->
+        <div class="flex items-center gap-2 flex-wrap">
+          <div class="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-xs shadow-sm">
+            <span class="text-slate-400 text-[11px]">แชร์ Google Maps ใน LINE:</span>
+            <span id="gmapStatusBadge" class="px-1.5 py-0.2 text-[9px] font-medium rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              🟢 เปิดใช้งาน
+            </span>
+            <label class="relative inline-flex items-center cursor-pointer ml-1">
+              <input type="checkbox" id="gmapToggleSwitch" class="sr-only peer" checked onchange="toggleGoogleMapsSetting(this.checked)">
+              <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+            </label>
           </div>
 
-          <!-- Search Box & Refresh -->
-          <div class="flex items-center gap-2">
-            <div class="relative w-full sm:w-64">
-              <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2.5 text-slate-500 text-xs"></i>
-              <input type="text" id="adminUserSearch" oninput="filterAdminUsers()" placeholder="ค้นหาชื่อ, เบอร์โทร, สังกัด..." class="w-full bg-slate-900 border border-slate-800 rounded-lg pl-7 pr-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 font-mono">
-            </div>
-            <button onclick="fetchAdminUsers()" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs cursor-pointer flex items-center gap-1 shrink-0 transition" title="รีเฟรชรายชื่อ">
-              <i id="userRefreshIcon" class="fa-solid fa-arrows-rotate"></i>
-              <span class="hidden sm:inline">โหลดใหม่</span>
-            </button>
+          <div class="relative w-full sm:w-56">
+            <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2.5 text-slate-500 text-xs"></i>
+            <input type="text" id="adminUserSearch" oninput="filterAdminUsers()" placeholder="ค้นหาชื่อ, เบอร์โทร, สังกัด..." class="w-full bg-slate-900 border border-slate-800 rounded-lg pl-7 pr-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 font-mono">
           </div>
-        </div>
-
-        <!-- Table Container (Scrollable) -->
-        <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar rounded-xl border border-slate-800/80 bg-slate-950/40">
-          <table class="w-full text-left text-xs md:text-sm text-slate-300">
-            <thead class="bg-slate-900/95 sticky top-0 uppercase text-[10px] md:text-[11px] text-slate-400 border-b border-slate-800 tracking-wider z-10">
-              <tr>
-                <th class="px-4 py-3">กำลังพล / สมาชิก</th>
-                <th class="px-4 py-3">เบอร์โทรศัพท์</th>
-                <th class="px-4 py-3">สังกัด / หน่วยงาน</th>
-                <th class="px-4 py-3">ตำแหน่ง</th>
-                <th class="px-4 py-3">ระดับสิทธิ์ยุทธการ (Role)</th>
-                <th class="px-4 py-3 text-center">สถานะ & การดำเนินการ</th>
-              </tr>
-            </thead>
-            <tbody id="adminUserTableBody" class="divide-y divide-slate-800/60 font-light">
-              <tr>
-                <td colspan="6" class="text-center py-12 text-slate-500">
-                  <i class="fa-solid fa-spinner fa-spin text-2xl text-purple-400 mb-2"></i>
-                  <p>กำลังโหลดรายชื่อผู้ลงทะเบียน...</p>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Bottom bar info -->
-        <div class="shrink-0 pt-2.5 mt-1 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-slate-400">
-          <span id="userCountSummary">กำลังโหลดข้อมูล...</span>
-          <span class="flex items-center gap-1.5 text-slate-400">
-            <i class="fa-solid fa-shield-halved text-purple-400"></i> เมื่ออนุมัติหรือปรับสิทธิ์ ระบบจะบันทึกลง Google Sheets และส่งแจ้งเตือนเข้าแชต LINE ทันที
-          </span>
+          <button onclick="fetchAdminUsers()" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs cursor-pointer flex items-center gap-1 shrink-0 transition" title="รีเฟรชรายชื่อ">
+            <i id="userRefreshIcon" class="fa-solid fa-arrows-rotate"></i>
+            <span class="hidden sm:inline">โหลดใหม่</span>
+          </button>
         </div>
       </div>
-    </div>
 
-  </main>
+      <!-- Table Container (Scrollable) -->
+      <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar rounded-xl border border-slate-800/80 bg-slate-950/40">
+        <table class="w-full text-left text-xs md:text-sm text-slate-300">
+          <thead class="bg-slate-900/95 sticky top-0 uppercase text-[10px] md:text-[11px] text-slate-400 border-b border-slate-800 tracking-wider z-10">
+            <tr>
+              <th class="px-4 py-3">กำลังพล / สมาชิก</th>
+              <th class="px-4 py-3">เบอร์โทรศัพท์</th>
+              <th class="px-4 py-3">สังกัด / หน่วยงาน</th>
+              <th class="px-4 py-3">ตำแหน่ง</th>
+              <th class="px-4 py-3">ระดับสิทธิ์ยุทธการ (Role)</th>
+              <th class="px-4 py-3 text-center">สถานะ & การดำเนินการ</th>
+            </tr>
+          </thead>
+          <tbody id="adminUserTableBody" class="divide-y divide-slate-800/60 font-light">
+            <tr>
+              <td colspan="6" class="text-center py-12 text-slate-500">
+                <i class="fa-solid fa-spinner fa-spin text-2xl text-purple-400 mb-2"></i>
+                <p>กำลังโหลดรายชื่อผู้ลงทะเบียน...</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Bottom bar info -->
+      <div class="shrink-0 pt-2.5 mt-1 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-slate-400">
+        <span id="userCountSummary">กำลังโหลดข้อมูล...</span>
+        <span class="flex items-center gap-1.5 text-slate-400">
+          <i class="fa-solid fa-shield-halved text-purple-400"></i> เมื่ออนุมัติหรือปรับสิทธิ์ ระบบจะบันทึกลง Google Sheets และส่งแจ้งเตือนเข้าแชต LINE ทันที
+        </span>
+      </div>
+    </div>
+  </div>
 
   <!-- ========================================================================= -->
   <!-- 🛡️ RTSD TACTICAL AUTHENTICATION MODAL (OTP & PIN GATE) -->
@@ -1134,6 +1413,15 @@
           <input type="checkbox" id="rememberMe" checked class="rounded bg-slate-900 border-slate-700 text-sky-600 focus:ring-0">
           <span>จดจำฉันไว้ในอุปกรณ์นี้ (Remember Me)</span>
         </label>
+      </div>
+
+      <!-- Register Link -->
+      <div class="pt-3 border-t border-slate-800/80 flex items-center justify-center gap-1.5 text-xs text-slate-400">
+        <span>ยังไม่มีบัญชีผู้ใช้งาน?</span>
+        <button type="button" onclick="goToRegisterFromAuthModal()" class="text-cyan-400 hover:text-cyan-300 font-semibold cursor-pointer underline flex items-center gap-1 transition">
+          <i class="fa-solid fa-user-plus"></i>
+          <span>สมัครสมาชิกใหม่ (ยื่นขอใช้งาน)</span>
+        </button>
       </div>
     </div>
   </div>
@@ -2273,11 +2561,19 @@
     let allRegisteredUsers = [];
 
     async function openUserManagementModal() {
-      switchMainView('members');
+      const modal = document.getElementById('userManagementModal');
+      if (modal) {
+        modal.classList.remove('hidden');
+        fetchAdminUsers();
+        fetchSystemSettings();
+      }
     }
 
     function closeUserManagementModal() {
-      switchMainView('tactical');
+      const modal = document.getElementById('userManagementModal');
+      if (modal) {
+        modal.classList.add('hidden');
+      }
     }
 
     // --- 🌐 Google Maps OPSEC Settings ---
@@ -2984,30 +3280,28 @@
       currentMainView = view;
       const tacticalContainer = document.getElementById('tacticalContainer');
       const statsContainer = document.getElementById('statsContainer');
-      const membersContainer = document.getElementById('membersContainer');
+      const registerContainer = document.getElementById('registerContainer');
 
-      const viewMembersBtn = document.getElementById('viewMembersBtn');
+      const viewRegisterBtn = document.getElementById('viewRegisterBtn');
       const viewTacticalBtn = document.getElementById('viewTacticalBtn');
       const viewStatsBtn = document.getElementById('viewStatsBtn');
 
       // Hide all main containers
       if (tacticalContainer) tacticalContainer.classList.add('hidden');
       if (statsContainer) statsContainer.classList.add('hidden');
-      if (membersContainer) membersContainer.classList.add('hidden');
+      if (registerContainer) registerContainer.classList.add('hidden');
 
       // Reset tabs to inactive state
       const inactiveBtn = "flex items-center justify-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 font-semibold text-xs transition-all cursor-pointer shrink-0";
-      if (viewMembersBtn) viewMembersBtn.className = inactiveBtn;
+      if (viewRegisterBtn) viewRegisterBtn.className = inactiveBtn;
       if (viewTacticalBtn) viewTacticalBtn.className = inactiveBtn;
       if (viewStatsBtn) viewStatsBtn.className = inactiveBtn;
 
-      if (view === 'members') {
-        if (membersContainer) membersContainer.classList.remove('hidden');
-        if (viewMembersBtn) {
-          viewMembersBtn.className = "flex items-center justify-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-xs shadow-md shadow-purple-900/40 transition-all cursor-pointer shrink-0";
+      if (view === 'register') {
+        if (registerContainer) registerContainer.classList.remove('hidden');
+        if (viewRegisterBtn) {
+          viewRegisterBtn.className = "flex items-center justify-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-bold text-xs shadow-md shadow-cyan-900/40 transition-all cursor-pointer shrink-0";
         }
-        fetchAdminUsers();
-        fetchSystemSettings();
       } else if (view === 'tactical') {
         if (tacticalContainer) tacticalContainer.classList.remove('hidden');
         if (viewTacticalBtn) {
@@ -3031,6 +3325,226 @@
         }
         fetchData();
       }
+    }
+
+    // =========================================================================
+    // 📝 PORTAL REGISTRATION & ACCESS REQUEST HANDLERS
+    // =========================================================================
+    let portalSelectedProfileBase64 = "";
+
+    function openAuthModal() {
+      const modal = document.getElementById('authModal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function goToRegisterFromAuthModal() {
+      const modal = document.getElementById('authModal');
+      if (modal) modal.classList.add('hidden');
+      switchMainView('register');
+    }
+
+    function togglePortalRankOther(val) {
+      const otherInput = document.getElementById('portalUserRankOther');
+      if (!otherInput) return;
+      if (val === 'อื่นๆ') {
+        otherInput.classList.remove('hidden');
+        otherInput.required = true;
+        otherInput.focus();
+      } else {
+        otherInput.classList.add('hidden');
+        otherInput.required = false;
+      }
+    }
+
+    function togglePortalUnitOther(val) {
+      const otherInput = document.getElementById('portalUserUnitOther');
+      if (!otherInput) return;
+      if (val === 'อื่นๆ') {
+        otherInput.classList.remove('hidden');
+        otherInput.required = true;
+        otherInput.focus();
+      } else {
+        otherInput.classList.add('hidden');
+        otherInput.required = false;
+      }
+    }
+
+    function handlePortalProfileImageSelect(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          const maxDim = 400;
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > maxDim) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          portalSelectedProfileBase64 = dataUrl.split(',')[1];
+
+          const previewImg = document.getElementById('portalAvatarPreviewImg');
+          if (previewImg) {
+            previewImg.src = dataUrl;
+            previewImg.classList.remove('hidden');
+          }
+          const icon = document.getElementById('portalAvatarIcon');
+          if (icon) icon.classList.add('hidden');
+          const text = document.getElementById('portalAvatarText');
+          if (text) text.classList.add('hidden');
+          const removeBtn = document.getElementById('portalRemovePhotoBtn');
+          if (removeBtn) {
+            removeBtn.classList.remove('hidden');
+            removeBtn.classList.add('flex');
+          }
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function removePortalSelectedPhoto() {
+      portalSelectedProfileBase64 = "";
+      const fileInput = document.getElementById('portalProfileFileInput');
+      if (fileInput) fileInput.value = "";
+      const previewImg = document.getElementById('portalAvatarPreviewImg');
+      if (previewImg) {
+        previewImg.src = "";
+        previewImg.classList.add('hidden');
+      }
+      const icon = document.getElementById('portalAvatarIcon');
+      if (icon) icon.classList.remove('hidden');
+      const text = document.getElementById('portalAvatarText');
+      if (text) text.classList.remove('hidden');
+      const removeBtn = document.getElementById('portalRemovePhotoBtn');
+      if (removeBtn) {
+        removeBtn.classList.add('hidden');
+        removeBtn.classList.remove('flex');
+      }
+    }
+
+    async function handlePortalRegisterSubmit(e) {
+      e.preventDefault();
+      const submitBtn = document.getElementById('portalSubmitBtn');
+
+      let rank = (document.getElementById('portalUserRank') ? document.getElementById('portalUserRank').value.trim() : '');
+      if (rank === 'อื่นๆ') {
+        rank = (document.getElementById('portalUserRankOther') ? document.getElementById('portalUserRankOther').value.trim() : '') || 'อื่นๆ';
+      }
+
+      const name = (document.getElementById('portalUserName') ? document.getElementById('portalUserName').value.trim() : '');
+
+      let unit = (document.getElementById('portalUserUnitSelect') ? document.getElementById('portalUserUnitSelect').value.trim() : '');
+      if (unit === 'อื่นๆ') {
+        unit = (document.getElementById('portalUserUnitOther') ? document.getElementById('portalUserUnitOther').value.trim() : '') || 'หน่วยงานทั่วไป';
+      }
+
+      const position = (document.getElementById('portalUserPosition') ? document.getElementById('portalUserPosition').value.trim() : '') || '-';
+      const phone = (document.getElementById('portalUserPhone') ? document.getElementById('portalUserPhone').value.trim().replace(/-/g, '') : '');
+      const lineId = (document.getElementById('portalUserLineId') ? document.getElementById('portalUserLineId').value.trim() : '') || '-';
+      const role = 'ผู้ใช้งานทั่วไป';
+      const purpose = (document.getElementById('portalUserPurpose') ? document.getElementById('portalUserPurpose').value.trim() : '') || 'ปฏิบัติงานสารสนเทศภูมิศาสตร์';
+
+      if (!phone || phone.length < 9 || phone.length > 10) {
+        alert('กรุณากรอกหมายเลขโทรศัพท์ 10 หลักให้ถูกต้อง (เช่น 0812345678)');
+        return;
+      }
+
+      const fullNameWithRank = `${rank} ${name}`.trim();
+
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>กำลังยื่นคำขอลงทะเบียน...</span>`;
+      }
+
+      try {
+        const payload = {
+          rank: rank,
+          full_name: fullNameWithRank,
+          name_only: name,
+          unit: unit,
+          position: position,
+          phone_number: phone,
+          line_user_id: lineId,
+          role: role,
+          purpose: purpose,
+          picture_profile: (document.getElementById('portalUserPictureProfile') ? document.getElementById('portalUserPictureProfile').value.trim() : '') || '-',
+          picture_base64: portalSelectedProfileBase64 || ''
+        };
+
+        let data;
+        try {
+          const res = await fetch(API_BASE + '/api/auth/register-request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          data = await res.json();
+        } catch (apiErr) {
+          // Direct fallback to Google Apps Script
+          const res = await fetch(DATA_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'register_user', ...payload })
+          });
+          data = await res.json();
+        }
+
+        if (data && (data.status === 'success' || data.phone_number)) {
+          const form = document.getElementById('portalRegisterForm');
+          const successBox = document.getElementById('portalRegisterSuccessBox');
+          if (form) form.classList.add('hidden');
+          if (successBox) successBox.classList.remove('hidden');
+
+          const reqId = data.req_id || ('RTSD-REQ-' + phone.slice(-4));
+          const elReq = document.getElementById('portalSuccessReqId');
+          const elName = document.getElementById('portalSuccessName');
+          const elUnit = document.getElementById('portalSuccessUnit');
+          const elPhone = document.getElementById('portalSuccessPhone');
+          if (elReq) elReq.innerText = `REQUEST ID: ${reqId}`;
+          if (elName) elName.innerText = fullNameWithRank;
+          if (elUnit) elUnit.innerText = unit;
+          if (elPhone) elPhone.innerText = phone;
+        } else {
+          alert('เกิดข้อผิดพลาด: ' + (data ? (data.message || 'ไม่สามารถยื่นคำขอได้') : 'ไม่สามารถเชื่อมต่อระบบได้'));
+        }
+      } catch (err) {
+        alert('เกิดข้อผิดพลาดในการเชื่อมต่อ: ' + err.message);
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> <span>ยื่นคำขอลงทะเบียน (Submit Request)</span>`;
+        }
+      }
+    }
+
+    function resetPortalRegisterForm() {
+      const form = document.getElementById('portalRegisterForm');
+      const successBox = document.getElementById('portalRegisterSuccessBox');
+      if (form) {
+        form.reset();
+        form.classList.remove('hidden');
+      }
+      if (successBox) successBox.classList.add('hidden');
+      removePortalSelectedPhoto();
+      togglePortalRankOther('');
+      togglePortalUnitOther('');
     }
 
     // =========================================================================
