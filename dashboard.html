@@ -3873,6 +3873,7 @@
       tacticalMap = L.map('tacticalMap', {
         center: [13.7563, 100.5018],
         zoom: 6,
+        maxZoom: 20,
         zoomControl: false,
         attributionControl: false
       });
@@ -3902,26 +3903,26 @@
       // 1. OpenStreetMap Basemap (OSM France HOT CDN - genuine OpenStreetMap tiles with Esri Street fallback)
       osmBasemapLayer = createSafeTileLayer(
         'https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
-        { maxZoom: 19, subdomains: ['a', 'b'], attribution: '&copy; OpenStreetMap' },
+        { maxZoom: 20, maxNativeZoom: 19, subdomains: ['a', 'b'], attribution: '&copy; OpenStreetMap' },
         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'
       );
 
       // 2. Satellite Basemap (Esri World Imagery)
       satelliteBasemapLayer = createSafeTileLayer(
         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        { maxZoom: 19, attribution: '&copy; Esri World Imagery' },
+        { maxZoom: 20, maxNativeZoom: 19, attribution: '&copy; Esri World Imagery' },
         null
       );
 
       // 3. Dark Basemap (Esri World Dark Gray Canvas & Reference - 100% Free, No Watermark, No API Key Required)
       const darkBase = createSafeTileLayer(
         'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
-        { maxZoom: 16, attribution: '&copy; Esri World Dark Gray' },
+        { maxZoom: 20, maxNativeZoom: 16, attribution: '&copy; Esri World Dark Gray' },
         null
       );
       const darkRef = createSafeTileLayer(
         'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
-        { maxZoom: 16, attribution: '' },
+        { maxZoom: 20, maxNativeZoom: 16, attribution: '' },
         null
       );
       darkBasemapLayer = L.layerGroup([darkBase, darkRef]);
@@ -4107,8 +4108,8 @@
         centerLatLng = tacticalMap.getCenter();
       }
 
-      // Compute pixel radius for ground distance (strictly 1, 5, 10, 20, 40 km)
-      const AUTO_RANGES = [1000, 5000, 10000, 20000, 40000];
+      // Compute pixel radius for ground distance (from 100m up to 40 km)
+      const AUTO_RANGES = [100, 250, 500, 1000, 5000, 10000, 20000, 40000];
       const ptCenter = tacticalMap.latLngToContainerPoint(centerLatLng);
 
       const getPixelRadius = (meters) => {
