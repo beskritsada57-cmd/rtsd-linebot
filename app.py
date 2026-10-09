@@ -1093,6 +1093,29 @@ def api_admin_update_role():
     }), 200
 
 
+@app.route("/api/admin/delete-user", methods=['POST'])
+def api_admin_delete_user():
+    """แอดมินลบบัญชีผู้ใช้งานออกจากระบบ"""
+    data = request.get_json(silent=True) or {}
+    phone = str(data.get("phone", "")).strip().replace("-", "").replace(" ", "")
+
+    if not phone or phone not in phone_to_user:
+        return jsonify({"status": "error", "message": "ไม่พบหมายเลขโทรศัพท์นี้ในระบบ"}), 404
+
+    user_info = phone_to_user[phone]
+    lid = user_info.get("line_user_id", "")
+
+    del phone_to_user[phone]
+    if lid and lid in registered_users:
+        del registered_users[lid]
+
+    tokens_to_remove = [t for t, s in ACTIVE_SESSIONS.items() if s.get("phone") == phone]
+    for t in tokens_to_remove:
+        del ACTIVE_SESSIONS[t]
+
+    return jsonify({"status": "success", "message": f"ลบบัญชีกำลังพล {phone} เรียบร้อยแล้ว"}), 200
+
+
 @app.route("/api/user/update-profile", methods=['POST'])
 def api_user_update_profile():
     """API ให้เจ้าของบัญชีอัปเดตข้อมูลโปรไฟล์ส่วนตัว (รูปโปรไฟล์, ชื่อ-สกุล/ยศ, สังกัด, ตำแหน่ง)"""

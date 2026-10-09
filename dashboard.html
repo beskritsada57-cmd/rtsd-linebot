@@ -353,23 +353,34 @@
   <!-- ========================================================================= -->
   <main class="flex-1 min-h-0 w-full max-w-[1920px] mx-auto px-3 py-2 flex flex-col overflow-hidden">
 
-    <!-- 🎛️ VIEW SWITCHER TABS -->
-    <div class="shrink-0 flex items-center justify-between gap-2 bg-slate-900/80 px-3 py-1.5 rounded-xl border border-slate-800 mb-2 shadow-lg">
-      <div class="flex items-center gap-2">
-        <button id="viewTacticalBtn" onclick="switchMainView('tactical')" class="flex items-center justify-center gap-2 px-4 py-1.5 rounded-lg bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white font-bold text-xs shadow-md shadow-red-900/40 transition-all cursor-pointer">
-          <i class="fa-solid fa-satellite-dish"></i>
-          <span>ศูนย์เรดาร์ยุทธวิธี & กำลังพลสด (50/50 Live Tactical)</span>
+    <!-- 🎛️ PORTAL TOP NAVIGATION TABS (แถบนำทางหลัก 3 ส่วน) -->
+    <div class="shrink-0 flex items-center justify-between gap-2 bg-slate-900/90 px-3 py-1.5 rounded-xl border border-slate-800 mb-2 shadow-lg backdrop-blur-md">
+      <div class="flex items-center gap-1.5 sm:gap-2 overflow-x-auto">
+        <!-- 1. ระบบสมาชิก -->
+        <button id="viewMembersBtn" onclick="switchMainView('members')" class="flex items-center justify-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 font-semibold text-xs transition-all cursor-pointer shrink-0">
+          <i class="fa-solid fa-users text-purple-400"></i>
+          <span>ระบบสมาชิก</span>
+          <span id="topPendingBadge" class="hidden px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 text-[10px] font-bold animate-pulse">0</span>
+        </button>
+
+        <!-- 2. แดชบอร์ด + แผนที่ -->
+        <button id="viewTacticalBtn" onclick="switchMainView('tactical')" class="flex items-center justify-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-lg bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white font-bold text-xs shadow-md shadow-red-900/40 transition-all cursor-pointer shrink-0">
+          <i class="fa-solid fa-map-location-dot"></i>
+          <span>แดชบอร์ด + แผนที่</span>
           <span class="px-1.5 py-0.2 text-[9px] font-bold rounded-full bg-red-950 text-red-300 border border-red-500/50 animate-pulse">LIVE</span>
         </button>
-        <button id="viewStatsBtn" onclick="switchMainView('stats')" class="flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/70 font-semibold text-xs transition-all cursor-pointer">
-          <i class="fa-solid fa-chart-pie"></i>
-          <span>สถิติและรายงานสรุปภาพรวม (Analytics)</span>
+
+        <!-- 3. วิเคราะห์ -->
+        <button id="viewStatsBtn" onclick="switchMainView('stats')" class="flex items-center justify-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 font-semibold text-xs transition-all cursor-pointer shrink-0">
+          <i class="fa-solid fa-chart-line text-sky-400"></i>
+          <span>วิเคราะห์</span>
+          <span class="hidden md:inline text-[10px] text-slate-500 font-normal">สถิติและรายงาน</span>
         </button>
       </div>
 
       <div class="hidden sm:flex items-center gap-2 text-[11px] text-slate-400 px-2 py-0.5">
         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-        <span>ระบบพร้อมรับสัญญาณ Telemetry</span>
+        <span id="systemStatusLiveIndicator">ศูนย์ปฏิบัติการและสารสนเทศ RTSD</span>
       </div>
     </div>
 
@@ -878,6 +889,157 @@
 
     </div> <!-- Close statsContainer -->
 
+    <!-- ========================================================================= -->
+    <!-- 👥 3. MEMBERS & PERSONNEL MANAGEMENT PORTAL (ระบบสมาชิก) -->
+    <!-- ========================================================================= -->
+    <div id="membersContainer" class="hidden flex-1 min-h-0 w-full flex flex-col gap-2.5 overflow-hidden">
+      <!-- Top Metrics Summary Cards -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 shrink-0">
+        <div class="bg-rtsd-card border border-slate-800 rounded-xl p-3 shadow-lg flex items-center justify-between">
+          <div>
+            <p class="text-[11px] text-slate-400 uppercase font-mono">กำลังพลทั้งหมด</p>
+            <h3 id="portalCountAllUsers" class="text-xl md:text-2xl font-bold text-white font-mono mt-0.5">0</h3>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center text-lg border border-purple-500/30">
+            <i class="fa-solid fa-users"></i>
+          </div>
+        </div>
+
+        <div class="bg-rtsd-card border border-amber-500/30 bg-amber-950/10 rounded-xl p-3 shadow-lg flex items-center justify-between">
+          <div>
+            <p class="text-[11px] text-amber-400 uppercase font-mono flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> รอการอนุมัติ
+            </p>
+            <h3 id="portalCountPendingUsers" class="text-xl md:text-2xl font-bold text-amber-300 font-mono mt-0.5">0</h3>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-lg border border-amber-500/30">
+            <i class="fa-solid fa-user-clock"></i>
+          </div>
+        </div>
+
+        <div class="bg-rtsd-card border border-emerald-500/30 bg-emerald-950/10 rounded-xl p-3 shadow-lg flex items-center justify-between">
+          <div>
+            <p class="text-[11px] text-emerald-400 uppercase font-mono">อนุมัติแล้ว (Approved)</p>
+            <h3 id="portalCountApprovedUsers" class="text-xl md:text-2xl font-bold text-emerald-300 font-mono mt-0.5">0</h3>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-lg border border-emerald-500/30">
+            <i class="fa-solid fa-user-check"></i>
+          </div>
+        </div>
+
+        <div class="bg-rtsd-card border border-sky-500/30 bg-sky-950/10 rounded-xl p-3 shadow-lg flex items-center justify-between">
+          <div>
+            <p class="text-[11px] text-sky-400 uppercase font-mono">ผู้ดูแลระบบ (Admin)</p>
+            <h3 id="portalCountAdminUsers" class="text-xl md:text-2xl font-bold text-sky-300 font-mono mt-0.5">0</h3>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center text-lg border border-sky-500/30">
+            <i class="fa-solid fa-user-shield"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Member Card with Table & Controls -->
+      <div class="flex-1 min-h-0 bg-rtsd-card border border-slate-800 rounded-xl p-3 sm:p-4 shadow-2xl flex flex-col overflow-hidden">
+        <!-- Sub-header & Security Panel -->
+        <div class="shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-800 mb-3">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center border border-purple-500/30 text-base shadow-inner">
+              <i class="fa-solid fa-id-card"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-sm md:text-base text-white flex items-center gap-2">
+                ทะเบียนสมาชิกและควบคุมสิทธิ์กำลังพล
+                <span class="px-2 py-0.2 text-[10px] font-semibold rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">PERSONNEL DIRECTORY</span>
+              </h3>
+              <p class="text-[11px] text-slate-400">ตรวจสอบรายชื่อ อนุมัติการเข้าใช้งาน และกำหนดระดับสิทธิ์ความมั่นคงทางยุทธวิธี</p>
+            </div>
+          </div>
+
+          <!-- Quick Security OPSEC Toggle & Register Link -->
+          <div class="flex items-center gap-2.5 flex-wrap">
+            <div class="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-xs shadow-sm">
+              <span class="text-slate-400 text-[11px]">แชร์ Google Maps ใน LINE:</span>
+              <span id="gmapStatusBadge" class="px-1.5 py-0.2 text-[9px] font-medium rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                🟢 เปิดใช้งาน
+              </span>
+              <label class="relative inline-flex items-center cursor-pointer ml-1">
+                <input type="checkbox" id="gmapToggleSwitch" class="sr-only peer" checked onchange="toggleGoogleMapsSetting(this.checked)">
+                <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+              </label>
+            </div>
+            <a href="/register" target="_blank" class="px-3 py-1.5 text-xs rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-medium transition flex items-center gap-1.5 shadow-md shadow-purple-900/40">
+              <i class="fa-solid fa-user-plus"></i>
+              <span>ลงทะเบียนใหม่</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Filter & Search Bar -->
+        <div class="shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-2.5 text-xs">
+          <!-- Status Filter Tabs -->
+          <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+            <button id="filterTabAll" onclick="setUserStatusFilter('all')" class="px-3 py-1 rounded-lg bg-purple-600 text-white font-medium transition cursor-pointer shrink-0 shadow-md shadow-purple-950/40">
+              ทั้งหมด (<span id="countAllUsers">0</span>)
+            </button>
+            <button id="filterTabPending" onclick="setUserStatusFilter('pending')" class="px-3 py-1 rounded-lg bg-slate-900 text-amber-300 hover:bg-slate-800 border border-amber-500/30 font-medium transition cursor-pointer shrink-0 flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+              ⏳ รออนุมัติ (<span id="countPendingUsers">0</span>)
+            </button>
+            <button id="filterTabApproved" onclick="setUserStatusFilter('approved')" class="px-3 py-1 rounded-lg bg-slate-900 text-slate-300 hover:bg-slate-800 font-medium transition cursor-pointer shrink-0">
+              🟢 อนุมัติแล้ว (<span id="countApprovedUsers">0</span>)
+            </button>
+            <button id="filterTabSuspended" onclick="setUserStatusFilter('suspended')" class="px-3 py-1 rounded-lg bg-slate-900 text-slate-400 hover:bg-slate-800 font-medium transition cursor-pointer shrink-0">
+              🔴 ระงับสิทธิ์ (<span id="countSuspendedUsers">0</span>)
+            </button>
+          </div>
+
+          <!-- Search Box & Refresh -->
+          <div class="flex items-center gap-2">
+            <div class="relative w-full sm:w-64">
+              <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2.5 text-slate-500 text-xs"></i>
+              <input type="text" id="adminUserSearch" oninput="filterAdminUsers()" placeholder="ค้นหาชื่อ, เบอร์โทร, สังกัด..." class="w-full bg-slate-900 border border-slate-800 rounded-lg pl-7 pr-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 font-mono">
+            </div>
+            <button onclick="fetchAdminUsers()" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs cursor-pointer flex items-center gap-1 shrink-0 transition" title="รีเฟรชรายชื่อ">
+              <i id="userRefreshIcon" class="fa-solid fa-arrows-rotate"></i>
+              <span class="hidden sm:inline">โหลดใหม่</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Table Container (Scrollable) -->
+        <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar rounded-xl border border-slate-800/80 bg-slate-950/40">
+          <table class="w-full text-left text-xs md:text-sm text-slate-300">
+            <thead class="bg-slate-900/95 sticky top-0 uppercase text-[10px] md:text-[11px] text-slate-400 border-b border-slate-800 tracking-wider z-10">
+              <tr>
+                <th class="px-4 py-3">กำลังพล / สมาชิก</th>
+                <th class="px-4 py-3">เบอร์โทรศัพท์</th>
+                <th class="px-4 py-3">สังกัด / หน่วยงาน</th>
+                <th class="px-4 py-3">ตำแหน่ง</th>
+                <th class="px-4 py-3">ระดับสิทธิ์ยุทธการ (Role)</th>
+                <th class="px-4 py-3 text-center">สถานะ & การดำเนินการ</th>
+              </tr>
+            </thead>
+            <tbody id="adminUserTableBody" class="divide-y divide-slate-800/60 font-light">
+              <tr>
+                <td colspan="6" class="text-center py-12 text-slate-500">
+                  <i class="fa-solid fa-spinner fa-spin text-2xl text-purple-400 mb-2"></i>
+                  <p>กำลังโหลดรายชื่อผู้ลงทะเบียน...</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Bottom bar info -->
+        <div class="shrink-0 pt-2.5 mt-1 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-slate-400">
+          <span id="userCountSummary">กำลังโหลดข้อมูล...</span>
+          <span class="flex items-center gap-1.5 text-slate-400">
+            <i class="fa-solid fa-shield-halved text-purple-400"></i> เมื่ออนุมัติหรือปรับสิทธิ์ ระบบจะบันทึกลง Google Sheets และส่งแจ้งเตือนเข้าแชต LINE ทันที
+          </span>
+        </div>
+      </div>
+    </div>
+
   </main>
 
   <!-- ========================================================================= -->
@@ -1068,123 +1230,7 @@
     </div>
   </div>
 
-  <!-- ========================================================================= -->
-  <!-- 👥 USER MANAGEMENT MODAL (ADMIN ONLY) -->
-  <!-- ========================================================================= -->
-  <div id="userManagementModal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-[110] hidden flex items-center justify-center p-4">
-    <div class="bg-rtsd-card border border-purple-500/40 rounded-2xl max-w-4xl w-full p-5 sm:p-6 relative shadow-2xl shadow-purple-950/60 space-y-4 max-h-[90vh] flex flex-col">
-      <!-- Modal Header -->
-      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
-        <div class="flex items-center space-x-3">
-          <div class="w-10 h-10 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center text-lg border border-purple-500/30 shadow-inner">
-            <i class="fa-solid fa-users-gear"></i>
-          </div>
-          <div>
-            <h3 class="font-bold text-white text-base md:text-lg flex items-center gap-2">
-              จัดการผู้ใช้งานและกำหนดสิทธิ์
-              <span class="px-2 py-0.5 text-[10px] font-semibold rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">ADMIN</span>
-            </h3>
-            <p class="text-xs text-slate-400">ควบคุมสิทธิ์การใช้งาน บัญชีผู้ดูแลระบบ และผู้ใช้งานทั่วไป</p>
-          </div>
-        </div>
-        <button onclick="closeUserManagementModal()" class="text-slate-400 hover:text-white text-xl px-2 py-1 rounded-lg hover:bg-slate-800 cursor-pointer transition-colors">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
 
-      <!-- Security & OPSEC Settings Panel -->
-      <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
-        <div class="flex items-start gap-3">
-          <div class="w-9 h-9 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center text-base border border-sky-500/30 shrink-0 mt-0.5">
-            <i class="fa-solid fa-map-location-dot"></i>
-          </div>
-          <div>
-            <div class="flex items-center gap-2">
-              <h4 class="font-semibold text-white text-sm">การแชร์ลิงก์ Google Maps ใน LINE Bot</h4>
-              <span id="gmapStatusBadge" class="px-2 py-0.5 text-[10px] font-medium rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                🟢 เปิดใช้งาน
-              </span>
-            </div>
-            <p class="text-xs text-slate-400 mt-0.5 leading-relaxed">
-              เปิด/ปิด การส่งลิงก์นำทาง Google Maps ในแชต LINE (หากปิด: จะเข้าโหมดความมั่นคงทางยุทธวิธี OPSEC พิกัดจะดูได้เฉพาะใน ArcGIS Portal เท่านั้น)
-            </p>
-          </div>
-        </div>
-        <div class="flex items-center gap-3 shrink-0 self-end md:self-center">
-          <span class="text-xs text-slate-400 font-medium hidden sm:inline" id="gmapToggleLabel">อนุญาตแชร์</span>
-          <label class="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" id="gmapToggleSwitch" class="sr-only peer" checked onchange="toggleGoogleMapsSetting(this.checked)">
-            <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
-          </label>
-        </div>
-      </div>
-
-      <!-- Quick Search & Refresh -->
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-        <div class="relative flex-1 max-w-sm">
-          <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500"></i>
-          <input type="text" id="adminUserSearch" oninput="filterAdminUsers()" placeholder="ค้นหาชื่อ, เบอร์โทร, สังกัด..." class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500">
-        </div>
-        <div class="flex items-center justify-between sm:justify-end gap-3">
-          <span id="userCountSummary" class="text-slate-400 text-xs">กำลังโหลดข้อมูล...</span>
-          <button onclick="fetchAdminUsers()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs transition-all flex items-center gap-1.5 cursor-pointer">
-            <i id="userRefreshIcon" class="fa-solid fa-arrows-rotate"></i> โหลดใหม่
-          </button>
-        </div>
-      </div>
-
-      <!-- Status Filter Tabs -->
-      <div class="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
-        <button id="filterTabAll" onclick="setUserStatusFilter('all')" class="px-3 py-1.5 rounded-lg bg-purple-600 text-white font-medium transition cursor-pointer shrink-0">
-          ทั้งหมด (<span id="countAllUsers">0</span>)
-        </button>
-        <button id="filterTabPending" onclick="setUserStatusFilter('pending')" class="px-3 py-1.5 rounded-lg bg-slate-800 text-amber-300 hover:bg-slate-700 border border-amber-500/30 font-medium transition cursor-pointer shrink-0 flex items-center gap-1.5">
-          <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
-          ⏳ รออนุมัติ (<span id="countPendingUsers">0</span>)
-        </button>
-        <button id="filterTabApproved" onclick="setUserStatusFilter('approved')" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium transition cursor-pointer shrink-0">
-          🟢 อนุมัติแล้ว (<span id="countApprovedUsers">0</span>)
-        </button>
-        <button id="filterTabSuspended" onclick="setUserStatusFilter('suspended')" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 hover:bg-slate-700 font-medium transition cursor-pointer shrink-0">
-          🔴 ระงับสิทธิ์ (<span id="countSuspendedUsers">0</span>)
-        </button>
-      </div>
-
-      <!-- Users Table -->
-      <div class="flex-1 overflow-y-auto custom-scrollbar rounded-xl border border-slate-800 min-h-[260px]">
-        <table class="w-full text-left text-xs md:text-sm text-slate-300">
-          <thead class="bg-slate-900/95 sticky top-0 uppercase text-[11px] text-slate-400 border-b border-slate-800 tracking-wider">
-            <tr>
-              <th class="px-4 py-3">ชื่อ-สกุล</th>
-              <th class="px-4 py-3">เบอร์โทรศัพท์</th>
-              <th class="px-4 py-3">สังกัด / หน่วยงาน</th>
-              <th class="px-4 py-3">ตำแหน่ง</th>
-              <th class="px-4 py-3">ระดับสิทธิ์ยุทธการ (Role)</th>
-              <th class="px-4 py-3 text-center">สถานะบัญชี</th>
-            </tr>
-          </thead>
-          <tbody id="adminUserTableBody" class="divide-y divide-slate-800/60 font-light">
-            <tr>
-              <td colspan="6" class="text-center py-10 text-slate-500">
-                <i class="fa-solid fa-spinner fa-spin text-2xl text-purple-400 mb-2"></i>
-                <p>กำลังโหลดรายชื่อผู้ลงทะเบียน...</p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Modal Footer -->
-      <div class="pt-3 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-400">
-        <span class="flex items-center gap-1.5 text-slate-400">
-          <i class="fa-solid fa-circle-check text-purple-400"></i> เมื่อปรับสิทธิ์ ระบบจะบันทึกลง Google Sheets และส่งแจ้งเตือนเข้าห้องแชต LINE ทันที
-        </span>
-        <button onclick="closeUserManagementModal()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition-all cursor-pointer font-medium">
-          ปิดหน้าต่าง
-        </button>
-      </div>
-    </div>
-  </div>
 
   <!-- ========================================================================= -->
   <!-- 🖼️ IMAGE PREVIEW MODAL -->
@@ -2227,15 +2273,11 @@
     let allRegisteredUsers = [];
 
     async function openUserManagementModal() {
-      document.getElementById('userManagementModal').classList.remove('hidden');
-      await Promise.all([
-        fetchAdminUsers(),
-        fetchSystemSettings()
-      ]);
+      switchMainView('members');
     }
 
     function closeUserManagementModal() {
-      document.getElementById('userManagementModal').classList.add('hidden');
+      switchMainView('tactical');
     }
 
     // --- 🌐 Google Maps OPSEC Settings ---
@@ -2398,6 +2440,31 @@
       if (elApproved) elApproved.innerText = approvedCount;
       if (elSuspended) elSuspended.innerText = suspendedCount;
 
+      const pAll = document.getElementById('portalCountAllUsers');
+      const pPending = document.getElementById('portalCountPendingUsers');
+      const pApproved = document.getElementById('portalCountApprovedUsers');
+      const pAdmin = document.getElementById('portalCountAdminUsers');
+      if (pAll) pAll.innerText = totalCount;
+      if (pPending) pPending.innerText = pendingCount;
+      if (pApproved) pApproved.innerText = approvedCount;
+      if (pAdmin) {
+        const adminCount = allRegisteredUsers.filter(u => {
+          const r = (u.role || '').toLowerCase();
+          return r.includes('admin') || r.includes('ผู้ดูแล') || r.includes('บัญชา') || r.includes('super');
+        }).length;
+        pAdmin.innerText = adminCount;
+      }
+
+      const topBadge = document.getElementById('topPendingBadge');
+      if (topBadge) {
+        if (pendingCount > 0) {
+          topBadge.innerText = `${pendingCount}`;
+          topBadge.classList.remove('hidden');
+        } else {
+          topBadge.classList.add('hidden');
+        }
+      }
+
       const navBadge = document.getElementById('pendingUsersBadge');
       if (navBadge) {
         if (pendingCount > 0) {
@@ -2438,6 +2505,8 @@
               : 'bg-slate-900 text-slate-400 border-slate-700'));
 
         let statusBadge = '';
+        const deleteBtn = `<button onclick="deleteUser('${u.phone}', '${encodeURIComponent(u.name)}')" class="p-1 px-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-950/40 border border-transparent hover:border-rose-500/30 transition text-xs cursor-pointer ml-1" title="ลบผู้ใช้งาน"><i class="fa-solid fa-trash-can"></i></button>`;
+
         if (isPending) {
           statusBadge = `
             <div class="flex items-center justify-center gap-1.5">
@@ -2447,12 +2516,13 @@
               <button onclick="toggleUserStatus('${u.phone}', 'ระงับสิทธิ์', '${encodeURIComponent(u.name)}')" class="px-2 py-1 rounded-lg text-xs font-medium bg-rose-600/70 hover:bg-rose-600 text-white shadow-sm transition flex items-center gap-1 cursor-pointer" title="ปฏิเสธ/ระงับ">
                 <i class="fa-solid fa-xmark"></i> ปฏิเสธ
               </button>
+              ${deleteBtn}
             </div>
           `;
         } else if (isSuspended) {
-          statusBadge = `<button onclick="toggleUserStatus('${u.phone}', 'อนุมัติแล้ว', '${encodeURIComponent(u.name)}')" class="px-2 py-1 rounded text-[11px] bg-rose-500/20 text-rose-400 border border-rose-500/40 hover:bg-rose-500/30 cursor-pointer transition-all inline-flex items-center gap-1" title="คลิกเพื่อปลดระงับสิทธิ์"><i class="fa-solid fa-ban text-[10px]"></i> ระงับสิทธิ์</button>`;
+          statusBadge = `<div class="inline-flex items-center"><button onclick="toggleUserStatus('${u.phone}', 'อนุมัติแล้ว', '${encodeURIComponent(u.name)}')" class="px-2 py-1 rounded text-[11px] bg-rose-500/20 text-rose-400 border border-rose-500/40 hover:bg-rose-500/30 cursor-pointer transition-all inline-flex items-center gap-1" title="คลิกเพื่อปลดระงับสิทธิ์"><i class="fa-solid fa-ban text-[10px]"></i> ระงับสิทธิ์</button>${deleteBtn}</div>`;
         } else {
-          statusBadge = `<button onclick="toggleUserStatus('${u.phone}', 'ระงับสิทธิ์', '${encodeURIComponent(u.name)}')" class="px-2 py-1 rounded text-[11px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-rose-500/20 hover:text-rose-300 hover:border-rose-500/30 cursor-pointer transition-all inline-flex items-center gap-1" title="คลิกเพื่อสั่งระงับสิทธิ์"><i class="fa-solid fa-circle-check text-[10px]"></i> อนุมัติแล้ว</button>`;
+          statusBadge = `<div class="inline-flex items-center"><button onclick="toggleUserStatus('${u.phone}', 'ระงับสิทธิ์', '${encodeURIComponent(u.name)}')" class="px-2 py-1 rounded text-[11px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-rose-500/20 hover:text-rose-300 hover:border-rose-500/30 cursor-pointer transition-all inline-flex items-center gap-1" title="คลิกเพื่อสั่งระงับสิทธิ์"><i class="fa-solid fa-circle-check text-[10px]"></i> อนุมัติแล้ว</button>${deleteBtn}</div>`;
         }
 
         const roleSelect = `
@@ -2627,6 +2697,31 @@
           filterAdminUsers();
         } else {
           alert('⚠️ ไม่สามารถปรับเปลี่ยนสถานะได้ กรุณาลองใหม่อีกครั้ง');
+        }
+      } catch (err) {
+        alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ: ' + err.message);
+      }
+    }
+
+    async function deleteUser(phone, encName) {
+      const name = decodeURIComponent(encName || 'ผู้ใช้งาน');
+      if (!confirm(`⚠️ ยืนยันการลบบัญชีกำลังพล: "${name}" (${phone}) ออกจากระบบหรือไม่?\nเมื่อลบแล้วจะไม่สามารถกู้คืนได้`)) {
+        return;
+      }
+
+      try {
+        const res = await fetch(API_BASE + '/api/admin/delete-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.status === 'success') {
+          showToast(`🗑️ ลบบัญชีกำลังพล ${name} เรียบร้อยแล้ว`);
+          allRegisteredUsers = allRegisteredUsers.filter(u => u.phone !== phone);
+          filterAdminUsers();
+        } else {
+          alert('❌ ' + (data.message || 'ไม่สามารถลบผู้ใช้งานได้'));
         }
       } catch (err) {
         alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ: ' + err.message);
@@ -2889,15 +2984,35 @@
       currentMainView = view;
       const tacticalContainer = document.getElementById('tacticalContainer');
       const statsContainer = document.getElementById('statsContainer');
+      const membersContainer = document.getElementById('membersContainer');
+
+      const viewMembersBtn = document.getElementById('viewMembersBtn');
       const viewTacticalBtn = document.getElementById('viewTacticalBtn');
       const viewStatsBtn = document.getElementById('viewStatsBtn');
 
-      if (view === 'tactical') {
-        tacticalContainer.classList.remove('hidden');
-        statsContainer.classList.add('hidden');
+      // Hide all main containers
+      if (tacticalContainer) tacticalContainer.classList.add('hidden');
+      if (statsContainer) statsContainer.classList.add('hidden');
+      if (membersContainer) membersContainer.classList.add('hidden');
 
-        viewTacticalBtn.className = "flex items-center justify-center gap-2 px-4 py-1.5 rounded-lg bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white font-bold text-xs shadow-md shadow-red-900/40 transition-all cursor-pointer";
-        viewStatsBtn.className = "flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/70 font-semibold text-xs transition-all cursor-pointer";
+      // Reset tabs to inactive state
+      const inactiveBtn = "flex items-center justify-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 font-semibold text-xs transition-all cursor-pointer shrink-0";
+      if (viewMembersBtn) viewMembersBtn.className = inactiveBtn;
+      if (viewTacticalBtn) viewTacticalBtn.className = inactiveBtn;
+      if (viewStatsBtn) viewStatsBtn.className = inactiveBtn;
+
+      if (view === 'members') {
+        if (membersContainer) membersContainer.classList.remove('hidden');
+        if (viewMembersBtn) {
+          viewMembersBtn.className = "flex items-center justify-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-xs shadow-md shadow-purple-900/40 transition-all cursor-pointer shrink-0";
+        }
+        fetchAdminUsers();
+        fetchSystemSettings();
+      } else if (view === 'tactical') {
+        if (tacticalContainer) tacticalContainer.classList.remove('hidden');
+        if (viewTacticalBtn) {
+          viewTacticalBtn.className = "flex items-center justify-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-lg bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white font-bold text-xs shadow-md shadow-red-900/40 transition-all cursor-pointer shrink-0";
+        }
 
         if (!tacticalMap) {
           initTacticalMap();
@@ -2905,16 +3020,15 @@
           setTimeout(() => {
             tacticalMap.invalidateSize(true);
             updateRadarSweepPosition();
-          }, 200);
+            updateMapBorderRulers();
+          }, 150);
         }
         fetchTacticalUnits(true);
-      } else {
-        tacticalContainer.classList.add('hidden');
-        statsContainer.classList.remove('hidden');
-
-        viewStatsBtn.className = "flex items-center justify-center gap-2 px-4 py-1.5 rounded-lg bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white font-bold text-xs shadow-md shadow-sky-900/40 transition-all cursor-pointer";
-        viewTacticalBtn.className = "flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/70 font-semibold text-xs transition-all cursor-pointer";
-        
+      } else if (view === 'stats') {
+        if (statsContainer) statsContainer.classList.remove('hidden');
+        if (viewStatsBtn) {
+          viewStatsBtn.className = "flex items-center justify-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-lg bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white font-bold text-xs shadow-md shadow-sky-900/40 transition-all cursor-pointer shrink-0";
+        }
         fetchData();
       }
     }
@@ -3273,12 +3387,18 @@
         null
       );
 
-      // 3. Dark Basemap (CartoDB Dark Matter)
-      darkBasemapLayer = createSafeTileLayer(
-        'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-        { maxZoom: 19, subdomains: 'abcd', attribution: '&copy; CartoDB Dark' },
+      // 3. Dark Basemap (Esri World Dark Gray Canvas & Reference - 100% Free, No Watermark, No API Key Required)
+      const darkBase = createSafeTileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+        { maxZoom: 16, attribution: '&copy; Esri World Dark Gray' },
         null
       );
+      const darkRef = createSafeTileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+        { maxZoom: 16, attribution: '' },
+        null
+      );
+      darkBasemapLayer = L.layerGroup([darkBase, darkRef]);
 
       // Default basemap is OpenStreetMap (OSM) as requested
       currentBasemap = 'osm';
