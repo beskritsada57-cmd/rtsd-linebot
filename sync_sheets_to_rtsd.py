@@ -262,8 +262,25 @@ def sync_once(synced_history):
 # บันทึกประวัติ Timestamp ล่าสุดของแต่ละหน่วย เพื่อไม่ให้ส่งจุดซ้ำซ้อน
 last_synced_tracker_pings = {}
 
+try:
+    import mgrs
+    _mgrs_converter = mgrs.MGRS()
+except Exception:
+    _mgrs_converter = None
+
+def get_mgrs_formatted(lat, lon):
+    if not _mgrs_converter or not lat or not lon:
+        return ""
+    try:
+        raw = _mgrs_converter.toMGRS(lat, lon)
+        if len(raw) >= 13:
+            return f"{raw[:3]} {raw[3:5]} {raw[5:10]} {raw[10:]}"
+        return raw
+    except Exception:
+        return ""
+
 def sync_live_trackers_to_rtsd(token):
-    """ดึงพิกัดสดของหน่วยกำลังพลจากเซิร์ฟเวอร์ แล้วบันทึกลง Geoportal RTSD แบบ Log Track เส้นทางประวัติการเคลื่อนที่"""
+    """ดึงพิกัดสดของหน่วยกำลังพลจากเซิร์ฟเวอร์ แล้วบันทึกลง Geoportal RTSD แบบ Log Track เส้นทางประวัติการเคลื่อนที่ พร้อมอัปเดตจุดล่าสุด (is_latest) และ MGRS"""
     global last_synced_tracker_pings
     try:
         res = requests.get(TRACKER_UNITS_URL, timeout=10)
@@ -275,6 +292,7 @@ def sync_live_trackers_to_rtsd(token):
 
         headers = {'referer': PORTAL_URL}
         adds = []
+        units_to_demote = []
 
         for u in units:
             unit_id = str(u.get('unit_id', 'UNIT-01')).strip()
@@ -295,6 +313,7 @@ def sync_live_trackers_to_rtsd(token):
                 "y": lat,
                 "spatialReference": {"wkid": 4326}
             }
+            pic_url = format_direct_image_url(str(u.get('picture_profile', '')))
             feature_attrs = {
                 "unit_id": unit_id[:50],
                 "unit_name": str(u.get('unit_name', ''))[:100],
@@ -303,18 +322,41 @@ def sync_live_trackers_to_rtsd(token):
                 "heading": float(u.get('heading', 0)),
                 "battery": int(u.get('battery', 100)),
                 "status": str(u.get('status', '🟢 กำลังปฏิบัติภารกิจ'))[:50],
-                "last_update": last_update
+                "picture_profile": pic_url[:500] if pic_url and pic_url != '-' else '',
+                "last_update": last_update,
+                "is_latest": 1,
+                "mgrs": get_mgrs_formatted(lat, lon)
             }
 
             adds.append({"geometry": feature_geom, "attributes": feature_attrs})
+            units_to_demote.append(unit_id)
             last_synced_tracker_pings[unit_id] = last_update
+
+        # ถ้ามีจุดใหม่เข้ามา ให้ปรับจุดเดิมของหน่วยนั้นเป็น is_latest = 0 ก่อน
+        if units_to_demote:
+            for uid in set(units_to_demote):
+                try:
+                    q_res = requests.get(f"{TRACKER_LAYER_URL}/query", params={
+                        "where": f"unit_id = '{uid}' AND is_latest = 1",
+                        "outFields": "objectid",
+                        "f": "json",
+                        "token": token
+                    }, headers=headers, verify=False, timeout=10).json()
+                    old_feats = q_res.get("features", [])
+                    if old_feats:
+                        demotes = [{"attributes": {"objectid": f["attributes"]["objectid"], "is_latest": 0}} for f in old_feats]
+                        requests.post(f"{TRACKER_LAYER_URL}/updateFeatures", data={
+                            'features': json.dumps(demotes), 'token': token, 'f': 'json'
+                        }, headers=headers, verify=False, timeout=10)
+                except Exception:
+                    pass
 
         # บันทึกจุดพิกัดใหม่เพิ่มลงในเลเยอร์เสมอ เพื่อสร้าง Log Track เส้นทางการเคลื่อนที่
         if adds:
             r = requests.post(f"{TRACKER_LAYER_URL}/addFeatures", data={
                 'features': json.dumps(adds), 'token': token, 'f': 'json'
             }, headers=headers, verify=False, timeout=15)
-            print(f"🛰️ บันทึก Log Track พิกัดใหม่บน RTSD สำเร็จ {len(adds)} จุด")
+            print(f"\n🛰️ บันทึกพิกัดใหม่บน RTSD สำเร็จ {len(adds)} จุด (ปรับสถานะจุดล่าสุดอัตโนมัติ)")
 
     except Exception as e:
         # ไม่แสดง error ถ้าเซิร์ฟเวอร์ยังไม่มี tracker เชื่อมต่อ

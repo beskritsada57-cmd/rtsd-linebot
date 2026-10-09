@@ -1648,15 +1648,27 @@
     let rawIncidents = [];
     let trendChartInstance, typeChartInstance, urgencyChartInstance, statusChartInstance;
 
-    // 1. Direct Image URL Formatter
+    // 1. Direct Image URL Formatter (Google Drive, Base64 & Direct Images)
     function getDirectImageUrl(url) {
       if (!url || url === '-' || url.trim() === '') return null;
       if (url.includes('/drive/folders/')) return null;
-      
+      url = url.trim();
+
+      // If Base64 image
+      if (url.startsWith('data:image/')) return url;
+
+      // Google Drive /file/d/{id}
       const fileMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
       if (fileMatch) {
-        return `https://lh3.googleusercontent.com/d/${fileMatch[1]}`;
+        return `https://lh3.googleusercontent.com/d/${fileMatch[1]}=s160-c`;
       }
+
+      // Google Drive ?id={id} or &id={id}
+      const idMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+      if (idMatch) {
+        return `https://lh3.googleusercontent.com/d/${idMatch[1]}=s160-c`;
+      }
+
       return url;
     }
 
@@ -2155,9 +2167,10 @@
           
           const avatarImg = document.getElementById('userAvatarDisplay');
           const fallbackIcon = document.getElementById('userAvatarFallbackIcon');
-          if (user.picture_profile && user.picture_profile !== '-') {
+          const directPic = getDirectImageUrl(user.picture_profile);
+          if (directPic) {
             if (avatarImg) {
-              avatarImg.src = user.picture_profile;
+              avatarImg.src = directPic;
               avatarImg.classList.remove('hidden');
             }
             if (fallbackIcon) fallbackIcon.classList.add('hidden');
@@ -2219,8 +2232,9 @@
         const fallbackIcon = document.getElementById('editProfileAvatarIcon');
         editProfileSelectedBase64 = "";
 
-        if (user.picture_profile && user.picture_profile !== '-') {
-          previewImg.src = user.picture_profile;
+        const directPic = getDirectImageUrl(user.picture_profile);
+        if (directPic) {
+          previewImg.src = directPic;
           previewImg.classList.remove('hidden');
           fallbackIcon.classList.add('hidden');
         } else {
@@ -2326,8 +2340,9 @@
           document.getElementById('userNameDisplay').innerText = updatedUser.name || name;
           const avatarImg = document.getElementById('userAvatarDisplay');
           const fallbackIcon = document.getElementById('userAvatarFallbackIcon');
-          if (updatedUser.picture_profile && updatedUser.picture_profile !== '-') {
-            avatarImg.src = updatedUser.picture_profile;
+          const directPic = getDirectImageUrl(updatedUser.picture_profile);
+          if (directPic) {
+            avatarImg.src = directPic;
             avatarImg.classList.remove('hidden');
             fallbackIcon.classList.add('hidden');
           }
@@ -2705,7 +2720,41 @@
           }
         }
 
-        allRegisteredUsers = usersData || [];
+        // Deduplicate and normalize user roster by 10-digit phone number
+        function normalizePhone(p) {
+          if (!p) return '';
+          let s = p.toString().trim().replace(/[-\s]/g, '');
+          if (s.length === 9 && ['6', '8', '9'].includes(s[0])) {
+            s = '0' + s;
+          }
+          return s;
+        }
+
+        const userMap = new Map();
+        (usersData || []).forEach(u => {
+          const normPhone = normalizePhone(u.phone);
+          if (!normPhone) return;
+          const directPic = getDirectImageUrl(u.picture_profile) || u.picture_profile || '-';
+
+          if (!userMap.has(normPhone)) {
+            userMap.set(normPhone, { ...u, phone: normPhone, picture_profile: directPic });
+          } else {
+            const existing = userMap.get(normPhone);
+            const existingHasPic = existing.picture_profile && existing.picture_profile !== '-' && existing.picture_profile.trim() !== '';
+            const newHasPic = directPic && directPic !== '-' && directPic.trim() !== '';
+
+            userMap.set(normPhone, {
+              ...existing,
+              ...u,
+              phone: normPhone,
+              picture_profile: newHasPic ? directPic : (existingHasPic ? existing.picture_profile : '-'),
+              name: (u.name && u.name !== 'ไม่ระบุชื่อ' && u.name !== 'ผู้ใช้งาน') ? u.name : existing.name,
+              role: (existing.role && existing.role.includes('Super')) ? existing.role : (u.role || existing.role),
+            });
+          }
+        });
+
+        allRegisteredUsers = Array.from(userMap.values());
         renderAdminUsers(allRegisteredUsers);
 
         // Immediately update tactical commander roster & map popups with fetched profile pictures
@@ -2863,9 +2912,10 @@
           </select>
         `;
 
-        const picHtml = (u.picture_profile && u.picture_profile !== '-' && u.picture_profile.startsWith('http'))
-          ? `<img src="${u.picture_profile}" alt="${u.name}" class="w-8 h-8 rounded-full object-cover border border-purple-500/40 shadow-sm shrink-0" onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=1e293b&color=38bdf8';">`
-          : `<div class="w-8 h-8 rounded-full bg-slate-800 text-slate-400 border border-slate-700 flex items-center justify-center text-xs shrink-0"><i class="fa-solid fa-user"></i></div>`;
+        const directPic = getDirectImageUrl(u.picture_profile);
+        const picHtml = directPic
+          ? `<img src="${directPic}" alt="${u.name}" class="w-9 h-9 rounded-full object-cover border-2 border-purple-500/60 shadow-md shadow-purple-950/40 shrink-0 ring-1 ring-purple-400/30" onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=1e293b&color=38bdf8';">`
+          : `<div class="w-9 h-9 rounded-full bg-slate-800 text-slate-400 border border-slate-700 flex items-center justify-center text-sm shrink-0 shadow-inner"><i class="fa-solid fa-user"></i></div>`;
 
         const tr = document.createElement('tr');
         tr.className = `hover:bg-slate-800/40 transition-colors ${isPending ? 'bg-amber-950/25 border-l-4 border-amber-500' : (isSuspended ? 'opacity-60 bg-rose-950/10' : '')}`;

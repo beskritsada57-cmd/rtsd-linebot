@@ -139,18 +139,83 @@ SYSTEM_SETTINGS = {
 }
 
 
+def normalize_drive_image_url(url):
+    """แปลงลิงก์ Google Drive ให้เป็น Direct Image URL คมชัดสูง (lh3.googleusercontent.com)"""
+    if not url or url == "-" or not str(url).strip():
+        return "-"
+    u = str(url).strip()
+    match = re.search(r'/file/d/([a-zA-Z0-9_-]+)', u)
+    if match:
+        return f"https://lh3.googleusercontent.com/d/{match.group(1)}=s160-c"
+    match2 = re.search(r'[?&]id=([a-zA-Z0-9_-]+)', u)
+    if match2:
+        return f"https://lh3.googleusercontent.com/d/{match2.group(1)}=s160-c"
+    return u
+
+
+def normalize_phone_number(phone):
+    """ปรับรูปแบบเบอร์โทรศัพท์ให้เป็น 10 หลักขึ้นต้นด้วย 0 เสมอ"""
+    if not phone:
+        return ""
+    p = str(phone).strip().replace("-", "").replace(" ", "")
+    if len(p) == 9 and p[0] in ['6', '8', '9']:
+        return "0" + p
+    return p
+
+
+# 🔑 Tactical User Credentials Store (Phone/Username -> Password/PIN)
+USER_CREDENTIALS_FILE = os.path.join(os.path.dirname(__file__), "user_credentials.json")
+USER_CREDENTIALS = {}
+
+def load_user_credentials():
+    global USER_CREDENTIALS
+    if os.path.exists(USER_CREDENTIALS_FILE):
+        try:
+            with open(USER_CREDENTIALS_FILE, "r", encoding="utf-8") as f:
+                USER_CREDENTIALS = json.load(f)
+        except Exception as e:
+            print(f"Error loading user_credentials.json: {e}")
+            USER_CREDENTIALS = {}
+    else:
+        USER_CREDENTIALS = {}
+
+    # Pre-populate default admin credentials
+    default_creds = {
+        "0863390614": {"username": "admin", "password": MASTER_PIN, "phone": "0863390614"},
+        "admin": {"username": "admin", "password": "admin1234", "phone": "0863390614"},
+        "commander": {"username": "commander", "password": MASTER_PIN, "phone": "0863390614"}
+    }
+    for k, v in default_creds.items():
+        if k not in USER_CREDENTIALS:
+            USER_CREDENTIALS[k] = v
+
+def save_user_credentials():
+    try:
+        with open(USER_CREDENTIALS_FILE, "w", encoding="utf-8") as f:
+            json.dump(USER_CREDENTIALS, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Error saving user_credentials.json: {e}")
+
+load_user_credentials()
+
+
+
 def fetch_registered_users():
-    """ดึงรายชื่อผู้ใช้ที่ลงทะเบียนแล้วจาก Google Sheets เข้ามาเก็บในแคช"""
+    """ดึงรายชื่อผู้ใช้ที่ลงทะเบียนแล้วจาก Google Sheets เข้ามาเก็บในแคช พร้อมจัดรูปโปรไฟล์คมชัด"""
     global registered_users, phone_to_user
+    master_phone = "0863390614"
+    existing_master_pic = phone_to_user.get(master_phone, {}).get("picture_profile", "-")
+
     # คงสถานะผู้ดูแลระบบหลักไว้เสมอ
-    phone_to_user["0863390614"] = {
-        "name": "ผู้ดูแลระบบ RTSD",
-        "phone": "0863390614",
+    phone_to_user[master_phone] = {
+        "name": phone_to_user.get(master_phone, {}).get("name", "ผู้ดูแลระบบสูงสุด (Master Admin)"),
+        "phone": master_phone,
         "role": "ผู้ดูแลระบบสูงสุด (Super Admin)",
         "unit": "กรมแผนที่ทหาร (RTSD)",
         "position": "ผู้ดูแลระบบหลัก",
         "status": "อนุมัติแล้ว",
-        "line_user_id": phone_to_user.get("0863390614", {}).get("line_user_id", "-"),
+        "line_user_id": phone_to_user.get(master_phone, {}).get("line_user_id", "-"),
+        "picture_profile": existing_master_pic,
         "permissions": get_user_permissions("ผู้ดูแลระบบสูงสุด (Super Admin)")
     }
     try:
@@ -166,7 +231,7 @@ def fetch_registered_users():
                     status = "อนุมัติแล้ว"
                     if isinstance(u, dict):
                         lid = str(u.get("line_user_id", "")).strip()
-                        phone = str(u.get("phone_number", "")).strip().replace("-", "").replace(" ", "")
+                        raw_phone = str(u.get("phone_number", "")).strip()
                         name = str(u.get("full_name", "")).strip()
                         role = str(u.get("role", "ผู้ใช้งานทั่วไป")).strip()
                         unit = str(u.get("unit", "-")).strip()
@@ -178,7 +243,7 @@ def fetch_registered_users():
                             continue
                         lid = str(u[1]).strip()
                         name = str(u[2]).strip()
-                        phone = str(u[3]).strip().replace("-", "").replace(" ", "")
+                        raw_phone = str(u[3]).strip()
                         role = str(u[4]).strip() if len(u) > 4 else "ผู้ใช้งานทั่วไป"
                         unit = str(u[5]).strip() if len(u) > 5 else "-"
                         position = str(u[6]).strip() if len(u) > 6 else "-"
@@ -187,16 +252,24 @@ def fetch_registered_users():
                     else:
                         continue
 
-                    if phone in ADMIN_PHONES:
+                    phone = normalize_phone_number(raw_phone)
+                    direct_pic = normalize_drive_image_url(picture_profile)
+
+                    if phone in ADMIN_PHONES or phone == master_phone:
                         role = "ผู้ดูแลระบบสูงสุด (Super Admin)"
+
+                    # หากมีข้อมูลรูปโปรไฟล์เดิมที่มีอยู่แล้วและแถวนี้ไม่มีรูป ให้คงรูปเดิมไว้
+                    current_entry = phone_to_user.get(phone, {})
+                    final_pic = direct_pic if direct_pic != "-" else current_entry.get("picture_profile", "-")
+
                     user_data_item = {
-                        "name": name,
+                        "name": name if name and name != "ไม่ระบุชื่อ" else current_entry.get("name", "ผู้ใช้งาน"),
                         "phone": phone,
                         "role": role,
-                        "unit": unit,
-                        "position": position,
+                        "unit": unit if unit != "-" else current_entry.get("unit", "-"),
+                        "position": position if position != "-" else current_entry.get("position", "-"),
                         "status": status,
-                        "picture_profile": picture_profile,
+                        "picture_profile": final_pic,
                         "permissions": get_user_permissions(role)
                     }
                     if lid and lid != "-":
@@ -207,10 +280,16 @@ def fetch_registered_users():
         print(f"Error fetching users: {e}")
 
 
-def save_registered_user(line_user_id, name, phone, role="ผู้ใช้งาน", unit="-", position="-", status="อนุมัติแล้ว", purpose="-", picture_profile="-", picture_base64=""):
-    """บันทึกข้อมูลผู้ใช้ใหม่ลง Google Sheets และแคชในหน่วยความจำ พร้อมรูปโปรไฟล์ (รองรับทั้ง URL และ Base64 จาก Gallery)"""
+def save_registered_user(line_user_id, name, phone, role="ผู้ใช้งาน", unit="-", position="-", status="อนุมัติแล้ว", purpose="-", picture_profile="-", picture_base64="", username=""):
+    """บันทึกข้อมูลผู้ใช้ใหม่ลง Google Sheets และแคชในหน่วยความจำ พร้อมรูปโปรไฟล์ (รองรับทั้ง URL และ Base64 จาก Gallery/Camera)"""
     global registered_users, phone_to_user
     clean_phone = phone.replace("-", "").replace(" ", "")
+
+    # หากมีรูป Base64 ให้ตั้งค่ารูปโปรไฟล์ทันที เพื่อให้แสดงผลได้ทันที
+    if picture_base64:
+        picture_profile = f"data:image/jpeg;base64,{picture_base64}"
+    elif picture_profile and picture_profile != "-":
+        picture_profile = normalize_drive_image_url(picture_profile)
 
     # หากมี LINE User ID และยังไม่มีรูปโปรไฟล์ ให้ดึงรูปจาก LINE อัตโนมัติ
     if line_user_id and str(line_user_id).startswith("U") and (not picture_profile or picture_profile == "-") and not picture_base64:
@@ -223,15 +302,19 @@ def save_registered_user(line_user_id, name, phone, role="ผู้ใช้ง�
         except Exception:
             pass
 
+    user_username = username or USER_CREDENTIALS.get(clean_phone, {}).get("username", "")
+
     user_data = {
         "name": name,
         "phone": clean_phone,
+        "username": user_username,
         "role": role,
         "unit": unit,
         "position": position,
         "status": status,
         "purpose": purpose,
-        "picture_profile": picture_profile or "-"
+        "picture_profile": picture_profile or "-",
+        "permissions": get_user_permissions(role)
     }
     registered_users[line_user_id] = user_data
     phone_to_user[clean_phone] = {"line_user_id": line_user_id, **user_data}
@@ -241,6 +324,7 @@ def save_registered_user(line_user_id, name, phone, role="ผู้ใช้ง�
             "line_user_id": line_user_id,
             "full_name": name,
             "phone_number": clean_phone,
+            "username": user_username,
             "role": role,
             "unit": unit,
             "position": position,
@@ -781,14 +865,16 @@ def api_auth_login():
     master_pin = str(data.get("master_pin", "")).strip()
 
     # 1. Master PIN Direct Authentication (Commander War Room)
-    if master_pin and master_pin == MASTER_PIN:
+    if master_pin and (master_pin == MASTER_PIN or master_pin.upper() == MASTER_PIN.upper()):
         user_info = {
             "name": "ผู้ดูแลระบบสูงสุด (Master Admin)",
             "phone": "0863390614",
+            "username": "commander",
             "role": "ผู้ดูแลระบบสูงสุด (Super Admin)",
             "unit": "กรมแผนที่ทหาร (RTSD)",
             "position": "Commander In Chief",
             "status": "อนุมัติแล้ว",
+            "picture_profile": phone_to_user.get("0863390614", {}).get("picture_profile", "-"),
             "permissions": get_user_permissions("ผู้ดูแลระบบสูงสุด (Super Admin)")
         }
         token = f"rtsd-cmd-{int(time.time())}-{random.randint(1000, 9999)}"
@@ -812,21 +898,51 @@ def api_auth_login():
     if not password:
         return jsonify({"status": "error", "message": "กรุณาระบุรหัสผ่าน หรือ PIN"}), 400
 
-    is_admin_user = (login_id.lower() in [p.lower() for p in ADMIN_PHONES]) or (login_id.lower() in ["admin", "rtsd_admin", "commander", "superadmin", "administrator"])
+    clean_login = login_id.lower().replace("-", "").replace(" ", "")
+    norm_phone = normalize_phone_number(clean_login)
 
-    # ตรวจสอบรหัสผ่าน: MASTER_PIN หรือ Admin credentials (ไม่อนุญาตให้ใช้รหัส demo ทั่วไป)
-    valid_password = (password == MASTER_PIN) or \
-                     (password.upper() == MASTER_PIN.upper()) or \
-                     (is_admin_user and password.lower() in ["admin1234", "rtsd2024", MASTER_PIN.lower()])
+    # ตรวจสอบว่ามีบันทึกใน USER_CREDENTIALS หรือไม่
+    cred = USER_CREDENTIALS.get(clean_login) or (USER_CREDENTIALS.get(norm_phone) if norm_phone else None)
+
+    is_admin_user = (clean_login in [p.lower() for p in ADMIN_PHONES]) or \
+                    (norm_phone in [p.lower() for p in ADMIN_PHONES]) or \
+                    (clean_login in ["admin", "rtsd_admin", "commander", "superadmin", "administrator"])
+
+    # ตรวจสอบรหัสผ่าน: MASTER_PIN, Admin default, หรือรหัสผ่านที่ผู้ใช้ตั้งไว้ตอนสมัคร
+    valid_password = False
+    if password == MASTER_PIN or password.upper() == MASTER_PIN.upper():
+        valid_password = True
+    elif is_admin_user and password.lower() in ["admin1234", "rtsd2024", MASTER_PIN.lower()]:
+        valid_password = True
+    elif cred and cred.get("password") and cred.get("password") == password:
+        valid_password = True
 
     if not valid_password:
         return jsonify({"status": "error", "message": "รหัสผ่านหรือ PIN ไม่ถูกต้อง"}), 401
 
-    # ค้นหาข้อมูลผู้ใช้ในระบบ
-    if login_id not in phone_to_user:
+    # ดึงข้อมูลผู้ใช้ล่าสุด
+    if not phone_to_user or len(phone_to_user) <= 1:
         fetch_registered_users()
 
-    existing_user = phone_to_user.get(login_id)
+    matched_phone = None
+    if cred and cred.get("phone"):
+        matched_phone = normalize_phone_number(cred["phone"])
+    elif norm_phone and len(norm_phone) >= 9:
+        matched_phone = norm_phone
+
+    existing_user = None
+    if matched_phone and matched_phone in phone_to_user:
+        existing_user = phone_to_user[matched_phone]
+    elif clean_login in phone_to_user:
+        existing_user = phone_to_user[clean_login]
+    else:
+        # ค้นหาเพิ่มเติมจาก username หรือชื่อ
+        for ph, u in phone_to_user.items():
+            if u.get("username", "").lower() == clean_login or (u.get("name") and clean_login in u.get("name", "").lower()):
+                existing_user = u
+                matched_phone = ph
+                break
+
     if not is_admin_user:
         if not existing_user:
             return jsonify({
@@ -850,20 +966,25 @@ def api_auth_login():
     user_info = existing_user or {
         "name": "ผู้ดูแลระบบสูงสุด (Master Admin)",
         "phone": "0863390614",
+        "username": "admin",
         "role": "ผู้ดูแลระบบสูงสุด (Super Admin)",
         "unit": "กรมแผนที่ทหาร (RTSD)",
         "position": "Commander",
         "status": "อนุมัติแล้ว",
+        "picture_profile": phone_to_user.get("0863390614", {}).get("picture_profile", "-"),
         "permissions": get_user_permissions("ผู้ดูแลระบบสูงสุด (Super Admin)")
     }
     if is_admin_user:
         user_info["role"] = "ผู้ดูแลระบบสูงสุด (Super Admin)"
         user_info["permissions"] = get_user_permissions(user_info["role"])
 
+    if cred and cred.get("username"):
+        user_info["username"] = cred["username"]
+
     token = f"rtsd-token-{login_id}-{int(time.time())}-{random.randint(1000, 9999)}"
     ACTIVE_SESSIONS[token] = {
         "user": user_info,
-        "phone": user_info.get("phone", login_id),
+        "phone": user_info.get("phone", matched_phone or login_id),
         "role": user_info.get("role", "หัวหน้าชุดปฏิบัติการ (Field Officer)"),
         "expires_at": time.time() + 86400 * 7
     }
@@ -944,13 +1065,44 @@ def api_verify_otp():
     # 1. ล็อกอินด้วย Username / เบอร์โทร + Password / PIN
     login_id = phone or username
     if login_id and password:
-        is_admin_user = (login_id in [p.lower() for p in ADMIN_PHONES]) or (login_id in ["admin", "rtsd_admin", "commander", "superadmin"])
+        clean_login = login_id.lower().replace("-", "").replace(" ", "")
+        norm_phone = normalize_phone_number(clean_login)
+
+        cred = USER_CREDENTIALS.get(clean_login) or (USER_CREDENTIALS.get(norm_phone) if norm_phone else None)
+        is_admin_user = (clean_login in [p.lower() for p in ADMIN_PHONES]) or \
+                        (norm_phone in [p.lower() for p in ADMIN_PHONES]) or \
+                        (clean_login in ["admin", "rtsd_admin", "commander", "superadmin"])
         
-        # ตรวจสอบรหัสผ่าน: MASTER_PIN ("RTSD2024") หรือ Admin credentials (ไม่อนุญาตให้ใช้รหัส demo ทั่วไป)
-        valid_password = (password == MASTER_PIN) or (is_admin_user and password.lower() in ["admin1234", "rtsd2024", MASTER_PIN.lower()])
+        valid_password = False
+        if password == MASTER_PIN or password.upper() == MASTER_PIN.upper():
+            valid_password = True
+        elif is_admin_user and password.lower() in ["admin1234", "rtsd2024", MASTER_PIN.lower()]:
+            valid_password = True
+        elif cred and cred.get("password") and cred.get("password") == password:
+            valid_password = True
         
         if valid_password:
-            existing_user = phone_to_user.get(login_id)
+            if not phone_to_user or len(phone_to_user) <= 1:
+                fetch_registered_users()
+
+            matched_phone = None
+            if cred and cred.get("phone"):
+                matched_phone = normalize_phone_number(cred["phone"])
+            elif norm_phone and len(norm_phone) >= 9:
+                matched_phone = norm_phone
+
+            existing_user = None
+            if matched_phone and matched_phone in phone_to_user:
+                existing_user = phone_to_user[matched_phone]
+            elif clean_login in phone_to_user:
+                existing_user = phone_to_user[clean_login]
+            else:
+                for ph, u in phone_to_user.items():
+                    if u.get("username", "").lower() == clean_login or (u.get("name") and clean_login in u.get("name", "").lower()):
+                        existing_user = u
+                        matched_phone = ph
+                        break
+
             if not is_admin_user:
                 if not existing_user:
                     return jsonify({"status": "error", "message": "ไม่พบบัญชีผู้ใช้งานนี้ในระบบ กรุณายื่นคำขอลงทะเบียนก่อนใช้งาน"}), 404
@@ -963,18 +1115,23 @@ def api_verify_otp():
             user_info = existing_user or {
                 "name": "ผู้ดูแลระบบสูงสุด (Master Admin)",
                 "phone": "0863390614",
+                "username": "admin",
                 "role": "ผู้ดูแลระบบสูงสุด (Super Admin)",
                 "unit": "กรมแผนที่ทหาร (RTSD)",
                 "position": "Super Admin",
-                "status": "อนุมัติแล้ว"
+                "status": "อนุมัติแล้ว",
+                "picture_profile": phone_to_user.get("0863390614", {}).get("picture_profile", "-")
             }
             if is_admin_user:
                 user_info["role"] = "ผู้ดูแลระบบสูงสุด (Super Admin)"
             user_info["permissions"] = get_user_permissions(user_info["role"])
+            if cred and cred.get("username"):
+                user_info["username"] = cred["username"]
+
             token = f"token-{login_id}-{int(time.time())}"
             ACTIVE_SESSIONS[token] = {
                 "user": user_info,
-                "phone": user_info.get("phone", login_id),
+                "phone": user_info.get("phone", matched_phone or login_id),
                 "role": user_info["role"],
                 "expires_at": time.time() + 86400 * 7
             }
@@ -1072,6 +1229,8 @@ def api_register_request():
     line_user_id = str(data.get("line_user_id", "")).strip()
     picture_profile = str(data.get("picture_profile", "-")).strip()
     picture_base64 = str(data.get("picture_base64", "")).strip()
+    username = str(data.get("username", "")).strip().replace(" ", "").lower()
+    password = str(data.get("password", "") or data.get("pin", "")).strip()
 
     if not phone or len(phone) < 9 or len(phone) > 10:
         return jsonify({"status": "error", "message": "หมายเลขโทรศัพท์ไม่ถูกต้อง (ต้องเป็น 10 หลัก)"}), 400
@@ -1081,6 +1240,23 @@ def api_register_request():
 
     req_id = f"RTSD-REQ-{int(time.time()) % 10000:04d}"
     initial_status = "อนุมัติแล้ว" if phone in ADMIN_PHONES else "รออนุมัติ"
+
+    # บันทึกรหัสผ่านและชื่อผู้ใช้ลงใน USER_CREDENTIALS ทันที
+    if password:
+        cred_entry = {
+            "username": username or phone,
+            "password": password,
+            "phone": phone,
+            "name": full_name,
+            "created_at": time.strftime("%Y-%m-%d %H:%M:%S")
+        }
+        USER_CREDENTIALS[phone] = cred_entry
+        norm_phone = normalize_phone_number(phone)
+        if norm_phone:
+            USER_CREDENTIALS[norm_phone] = cred_entry
+        if username:
+            USER_CREDENTIALS[username] = cred_entry
+        save_user_credentials()
 
     # บันทึกเข้า Memory Cache และส่งไป Google Sheets
     save_registered_user(
@@ -1093,7 +1269,8 @@ def api_register_request():
         status=initial_status,
         purpose=purpose,
         picture_profile=picture_profile,
-        picture_base64=picture_base64
+        picture_base64=picture_base64,
+        username=username
     )
 
     # หากมี LINE User ID หรือเบอร์ตรงกับผู้ใช้ LINE ให้ Push แจ้งเตือนทาง LINE ทันที
@@ -1172,15 +1349,17 @@ def api_register_request():
 
 @app.route("/api/admin/users", methods=['GET'])
 def api_admin_get_users():
-    """ส่งรายชื่อผู้ลงทะเบียนทั้งหมดให้แอดมินดูและจัดการสิทธิ์"""
+    """ส่งรายชื่อผู้ลงทะเบียนทั้งหมดให้แอดมินดูและจัดการสิทธิ์ (ตัดความซ้ำซ้อนและแปลงลิงก์รูปให้แสดงผลได้ทันที)"""
     fetch_registered_users()
     users_list = []
     seen_phones = set()
-    for phone, u in phone_to_user.items():
+    for raw_phone, u in phone_to_user.items():
+        phone = normalize_phone_number(raw_phone)
         if phone in seen_phones:
             continue
         seen_phones.add(phone)
         role = u.get("role", "ผู้ใช้งานทั่วไป (Observer)")
+        pic = normalize_drive_image_url(u.get("picture_profile", "-"))
         users_list.append({
             "name": u.get("name", "ไม่ระบุชื่อ"),
             "phone": phone,
@@ -1189,7 +1368,7 @@ def api_admin_get_users():
             "role": role,
             "status": u.get("status", "อนุมัติแล้ว"),
             "line_user_id": u.get("line_user_id", "-"),
-            "picture_profile": u.get("picture_profile", "-"),
+            "picture_profile": pic,
             "permissions": get_user_permissions(role)
         })
     return jsonify(users_list), 200
@@ -1349,6 +1528,29 @@ def api_user_update_profile():
     if "position" in data and str(data["position"]).strip():
         user_info["position"] = str(data["position"]).strip()
 
+    if "password" in data and str(data["password"]).strip():
+        new_pwd = str(data["password"]).strip()
+        cred = USER_CREDENTIALS.get(phone, {})
+        cred["password"] = new_pwd
+        cred["phone"] = phone
+        USER_CREDENTIALS[phone] = cred
+        norm_ph = normalize_phone_number(phone)
+        if norm_ph:
+            USER_CREDENTIALS[norm_ph] = cred
+        if cred.get("username"):
+            USER_CREDENTIALS[cred["username"]] = cred
+        save_user_credentials()
+
+    if "username" in data and str(data["username"]).strip():
+        new_un = str(data["username"]).strip().lower()
+        cred = USER_CREDENTIALS.get(phone, {})
+        cred["username"] = new_un
+        cred["phone"] = phone
+        USER_CREDENTIALS[phone] = cred
+        USER_CREDENTIALS[new_un] = cred
+        user_info["username"] = new_un
+        save_user_credentials()
+
     pic_url = str(data.get("picture_profile", "")).strip()
     pic_b64 = str(data.get("picture_base64", "")).strip()
 
@@ -1382,7 +1584,8 @@ def api_user_update_profile():
         status=user_info.get("status", "อนุมัติแล้ว"),
         purpose=user_info.get("purpose", "-"),
         picture_profile=user_info.get("picture_profile", "-"),
-        picture_base64=pic_b64
+        picture_base64=pic_b64,
+        username=user_info.get("username", "")
     )
 
     return jsonify({
