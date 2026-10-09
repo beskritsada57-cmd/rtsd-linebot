@@ -476,8 +476,8 @@
                     <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-red-500/20 text-red-400 border border-red-500/50 animate-pulse">
                       🎯 TARGET LOCKED
                     </span>
-                    <h4 id="hudTargetName" class="font-bold text-xs md:text-sm text-white font-mono truncate">UNIT-01 (อ.แม่สาย)</h4>
-                    <span id="hudTargetCommander" class="text-xs text-sky-400 font-medium truncate">ร.ท. ธนกฤต</span>
+                    <h4 id="hudTargetName" class="font-bold text-xs md:text-sm text-white font-mono truncate">UNIT-01</h4>
+                    <span id="hudTargetCommander" class="text-xs text-sky-400 font-medium truncate">หัวหน้าชุด</span>
                   </div>
                   <div id="hudTargetTelemetry" class="text-[11px] text-slate-300 font-mono mt-0.5 flex flex-wrap items-center gap-2">
                     <span><i class="fa-solid fa-battery-half text-emerald-400"></i> <b id="hudTargetBatt">--%</b></span>
@@ -607,8 +607,8 @@
             </h3>
           </div>
           <div class="flex items-center gap-2">
-            <span id="activeUnitBadge" class="px-2 py-0.5 text-[11px] font-mono font-bold rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-              🟢 5 ACTIVE
+            <span id="activeUnitBadge" class="px-2 py-0.5 text-[11px] font-mono font-bold rounded-lg bg-slate-800 text-slate-400 border border-slate-700">
+              ⚪ 0 ACTIVE
             </span>
             <button onclick="fetchTacticalUnits(true)" class="p-1 px-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 border border-slate-800 cursor-pointer text-xs" title="รีเฟรชข้อมูลสด">
               <i id="tacticalRefreshIcon" class="fa-solid fa-arrows-rotate"></i>
@@ -3231,8 +3231,8 @@
       if (!mapContainer) return;
 
       tacticalMap = L.map('tacticalMap', {
-        center: [20.0210, 99.8760],
-        zoom: 12,
+        center: [13.7563, 100.5018],
+        zoom: 6,
         zoomControl: false,
         attributionControl: false
       });
@@ -4035,8 +4035,8 @@
         const uid = u.unit_id || `TL-${index+1}`;
         const rawName = u.unit_name || `TACTICAL UNIT ${index+1}`;
         const commander = u.commander || 'COMMANDER';
-        const lat = parseFloat(u.latitude) || 20.021;
-        const lon = parseFloat(u.longitude) || 99.876;
+        const lat = parseFloat(u.latitude) || 13.7563;
+        const lon = parseFloat(u.longitude) || 100.5018;
         const speed = Math.round(parseFloat(u.speed) || 0);
         const heading = Math.round(parseFloat(u.heading) || 0);
         const battery = parseInt(u.battery) || 78;

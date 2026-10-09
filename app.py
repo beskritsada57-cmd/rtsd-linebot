@@ -386,73 +386,7 @@ def get_user_incidents(query_text=None, user_name=None):
 
 
 # ที่เก็บข้อมูลพิกัดสดของหน่วยกำลังพล / ยานพาหนะ (In-memory Active Units)
-active_trackers = {
-    "TL-1": {
-        "unit_id": "TL-1",
-        "unit_name": "MAE SAI TACTICAL UNIT",
-        "commander": "CAPT. SOMCHAI S. (UNIT LEAD)",
-        "latitude": 20.0210,
-        "longitude": 99.8760,
-        "speed": 45.0,
-        "heading": 45.0,
-        "battery": 78,
-        "status": "ACTIVE",
-        "picture_profile": "https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=256&q=80",
-        "last_update": time.strftime("%Y-%m-%d %H:%M:%S")
-    },
-    "TL-2": {
-        "unit_id": "TL-2",
-        "unit_name": "MUEANG RESCUE UNIT",
-        "commander": "CAPT. MAE RESCUE UNIT",
-        "latitude": 19.9890,
-        "longitude": 99.8430,
-        "speed": 0.0,
-        "heading": 0.0,
-        "battery": 78,
-        "status": "EN ROUTE",
-        "picture_profile": "https://images.unsplash.com/photo-1508873696983-2df5293cb32f?auto=format&fit=crop&w=256&q=80",
-        "last_update": time.strftime("%Y-%m-%d %H:%M:%S")
-    },
-    "TL-3": {
-        "unit_id": "TL-3",
-        "unit_name": "MAE PAKI PATROL",
-        "commander": "LT. NOY P.",
-        "latitude": 20.0810,
-        "longitude": 99.8250,
-        "speed": 62.0,
-        "heading": 120.0,
-        "battery": 78,
-        "status": "STANDBY",
-        "picture_profile": "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=256&q=80",
-        "last_update": time.strftime("%Y-%m-%d %H:%M:%S")
-    },
-    "TL-4": {
-        "unit_id": "TL-4",
-        "unit_name": "WIANG PANG KHAM QRF",
-        "commander": "LT. NOY P.",
-        "latitude": 20.0450,
-        "longitude": 99.8920,
-        "speed": 62.0,
-        "heading": 90.0,
-        "battery": 78,
-        "status": "STANDBY",
-        "picture_profile": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=256&q=80",
-        "last_update": time.strftime("%Y-%m-%d %H:%M:%S")
-    },
-    "TL-5": {
-        "unit_id": "TL-5",
-        "unit_name": "WIANGPAI TACTICAL UNIT",
-        "commander": "CAPT. SOMCHAI S. (UNIT LEAD)",
-        "latitude": 19.9500,
-        "longitude": 99.7800,
-        "speed": 45.0,
-        "heading": 220.0,
-        "battery": 85,
-        "status": "ACTIVE",
-        "picture_profile": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=256&q=80",
-        "last_update": time.strftime("%Y-%m-%d %H:%M:%S")
-    }
-}
+active_trackers = {}
 
 
 @app.route("/", methods=['GET'])
