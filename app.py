@@ -4,7 +4,7 @@ import time
 import base64
 import math
 import requests
-from flask import Flask, request, abort, jsonify, send_file
+from flask import Flask, request, abort, jsonify, send_file, redirect
 from linebot.v3 import WebhookHandler
 from linebot.v3.exceptions import InvalidSignatureError
 import random
@@ -589,31 +589,38 @@ def tracker_page():
     return "Tracker HTML template not found on server", 404
 
 
+GITHUB_APK_URL = "https://raw.githubusercontent.com/beskritsada57-cmd/rtsd-linebot/main/RTSD_Tactical_Tracker_v1.3_FullAuth.apk"
+
+@app.route("/download", methods=['GET'])
 @app.route("/download/app", methods=['GET'])
 def download_app_file():
     """ให้บริการดาวน์โหลดไฟล์ RTSD Tactical Tracker Mobile App (.apk) โดยตรง"""
     apk_filename = "RTSD_Tactical_Tracker_v1.3_FullAuth.apk"
-    apk_path = os.path.join(os.path.dirname(__file__), apk_filename)
-    if not os.path.exists(apk_path):
-        v12_path = os.path.join(os.path.dirname(__file__), "RTSD_Tactical_Tracker_v1.2_FullAuth.apk")
-        if os.path.exists(v12_path):
-            apk_path = v12_path
-            apk_filename = "RTSD_Tactical_Tracker_v1.2_FullAuth.apk"
-    if not os.path.exists(apk_path):
-        parent_apk = os.path.join(os.path.dirname(os.path.dirname(__file__)), apk_filename)
-        if os.path.exists(parent_apk):
-            apk_path = parent_apk
-    if os.path.exists(apk_path):
+    base_dirs = [
+        os.path.dirname(os.path.abspath(__file__)),
+        os.getcwd(),
+        os.path.dirname(os.getcwd())
+    ]
+    apk_path = None
+    for b in base_dirs:
+        candidate = os.path.join(b, apk_filename)
+        if os.path.exists(candidate):
+            apk_path = candidate
+            break
+        candidate_v12 = os.path.join(b, "RTSD_Tactical_Tracker_v1.2_FullAuth.apk")
+        if os.path.exists(candidate_v12):
+            apk_path = candidate_v12
+            break
+
+    if apk_path and os.path.exists(apk_path):
         return send_file(
             apk_path,
             as_attachment=True,
-            download_name="RTSD_Tactical_Tracker_v1.3.apk" if "v1.3" in apk_filename else "RTSD_Tactical_Tracker_v1.2.apk",
+            download_name="RTSD_Tactical_Tracker_v1.3.apk",
             mimetype="application/vnd.android.package-archive"
         )
-    return jsonify({
-        "status": "error",
-        "message": "ไม่พบไฟล์ APK บนเซิร์ฟเวอร์ กรุณาติดต่อผู้ดูแลระบบ"
-    }), 404
+    # หากเซิร์ฟเวอร์ยังไม่โหลดไฟล์ลงดิสก์ ให้ Redirect ตรงไปยัง GitHub Raw CDN ทันที (เสถียรและดาวน์โหลดเร็ว)
+    return redirect(GITHUB_APK_URL)
 
 
 @app.route("/api/tracker/update", methods=['POST'])
