@@ -240,43 +240,57 @@
       align-items: center;
       justify-content: center;
       position: relative;
+      cursor: pointer !important;
     }
     .tactical-pin-icon-wrap {
-      width: 36px;
-      height: 36px;
+      width: 38px;
+      height: 38px;
       border-radius: 50% 50% 50% 0;
       transform: rotate(-45deg);
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.7);
       border: 2px solid #ffffff;
       transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
     .tactical-custom-pin:hover .tactical-pin-icon-wrap {
       transform: rotate(-45deg) scale(1.18);
-      box-shadow: 0 6px 20px rgba(0,0,0,0.8);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.9);
     }
     .tactical-pin-icon-inner {
       transform: rotate(45deg);
-      font-size: 14px;
+      font-size: 15px;
       color: white;
     }
     .tactical-pin-label {
       position: absolute;
-      top: -26px;
+      top: -30px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(15, 23, 42, 0.95);
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      color: white;
-      font-size: 10px;
-      font-weight: 600;
-      padding: 1px 7px;
-      border-radius: 4px;
+      background: rgba(10, 16, 30, 0.96);
+      border: 1px solid rgba(56, 189, 248, 0.5);
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 6px;
       white-space: nowrap;
-      pointer-events: none;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+      pointer-events: auto !important;
+      cursor: pointer !important;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.8);
+      max-width: 260px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .tactical-pin-label:hover {
+      background: #0f172a;
+      border-color: #38bdf8;
+      transform: translateX(-50%) scale(1.04);
     }
     .line-clamp-2 {
       display: -webkit-box;
@@ -2888,6 +2902,10 @@
         else if (t.includes('รถ') || t.includes('อุบัติเหตุ')) iconClass = 'fa-car-burst';
         else if (t.includes('ช่วย') || t.includes('พยาบาล')) iconClass = 'fa-hand-holding-medical';
 
+        const cleanIncTitle = (item.title || 'เหตุการณ์')
+          .replace(/^\[RTSD-\d+\]\s*/, '')
+          .trim();
+
         const customIcon = L.divIcon({
           className: 'tactical-div-icon',
           iconSize: [36, 42],
@@ -2896,11 +2914,11 @@
           html: `
             <div class="relative flex items-center justify-center cursor-pointer group" style="width: 36px; height: 42px;">
               ${pulseHtml}
-              <div style="width: 30px; height: 30px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: ${pinColor}; border: 2px solid #ffffff; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.6); transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
-                <i class="fa-solid ${iconClass}" style="transform: rotate(45deg); color: #ffffff; font-size: 13px;"></i>
+              <div style="width: 32px; height: 32px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: ${pinColor}; border: 2px solid #ffffff; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(0,0,0,0.7); transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+                <i class="fa-solid ${iconClass}" style="transform: rotate(45deg); color: #ffffff; font-size: 14px;"></i>
               </div>
-              <div style="position: absolute; top: -20px; left: 50%; transform: translateX(-50%); background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(255,255,255,0.25); color: #fff; font-size: 9px; font-weight: 600; padding: 1px 6px; border-radius: 4px; white-space: nowrap; pointer-events: none; box-shadow: 0 2px 6px rgba(0,0,0,0.5);">
-                ${item.title.length > 14 ? item.title.slice(0, 14) + '...' : item.title}
+              <div style="position: absolute; top: -28px; left: 50%; transform: translateX(-50%); background: rgba(10, 16, 30, 0.96); border: 1px solid ${pinColor}; color: #ffffff; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 5px; white-space: nowrap; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,0.8); max-width: 220px; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 4px;">
+                <span>${cleanIncTitle.length > 22 ? cleanIncTitle.slice(0, 22) + '...' : cleanIncTitle}</span>
               </div>
             </div>
           `
@@ -5422,15 +5440,20 @@
       const lon = parseFloat(pin.longitude);
       if (isNaN(lat) || isNaN(lon)) return;
 
+      const cleanDisplayTitle = (pin.title || 'หมุดยุทธวิธี')
+        .replace(/^🚨\s*\[ภารกิจสั่งการด่วน\]\s*/, '🚨 สั่งการ: ')
+        .trim();
+
       const pinHtml = `
-        <div class="tactical-custom-pin">
+        <div class="tactical-custom-pin" onclick="lockOnTacticalPin('${pin.id}')">
           <div class="tactical-pin-icon-wrap" style="background-color: ${conf.color}">
             <div class="tactical-pin-icon-inner">
               <i class="fa-solid ${conf.icon}"></i>
             </div>
           </div>
-          <div class="tactical-pin-label" style="border-color: ${conf.color}80">
-            ${pin.title}
+          <div class="tactical-pin-label" style="border-color: ${conf.color}">
+            <span style="color: ${conf.color}">${conf.badge}</span>
+            <span>${cleanDisplayTitle}</span>
           </div>
         </div>
       `;
