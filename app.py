@@ -985,6 +985,176 @@ def api_delete_tactical_pin():
     return jsonify({"status": "success", "id": pin_id}), 200
 
 
+# =========================================================================
+# 🚨 5.3 ศูนย์สั่งการกำลังพล & แจ้งเตือนไประงับเหตุ (Incident Dispatch Center)
+# =========================================================================
+DISPATCHED_INCIDENTS = {}  # { incident_id: { "dispatched_units": [...], "timestamp": ..., "directive": ... } }
+
+@app.route("/api/incident/dispatch", methods=['POST'])
+def api_incident_dispatch():
+    """
+    รับคำสั่งมอบหมายกำลังพลจากหน้า Dashboard เพื่อส่งเจ้าหน้าที่ไประงับเหตุ
+    - รองรับการเลือกเป็นรายบุคคล / รายชุดปฏิบัติการ
+    - รองรับการเลือกทั้งหมด (Dispatch All Units / Broadcast)
+    - ส่ง Push Notification ทาง LINE ไปยังเจ้าหน้าที่เป้าหมายทันที
+    """
+    global DISPATCHED_INCIDENTS
+    data = request.get_json(silent=True) or {}
+
+    incident_id = str(data.get("incident_id") or data.get("report_id") or "").strip()
+    title = str(data.get("title") or "เหตุการณ์ฉุกเฉิน").strip()
+    incident_type = str(data.get("incident_type") or "ทั่วไป").strip()
+    urgency = str(data.get("urgency") or "🟡 ปานกลาง").strip()
+    address = str(data.get("address") or "ไม่ระบุสถานที่").strip()
+    lat = data.get("latitude")
+    lon = data.get("longitude")
+    target_units = data.get("target_units", [])
+    if isinstance(target_units, str):
+        target_units = [target_units]
+    dispatch_all = bool(data.get("dispatch_all", False) or "ALL" in target_units or "all" in target_units)
+    directive_note = str(data.get("directive_note") or "ให้ชุดปฏิบัติการเร่งรัดเข้าตรวจสอบและช่วยเหลือประชาชน ณ จุดเกิดเหตุโดยด่วน").strip()
+    commander_name = str(data.get("commander_name") or "ศูนย์บัญชาการ TOC กรมแผนที่ทหาร").strip()
+
+    if not incident_id:
+        match = re.search(r'\[(RTSD-\d+)\]', title)
+        incident_id = match.group(1) if match else f"INC-{int(time.time()) % 100000}"
+
+    fetch_registered_users()
+
+    target_lids = set()
+    target_unit_names = []
+
+    if dispatch_all:
+        target_unit_names.append("กำลังพลทุกนาย (All Units)")
+        for lid, u in registered_users.items():
+            if str(lid).startswith("U"):
+                target_lids.add(str(lid))
+        for uid, tr in active_trackers.items():
+            cmd = tr.get("commander")
+            if cmd:
+                for p, u in phone_to_user.items():
+                    if u.get("name") == cmd:
+                        lid = u.get("line_user_id")
+                        if lid and str(lid).startswith("U"):
+                            target_lids.add(str(lid))
+    else:
+        for t in target_units:
+            t_str = str(t).strip()
+            if not t_str:
+                continue
+            matched = False
+            for uid, tr in active_trackers.items():
+                if uid == t_str or tr.get("commander") == t_str or tr.get("unit_name") == t_str:
+                    cmd_name = tr.get("commander") or tr.get("unit_name") or uid
+                    if cmd_name not in target_unit_names:
+                        target_unit_names.append(cmd_name)
+                    for p, u in phone_to_user.items():
+                        if u.get("name") == tr.get("commander"):
+                            lid = u.get("line_user_id")
+                            if lid and str(lid).startswith("U"):
+                                target_lids.add(str(lid))
+                                matched = True
+            clean_phone = normalize_phone_number(t_str)
+            if clean_phone in phone_to_user:
+                u = phone_to_user[clean_phone]
+                name = u.get("name", t_str)
+                if name not in target_unit_names:
+                    target_unit_names.append(name)
+                lid = u.get("line_user_id")
+                if lid and str(lid).startswith("U"):
+                    target_lids.add(str(lid))
+                    matched = True
+            for lid, u in registered_users.items():
+                if u.get("name") == t_str or lid == t_str:
+                    name = u.get("name", t_str)
+                    if name not in target_unit_names:
+                        target_unit_names.append(name)
+                    if str(lid).startswith("U"):
+                        target_lids.add(str(lid))
+                        matched = True
+            if not matched and t_str not in target_unit_names:
+                target_unit_names.append(t_str)
+
+    nav_link = f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}" if (lat and lon and float(lat) != 0) else None
+
+    msg_lines = [
+        "🚨 [คำสั่งด่วนจากศูนย์บัญชาการ TOC กรมแผนที่ทหาร]",
+        "━━━━━━━━━━━━━━━━━━",
+        "📢 มอบหมายกำลังพลไประงับเหตุฉุกเฉิน!",
+        f"📍 รหัส/เหตุการณ์: {title}",
+        f"⚠️ ระดับความเร่งด่วน: {urgency}",
+        f"🏢 สถานที่เกิดเหตุ: {address}",
+        f"📝 ข้อสั่งการ: {directive_note}",
+        f"👤 ผู้สั่งการ: {commander_name}",
+        "━━━━━━━━━━━━━━━━━━"
+    ]
+    if nav_link:
+        msg_lines.append(f"🧭 นำทาง Google Maps ทันที:\n👉 {nav_link}\n")
+    msg_lines.append("📱 เจ้าหน้าที่กรุณาเปิดแอป RTSD Tactical Tracker เพื่อรับภารกิจและเริ่มแทร็กพิกัดช่วยเหลือ")
+    push_msg_text = "\n".join(msg_lines)
+
+    quick_items = [
+        QuickReplyItem(action=URIAction(label="🌐 แดชบอร์ดสถานการณ์", uri="https://rtsd-linebot.onrender.com/dashboard")),
+        QuickReplyItem(action=MessageAction(label="🚨 รับทราบคำสั่ง", text=f"รับทราบคำสั่ง {incident_id}"))
+    ]
+    if nav_link:
+        quick_items.insert(0, QuickReplyItem(action=URIAction(label="🧭 นำทาง GPS", uri=nav_link)))
+
+    quick_reply = QuickReply(items=quick_items)
+
+    sent_count = 0
+    with ApiClient(configuration) as api_client:
+        line_bot_api = MessagingApi(api_client)
+        for target_lid in target_lids:
+            try:
+                line_bot_api.push_message(
+                    PushMessageRequest(
+                        to=target_lid,
+                        messages=[TextMessage(text=push_msg_text, quick_reply=quick_reply)]
+                    )
+                )
+                sent_count += 1
+            except Exception as push_err:
+                print(f"[Dispatch] Error pushing to {target_lid}: {push_err}")
+
+    now_th = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+    assigned_info = {
+        "incident_id": incident_id,
+        "title": title,
+        "dispatched_units": target_unit_names,
+        "dispatch_all": dispatch_all,
+        "directive_note": directive_note,
+        "commander_name": commander_name,
+        "dispatched_at": now_th,
+        "sent_count": sent_count
+    }
+    DISPATCHED_INCIDENTS[incident_id] = assigned_info
+
+    try:
+        sheet_payload = {
+            "action": "update_status",
+            "title": title,
+            "timestamp": str(data.get("timestamp", "")),
+            "status": f"🟡 กำลังช่วยเหลือ (มอบหมาย: {', '.join(target_unit_names[:2])})"
+        }
+        requests.post(GOOGLE_SHEET_URL, json=sheet_payload, timeout=4)
+    except Exception as e:
+        print(f"[Dispatch] Error updating Google Sheets: {e}")
+
+    return jsonify({
+        "status": "success",
+        "message": f"สั่งการมอบหมายกำลังพลสำเร็จ ส่งแจ้งเตือนผ่าน LINE เรียบร้อย ({sent_count} นาย)",
+        "dispatched_info": assigned_info,
+        "sent_count": sent_count
+    }), 200
+
+
+@app.route("/api/incident/dispatched-list", methods=['GET'])
+def api_incident_dispatched_list():
+    """ส่งคืนรายการเหตุการณ์ที่ถูกสั่งการมอบหมายกำลังพลแล้วทั้งหมด"""
+    return jsonify(DISPATCHED_INCIDENTS), 200
+
+
 @app.route("/api/auth/request-otp", methods=['POST'])
 def api_request_otp():
     """สร้างรหัส OTP 6 หลัก แล้วส่งเข้าแชท LINE ของเจ้าหน้าที่โดยตรง"""

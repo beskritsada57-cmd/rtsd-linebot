@@ -1821,6 +1821,109 @@
   </div>
 
   <!-- ========================================================================= -->
+  <!-- 🚨 INCIDENT DISPATCH MODAL (ศูนย์สั่งการมอบหมายกำลังพลไประงับเหตุ) -->
+  <!-- ========================================================================= -->
+  <div id="incidentDispatchModal" class="hidden fixed inset-0 z-[130] items-center justify-center p-3 bg-slate-950/85 backdrop-blur-md" style="display: none;">
+    <div class="relative w-full max-w-xl bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-2xl max-h-[94vh] overflow-y-auto custom-scrollbar">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-rose-600/20 text-rose-400 flex items-center justify-center border border-rose-500/40 shadow-inner">
+            <i class="fa-solid fa-bullhorn text-base"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-white text-sm flex items-center gap-2">
+              <span>ศูนย์สั่งการมอบหมายกำลังพล</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-rose-500/20 text-rose-400 border border-rose-500/40">DISPATCH TOC</span>
+            </h3>
+            <p class="text-[11px] text-slate-400">เลือกกำลังพลรายบุคคล หรือเลือกทั้งหมดเพื่อส่งแจ้งเตือนและข้อสั่งการ</p>
+          </div>
+        </div>
+        <button onclick="closeIncidentDispatchModal()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Incident Target Details Banner -->
+      <div id="dispatchIncidentBanner" class="bg-slate-950/80 border border-slate-800/90 rounded-2xl p-3.5 mb-3.5 space-y-2">
+        <!-- Injected dynamically -->
+      </div>
+
+      <form onsubmit="handleExecuteDispatch(event)" class="space-y-3.5 text-xs">
+        <!-- Target Selection Control Header -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="text-slate-300 font-semibold flex items-center gap-1.5">
+              <i class="fa-solid fa-users-viewfinder text-sky-400"></i>
+              <span>เลือกกำลังพล / ชุดปฏิบัติการไประงับเหตุ</span>
+            </label>
+            <div class="flex items-center gap-2">
+              <span id="dispatchSelectedCountBadge" class="text-[11px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 font-mono">
+                เลือกแล้ว 0 นาย
+              </span>
+              <button type="button" onclick="toggleSelectAllDispatchUnits()" class="px-2.5 py-0.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors">
+                <i class="fa-solid fa-check-double text-[10px]"></i>
+                <span id="selectAllBtnText">เลือกทั้งหมด (Dispatch All)</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Search Units Filter -->
+          <div class="relative">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
+            <input type="text" id="dispatchUnitSearchInput" oninput="filterDispatchUnitsList()" placeholder="พิมพ์ค้นหาชื่อ, ชุดปฏิบัติการ, ยานพาหนะ..." class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-3 py-1.5 text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 text-xs">
+          </div>
+
+          <!-- Dynamic Units Grid / List -->
+          <div id="dispatchUnitsListContainer" class="max-h-48 overflow-y-auto custom-scrollbar space-y-1.5 pr-1 border border-slate-800/80 rounded-xl p-2 bg-slate-950/40">
+            <!-- Dynamic unit rows inserted here -->
+          </div>
+        </div>
+
+        <!-- Directive Note -->
+        <div>
+          <label class="block text-slate-300 mb-1 font-semibold flex items-center justify-between">
+            <span class="flex items-center gap-1.5">
+              <i class="fa-solid fa-comment-dots text-amber-400"></i>
+              <span>คำสั่งการ / ข้อกำหนดเฉพาะหน้า</span>
+            </span>
+            <span class="text-[10px] text-slate-500">จะส่งเข้า LINE และแจ้งเตือนในแอป</span>
+          </label>
+          <textarea id="dispatchDirectiveNote" rows="2" placeholder="เช่น ให้ชุดปฏิบัติการเร่งรัดเข้าเคลียร์พื้นที่และช่วยเหลือประชาชนทันที" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 text-xs">ให้ชุดปฏิบัติการเร่งรัดเข้าตรวจสอบและช่วยเหลือประชาชน ณ จุดเกิดเหตุโดยด่วน</textarea>
+          
+          <!-- Quick Directive Chips -->
+          <div class="flex items-center gap-1.5 flex-wrap mt-1.5">
+            <span class="text-[10px] text-slate-500">คำสั่งด่วน:</span>
+            <button type="button" onclick="setDispatchDirective('⚡ เร่งรัดเข้าตรวจสอบและช่วยเหลือประชาชน ณ จุดเกิดเหตุโดยด่วน')" class="px-2 py-0.5 rounded text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer">⚡ ช่วยเหลือด่วน</button>
+            <button type="button" onclick="setDispatchDirective('🚤 นำเรือท้องแบนและอุปกรณ์ชูชีพเข้าช่วยอพยพผู้ประสบภัย')" class="px-2 py-0.5 rounded text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer">🚤 นำเรือเข้าอพยพ</button>
+            <button type="button" onclick="setDispatchDirective('🚧 ทำการปิดกั้นพื้นที่อันตรายและเบี่ยงการจราจร')" class="px-2 py-0.5 rounded text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer">🚧 ปิดกั้นพื้นที่</button>
+            <button type="button" onclick="setDispatchDirective('📦 ลำเลียงถุงยังชีพ น้ำดื่ม และเวชภัณฑ์เข้าแจกจ่าย')" class="px-2 py-0.5 rounded text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer">📦 ส่งถุงยังชีพ</button>
+          </div>
+        </div>
+
+        <!-- Footer Actions -->
+        <div class="flex items-center justify-between pt-2 border-t border-slate-800">
+          <p class="text-[10px] text-slate-400 flex items-center gap-1">
+            <i class="fa-brands fa-line text-emerald-400 text-xs"></i>
+            <span>ส่งข้อความ Push Alert + พิกัดนำทาง GPS อัตโนมัติ</span>
+          </p>
+          <div class="flex items-center gap-2">
+            <button type="button" onclick="closeIncidentDispatchModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer font-medium">
+              ยกเลิก
+            </button>
+            <button type="submit" id="btnConfirmDispatch" class="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold cursor-pointer shadow-lg shadow-rose-900/40 flex items-center gap-1.5 transition-all">
+              <i class="fa-solid fa-paper-plane"></i>
+              <span>ยืนยันสั่งการ & ส่งแจ้งเตือน</span>
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- ========================================================================= -->
   <!-- 🚨 TOC OFFICIAL INCIDENT REPORT MODAL (ศูนย์ควบคุมเปิดใบแจ้งเหตุใหม่) -->
   <!-- ========================================================================= -->
   <div id="createIncidentModal" class="hidden fixed inset-0 z-50 items-center justify-center p-3 bg-slate-950/80 backdrop-blur-md" style="display: none;">
@@ -1967,6 +2070,7 @@
         } else {
           processData([]);
         }
+        fetchDispatchedList();
       } catch (err) {
         console.error("Error fetching data:", err);
       } finally {
@@ -2648,10 +2752,19 @@
         const safeTime = encodeURIComponent(item.timestamp || '');
         const safeTitle = encodeURIComponent(item.title || '');
 
+        const incKey = `${item.timestamp || ''}_${item.title || ''}`;
+        const dispInfo = dispatchedIncidents[incKey];
+        let dispBadge = '';
+        if (dispInfo) {
+          const assignedCount = dispInfo.dispatch_all ? 'ทุกคน' : `${(dispInfo.assigned_units || []).length} นาย`;
+          dispBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 flex items-center gap-1 shadow-sm"><i class="fa-solid fa-bullhorn text-[9px]"></i> สั่งการแล้ว (${assignedCount})</span>`;
+        }
+
         const card = document.createElement('div');
         card.className = `p-3 rounded-xl bg-slate-900/90 border ${cardAccent} hover:bg-slate-850 transition-all shadow-md group relative cursor-pointer`;
         card.onclick = () => {
           if (hasCoords) flyToIncident(item.lat, item.lon, item.title);
+          triggerDispatchForIncident(safeTitle, safeTime);
         };
 
         card.innerHTML = `
@@ -2662,6 +2775,7 @@
               </span>
               ${urgBadge}
               ${statBadge}
+              ${dispBadge}
             </div>
             <span class="text-[10px] text-slate-400 font-mono flex items-center gap-1 shrink-0" title="${item.timestamp}">
               <i class="fa-regular fa-clock text-slate-500"></i> ${formatRelativeTime(item.timestamp)}
@@ -2680,13 +2794,16 @@
           </div>
 
           <div class="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-800/80 text-[11px] text-slate-400">
-            <span class="flex items-center gap-1 truncate max-w-[140px]" title="${item.reporter}">
+            <span class="flex items-center gap-1 truncate max-w-[130px]" title="${item.reporter}">
               <i class="fa-solid fa-user text-slate-500 text-[10px]"></i> ${item.reporter || 'ประชาชน'}
             </span>
             <div class="flex items-center gap-1.5 shrink-0" onclick="event.stopPropagation()">
+              <button onclick="triggerDispatchForIncident('${safeTitle}', '${safeTime}')" class="px-2.5 py-0.5 rounded-lg bg-rose-600/30 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/40 text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer shadow-sm" title="สั่งการ / มอบหมายกำลังพลไประงับเหตุ">
+                <i class="fa-solid fa-bullhorn text-[10px]"></i> สั่งการ
+              </button>
               ${hasCoords ? `
                 <button onclick="flyToIncident(${item.lat}, ${item.lon}, '${(item.title || '').replace(/'/g, "\\'")}')" class="px-2.5 py-0.5 rounded-lg bg-sky-600/30 hover:bg-sky-600 text-sky-300 hover:text-white border border-sky-500/40 text-[10px] font-semibold flex items-center gap-1 transition-all cursor-pointer shadow-sm" title="ซูมและจัดกึ่งกลางบนแผนที่">
-                  <i class="fa-solid fa-crosshairs"></i> ซูมแผนที่
+                  <i class="fa-solid fa-crosshairs"></i> ซูม
                 </button>
               ` : `
                 <span class="text-[10px] text-slate-500 italic">ไม่มีพิกัด</span>
@@ -2797,11 +2914,14 @@
               <span>${formatRelativeTime(item.timestamp)}</span>
             </div>
             <div style="margin-top: 8px; display: flex; gap: 4px;">
+              <button onclick="triggerDispatchForIncident('${encodeURIComponent(item.title || '')}', '${encodeURIComponent(item.timestamp || '')}')" style="flex: 1.2; background: #e11d48; color: #fff; font-size: 10px; font-weight: bold; padding: 4px 6px; border-radius: 6px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; box-shadow: 0 2px 6px rgba(225,29,72,0.4);">
+                <i class="fa-solid fa-bullhorn"></i> สั่งการ
+              </button>
               <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}" target="_blank" style="flex: 1; text-align: center; background: #0284c7; color: #fff; font-size: 10px; font-weight: bold; padding: 4px 6px; border-radius: 6px; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 4px;">
                 <i class="fa-solid fa-diamond-turn-right"></i> นำทาง
               </a>
-              <button onclick="zoomToIncident(${lat}, ${lon})" style="flex: 1; background: #334155; color: #fff; font-size: 10px; font-weight: bold; padding: 4px 6px; border-radius: 6px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
-                <i class="fa-solid fa-magnifying-glass-plus"></i> ซูมใกล้
+              <button onclick="zoomToIncident(${lat}, ${lon})" style="flex: 0.8; background: #334155; color: #fff; font-size: 10px; font-weight: bold; padding: 4px 6px; border-radius: 6px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                <i class="fa-solid fa-magnifying-glass-plus"></i> ซูม
               </button>
             </div>
           </div>
@@ -2848,6 +2968,400 @@
     function zoomToIncident(lat, lon) {
       if (tacticalMap) {
         tacticalMap.setView([lat, lon], 18, { animate: true });
+      }
+    }
+
+    // =========================================================================
+    // 🚨 TACTICAL INCIDENT DISPATCH CONTROLLER (ระบบสั่งการมอบหมายกำลังพล)
+    // =========================================================================
+    let selectedIncidentForDispatch = null;
+    let dispatchedIncidents = {};
+    let isDispatchAllSelected = false;
+    let currentDispatchAvailableUnits = [];
+
+    function calculateDistanceKm(lat1, lon1, lat2, lon2) {
+      const p1 = parseFloat(lat1);
+      const p2 = parseFloat(lon1);
+      const p3 = parseFloat(lat2);
+      const p4 = parseFloat(lon2);
+      if (isNaN(p1) || isNaN(p2) || isNaN(p3) || isNaN(p4)) return null;
+      if (p1 === 0 || p2 === 0 || p3 === 0 || p4 === 0) return null;
+      const R = 6371; // Earth radius in km
+      const dLat = (p3 - p1) * Math.PI / 180;
+      const dLon = (p4 - p2) * Math.PI / 180;
+      const a = 
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(p1 * Math.PI / 180) * Math.cos(p3 * Math.PI / 180) * 
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return (R * c).toFixed(1);
+    }
+
+    async function fetchDispatchedList() {
+      try {
+        const res = await fetch(`${API_BASE}/api/incident/dispatched-list`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.dispatched) {
+            dispatchedIncidents = data.dispatched;
+            renderTacticalIncidentFeed();
+          }
+        }
+      } catch (err) {
+        console.warn('Could not fetch dispatched list:', err);
+      }
+    }
+
+    function triggerDispatchForIncident(safeTitle, safeTime) {
+      const decodedTitle = decodeURIComponent(safeTitle || '');
+      const decodedTime = decodeURIComponent(safeTime || '');
+      const incident = rawIncidents.find(item => 
+        (item.title || '').trim() === decodedTitle.trim() && 
+        (item.timestamp || '').trim() === decodedTime.trim()
+      ) || rawIncidents.find(item => (item.title || '').trim() === decodedTitle.trim());
+
+      if (!incident) {
+        showToast('⚠️ ไม่พบข้อมูลเหตุการณ์ที่เลือก');
+        return;
+      }
+      openIncidentDispatchModal(incident);
+    }
+
+    function openIncidentDispatchModal(incident) {
+      selectedIncidentForDispatch = incident;
+      isDispatchAllSelected = false;
+
+      const modal = document.getElementById('incidentDispatchModal');
+      const banner = document.getElementById('dispatchIncidentBanner');
+      const searchInput = document.getElementById('dispatchUnitSearchInput');
+      const directiveInput = document.getElementById('dispatchDirectiveNote');
+      const selectAllBtnText = document.getElementById('selectAllBtnText');
+
+      if (!modal || !banner) return;
+
+      if (searchInput) searchInput.value = '';
+      if (directiveInput && !directiveInput.value) {
+        directiveInput.value = 'ให้ชุดปฏิบัติการเร่งรัดเข้าตรวจสอบและช่วยเหลือประชาชน ณ จุดเกิดเหตุโดยด่วน';
+      }
+      if (selectAllBtnText) selectAllBtnText.innerText = 'เลือกทั้งหมด (Dispatch All)';
+
+      const isCrit = (incident.urgency || '').includes('วิกฤต');
+      const urgColor = isCrit ? 'text-rose-400 bg-rose-500/20 border-rose-500/30' : 'text-amber-400 bg-amber-500/20 border-amber-500/30';
+      const incKey = `${incident.timestamp || ''}_${incident.title || ''}`;
+      const dispInfo = dispatchedIncidents[incKey];
+
+      let dispStatusHtml = '';
+      if (dispInfo) {
+        const unitsStr = dispInfo.dispatch_all ? 'แจ้งกำลังพลทุกคน' : (dispInfo.assigned_units || []).map(u => u.commander || u.unit_id).join(', ');
+        dispStatusHtml = `
+          <div class="mt-2 p-2 rounded-xl bg-purple-950/40 border border-purple-500/40 text-[11px] text-purple-300 flex items-start gap-2">
+            <i class="fa-solid fa-clock-rotate-left mt-0.5 text-purple-400"></i>
+            <div>
+              <span class="font-bold">สั่งการไปแล้วเมื่อ: ${dispInfo.dispatched_at || '-'}</span>
+              <div class="text-[10px] text-purple-300/80">มอบหมาย: ${unitsStr || '-'}</div>
+              <div class="text-[10px] text-purple-300/70 italic mt-0.5">"${dispInfo.directive || '-'}"</div>
+            </div>
+          </div>
+        `;
+      }
+
+      banner.innerHTML = `
+        <div class="flex items-start justify-between gap-2">
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">
+              <i class="fa-solid fa-folder-open mr-1"></i>${incident.raw_type || incident.incident_type || 'เหตุการณ์ทั่วไป'}
+            </span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${urgColor} border">
+              ${incident.urgency || '🟡 ปานกลาง'}
+            </span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-700">
+              ${incident.status || '⏳ รอดำเนินการ'}
+            </span>
+          </div>
+          <span class="text-[10px] text-slate-400 font-mono">
+            ${incident.timestamp ? formatRelativeTime(incident.timestamp) : ''}
+          </span>
+        </div>
+        <h4 class="font-bold text-white text-sm line-clamp-2">${incident.title}</h4>
+        <div class="flex items-center justify-between text-[11px] text-slate-300 pt-1 border-t border-slate-800/80">
+          <span class="truncate flex items-center gap-1 max-w-[70%]" title="${incident.address || ''}">
+            <i class="fa-solid fa-location-dot text-rose-400 text-xs shrink-0"></i>
+            <span class="truncate">${incident.address || 'ไม่ระบุสถานที่'}</span>
+          </span>
+          ${(incident.lat && incident.lon && incident.lat !== 0) ? `
+            <a href="https://www.google.com/maps/dir/?api=1&destination=${incident.lat},${incident.lon}" target="_blank" class="text-sky-400 hover:text-sky-300 font-medium flex items-center gap-1">
+              <i class="fa-solid fa-diamond-turn-right"></i> แผนที่
+            </a>
+          ` : '<span class="text-slate-500 text-[10px]">ไม่มีพิกัด</span>'}
+        </div>
+        ${dispStatusHtml}
+      `;
+
+      compileAndRenderDispatchUnits();
+      modal.classList.remove('hidden');
+      modal.style.display = 'flex';
+    }
+
+    function closeIncidentDispatchModal() {
+      const modal = document.getElementById('incidentDispatchModal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+      }
+      selectedIncidentForDispatch = null;
+    }
+
+    function setDispatchDirective(text) {
+      const ta = document.getElementById('dispatchDirectiveNote');
+      if (ta) ta.value = text;
+    }
+
+    function compileAndRenderDispatchUnits() {
+      const incLat = selectedIncidentForDispatch ? parseFloat(selectedIncidentForDispatch.lat) : NaN;
+      const incLon = selectedIncidentForDispatch ? parseFloat(selectedIncidentForDispatch.lon) : NaN;
+      const hasIncCoords = !isNaN(incLat) && !isNaN(incLon) && incLat !== 0;
+
+      const unitMap = new Map();
+
+      // 1. Add active live telemetry units
+      if (Array.isArray(activeTacticalUnits)) {
+        activeTacticalUnits.forEach((u, i) => {
+          const key = (u.phone && u.phone.trim() !== '') ? u.phone.trim() : (u.unit_id || `UNIT-${i}`);
+          const uLat = parseFloat(u.latitude || u.lat);
+          const uLon = parseFloat(u.longitude || u.lon);
+          const distKm = (hasIncCoords && !isNaN(uLat) && !isNaN(uLon) && uLat !== 0) 
+            ? calculateDistanceKm(incLat, incLon, uLat, uLon) 
+            : null;
+
+          unitMap.set(key, {
+            unit_id: u.unit_id || `UNIT-${i+1}`,
+            commander: u.commander || u.unit_name || 'จนท.ชุดปฏิบัติการ',
+            phone: u.phone || '',
+            vehicle: u.vehicle || 'ยานพาหนะชุดปฏิบัติการ',
+            role: u.role || 'ชุดปฏิบัติการสนาม',
+            status: u.status || 'ACTIVE',
+            isLive: true,
+            distKm: distKm,
+            lat: uLat,
+            lon: uLon,
+            raw: u
+          });
+        });
+      }
+
+      // 2. Supplement with registered officers
+      if (Array.isArray(allRegisteredUsers)) {
+        allRegisteredUsers.forEach(officer => {
+          const key = officer.phone ? officer.phone.trim() : (officer.name || '');
+          if (!key) return;
+          if (!unitMap.has(key)) {
+            unitMap.set(key, {
+              unit_id: officer.phone || officer.name,
+              commander: officer.name || 'เจ้าหน้าที่',
+              phone: officer.phone || '',
+              vehicle: officer.responsible_area ? `พื้นที่: ${officer.responsible_area}` : 'ประจำการ',
+              role: officer.role || officer.team_name || 'เจ้าหน้าที่',
+              status: 'OFFLINE',
+              isLive: false,
+              distKm: null,
+              raw: officer
+            });
+          }
+        });
+      }
+
+      let unitsList = Array.from(unitMap.values());
+
+      // Sort: closest distance first, then live active, then others
+      unitsList.sort((a, b) => {
+        if (a.distKm !== null && b.distKm !== null) return parseFloat(a.distKm) - parseFloat(b.distKm);
+        if (a.distKm !== null) return -1;
+        if (b.distKm !== null) return 1;
+        if (a.isLive && !b.isLive) return -1;
+        if (!a.isLive && b.isLive) return 1;
+        return (a.commander || '').localeCompare(b.commander || '');
+      });
+
+      currentDispatchAvailableUnits = unitsList;
+      renderDispatchUnitsList();
+      updateDispatchSelectedCount();
+    }
+
+    function renderDispatchUnitsList() {
+      const container = document.getElementById('dispatchUnitsListContainer');
+      const searchQuery = (document.getElementById('dispatchUnitSearchInput')?.value || '').toLowerCase().trim();
+      if (!container) return;
+
+      const filtered = currentDispatchAvailableUnits.filter(u => {
+        if (!searchQuery) return true;
+        const text = `${u.commander} ${u.unit_id} ${u.phone} ${u.role} ${u.vehicle}`.toLowerCase();
+        return text.includes(searchQuery);
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-6 text-slate-500 text-xs">
+            <i class="fa-solid fa-user-slash text-2xl mb-1 text-slate-600"></i>
+            <p>ไม่พบกำลังพลตามคำค้นหา</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = filtered.map((u, i) => {
+        const checkedAttr = isDispatchAllSelected ? 'checked' : '';
+        const isLiveBadge = u.isLive 
+          ? '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>' 
+          : '<span class="w-2 h-2 rounded-full bg-slate-600"></span>';
+
+        let distBadge = '';
+        if (u.distKm !== null) {
+          const numDist = parseFloat(u.distKm);
+          const distColor = numDist <= 5 ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30' : (numDist <= 15 ? 'text-amber-400 bg-amber-500/10 border-amber-500/30' : 'text-slate-400 bg-slate-800 border-slate-700');
+          distBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold border ${distColor} flex items-center gap-1 shrink-0"><i class="fa-solid fa-location-arrow text-[9px]"></i> ${u.distKm} กม.</span>`;
+        } else {
+          distBadge = `<span class="px-2 py-0.5 rounded text-[10px] text-slate-500 bg-slate-900 border border-slate-800 shrink-0">ไม่พบพิกัดสด</span>`;
+        }
+
+        return `
+          <label class="flex items-center justify-between p-2 rounded-xl bg-slate-900/90 hover:bg-slate-850 border border-slate-800 hover:border-slate-700 transition-all cursor-pointer group">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <input type="checkbox" name="dispatchUnitCheck" value="${u.phone || u.unit_id}" data-commander="${(u.commander || '').replace(/"/g, '&quot;')}" data-phone="${u.phone || ''}" data-unit-id="${u.unit_id || ''}" onchange="updateDispatchSelectedCount()" class="w-4 h-4 rounded border-slate-700 text-rose-600 focus:ring-rose-500 bg-slate-950 cursor-pointer shrink-0" ${checkedAttr}>
+              <div class="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center text-slate-300 font-bold text-xs shrink-0 group-hover:bg-slate-700 transition-colors">
+                <i class="fa-solid fa-person-military-pointing text-sky-400 text-xs"></i>
+              </div>
+              <div class="min-w-0">
+                <div class="flex items-center gap-1.5">
+                  <span class="font-bold text-white text-xs truncate group-hover:text-sky-300 transition-colors">${u.commander}</span>
+                  ${isLiveBadge}
+                  <span class="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 border border-slate-700/60 font-mono">${u.unit_id}</span>
+                </div>
+                <div class="text-[10px] text-slate-400 truncate flex items-center gap-2 mt-0.5">
+                  <span>${u.role}</span>
+                  ${u.phone ? `<span class="font-mono text-slate-500">📞 ${u.phone}</span>` : ''}
+                </div>
+              </div>
+            </div>
+            ${distBadge}
+          </label>
+        `;
+      }).join('');
+    }
+
+    function toggleSelectAllDispatchUnits() {
+      isDispatchAllSelected = !isDispatchAllSelected;
+      const checkboxes = document.querySelectorAll('input[name="dispatchUnitCheck"]');
+      checkboxes.forEach(cb => cb.checked = isDispatchAllSelected);
+
+      const btnText = document.getElementById('selectAllBtnText');
+      if (btnText) {
+        btnText.innerText = isDispatchAllSelected ? 'ยกเลิกเลือกทั้งหมด' : 'เลือกทั้งหมด (Dispatch All)';
+      }
+      updateDispatchSelectedCount();
+    }
+
+    function updateDispatchSelectedCount() {
+      const checkboxes = document.querySelectorAll('input[name="dispatchUnitCheck"]:checked');
+      const count = checkboxes.length;
+      const total = currentDispatchAvailableUnits.length;
+      const badge = document.getElementById('dispatchSelectedCountBadge');
+      const btnText = document.getElementById('selectAllBtnText');
+
+      if (isDispatchAllSelected) {
+        if (badge) badge.innerText = `เลือกทั้งหมด (${total} นาย)`;
+      } else {
+        if (badge) badge.innerText = `เลือกแล้ว ${count} นาย`;
+        if (btnText) btnText.innerText = 'เลือกทั้งหมด (Dispatch All)';
+      }
+    }
+
+    function filterDispatchUnitsList() {
+      renderDispatchUnitsList();
+    }
+
+    async function handleExecuteDispatch(event) {
+      event.preventDefault();
+      if (!selectedIncidentForDispatch) {
+        showToast('⚠️ ไม่พบเหตุการณ์เป้าหมาย');
+        return;
+      }
+
+      const checkboxes = Array.from(document.querySelectorAll('input[name="dispatchUnitCheck"]:checked'));
+      if (!isDispatchAllSelected && checkboxes.length === 0) {
+        showToast('⚠️ กรุณาเลือกกำลังพลอย่างน้อย 1 นาย หรือกด "เลือกทั้งหมด"');
+        return;
+      }
+
+      const directive = (document.getElementById('dispatchDirectiveNote')?.value || '').trim();
+      const targetUnits = isDispatchAllSelected ? [] : checkboxes.map(cb => ({
+        unit_id: cb.dataset.unitId || cb.value,
+        commander: cb.dataset.commander || '',
+        phone: cb.dataset.phone || cb.value
+      }));
+
+      const submitBtn = document.getElementById('btnConfirmDispatch');
+      const prevBtnHtml = submitBtn ? submitBtn.innerHTML : '';
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> กำลังสั่งการ...';
+      }
+
+      try {
+        const payload = {
+          incident_title: selectedIncidentForDispatch.title || '',
+          incident_timestamp: selectedIncidentForDispatch.timestamp || '',
+          incident_type: selectedIncidentForDispatch.incident_type || selectedIncidentForDispatch.raw_type || 'ทั่วไป',
+          urgency: selectedIncidentForDispatch.urgency || '🟡 ปานกลาง',
+          location: selectedIncidentForDispatch.address || '',
+          latitude: selectedIncidentForDispatch.lat || 0,
+          longitude: selectedIncidentForDispatch.lon || 0,
+          directive: directive,
+          units: targetUnits,
+          dispatch_all: isDispatchAllSelected
+        };
+
+        const res = await fetch(`${API_BASE}/api/incident/dispatch`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (res.ok && data.status === 'success') {
+          showToast(`🚀 ${data.message || 'สั่งการกำลังพลเรียบร้อย'}`);
+          
+          // Cache in local dispatchedIncidents dictionary
+          const incKey = `${selectedIncidentForDispatch.timestamp || ''}_${selectedIncidentForDispatch.title || ''}`;
+          dispatchedIncidents[incKey] = data.entry || {
+            dispatched_at: new Date().toLocaleString('th-TH'),
+            directive: directive,
+            dispatch_all: isDispatchAllSelected,
+            assigned_units: targetUnits
+          };
+
+          // Update status in rawIncidents locally so UI reflects change immediately
+          const localItem = rawIncidents.find(item => 
+            (item.title || '').trim() === (selectedIncidentForDispatch.title || '').trim() &&
+            (item.timestamp || '').trim() === (selectedIncidentForDispatch.timestamp || '').trim()
+          );
+          if (localItem) {
+            localItem.status = '🟡 กำลังช่วยเหลือ (มอบหมายแล้ว)';
+          }
+
+          renderTacticalIncidentFeed();
+          renderTacticalIncidentMarkers();
+          closeIncidentDispatchModal();
+        } else {
+          showToast(`❌ เกิดข้อผิดพลาด: ${data.message || 'ไม่สามารถสั่งการได้'}`);
+        }
+      } catch (err) {
+        console.error('Dispatch error:', err);
+        showToast(`❌ เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์: ${err.message}`);
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = prevBtnHtml;
+        }
       }
     }
 
