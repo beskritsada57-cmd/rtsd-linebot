@@ -217,6 +217,16 @@
             </label>
             <input type="text" id="userPosition" placeholder="เช่น ผบ.ร้อย / นายทหารแผนที่ / หัวหน้าชุด" class="w-full px-3 py-2.5 rounded-xl bg-slate-800/90 border border-slate-600 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition">
           </div>
+
+          <!-- พื้นที่รับผิดชอบ / เขตปฏิบัติการ -->
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-medium text-slate-300 mb-1 flex items-center gap-1.5">
+              <i class="fa-solid fa-map-location-dot text-cyan-400"></i>
+              <span>พื้นที่รับผิดชอบ / เขตปฏิบัติการ</span>
+            </label>
+            <input type="text" id="userArea" value="เชียงราย (ทุกอำเภอ)" placeholder="เช่น เชียงราย (ทุกอำเภอ), อ.แม่สาย, ภาคเหนือ, ส่วนกลาง" class="w-full px-3 py-2.5 rounded-xl bg-slate-800/90 border border-slate-600 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition">
+            <p class="text-[11px] text-slate-400 mt-1">สามารถระบุเป็นอำเภอเดียว, หลายอำเภอ, ทั้งจังหวัด หรือพื้นที่ระดับภาคได้</p>
+          </div>
         </div>
       </div>
 
@@ -468,6 +478,7 @@
       }
 
       const position = document.getElementById('userPosition').value.trim() || '-';
+      const area = (document.getElementById('userArea') ? document.getElementById('userArea').value.trim() : '') || 'เชียงราย (ทุกอำเภอ)';
       const phone = document.getElementById('userPhone').value.trim().replace(/-/g, '');
       const lineId = document.getElementById('userLineId').value.trim() || '-';
       const role = 'ผู้ใช้งานทั่วไป';
@@ -491,6 +502,8 @@
           name_only: name,
           unit: unit,
           position: position,
+          area: area,
+          district: area,
           phone_number: phone,
           line_user_id: lineId,
           role: role,

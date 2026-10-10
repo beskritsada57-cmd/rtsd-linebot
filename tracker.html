@@ -84,11 +84,30 @@
     </div>
 
     <!-- UNIT PROFILE SETUP -->
-    <div class="bg-tactical-card border border-slate-800 rounded-2xl p-4 shadow-xl space-y-2.5 text-xs">
+    <div class="bg-tactical-card border border-slate-800 rounded-2xl p-4 shadow-xl space-y-3 text-xs">
       <div class="flex items-center justify-between text-sky-400 font-semibold uppercase tracking-wider">
-        <span class="flex items-center gap-1.5"><i class="fa-solid fa-id-card"></i> ข้อมูลผู้ปฏิบัติการ</span>
+        <span class="flex items-center gap-1.5"><i class="fa-solid fa-id-card"></i> ข้อมูลผู้ปฏิบัติการ & รูปโปรไฟล์</span>
         <span id="wakeLockStatus" class="text-[10px] text-slate-500 normal-case"><i class="fa-solid fa-lock text-[9px]"></i> Screen Awake</span>
       </div>
+
+      <!-- Avatar Preview & Photo Picker -->
+      <div class="flex items-center gap-3 bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
+        <div class="relative shrink-0">
+          <img id="trackerAvatarPreview" src="https://ui-avatars.com/api/?name=RTSD&background=0284c7&color=fff&size=128" alt="โปรไฟล์" class="w-14 h-14 rounded-xl object-cover border-2 border-emerald-500 shadow-md">
+          <label for="trackerPhotoFileInput" class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center cursor-pointer shadow text-[10px]" title="เลือกรูปถ่ายจากเครื่อง">
+            <i class="fa-solid fa-camera"></i>
+          </label>
+          <input type="file" id="trackerPhotoFileInput" accept="image/*" class="hidden" onchange="handleTrackerPhotoUpload(event)">
+        </div>
+        <div class="min-w-0 flex-1 space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="text-slate-300 font-semibold text-xs">รูปโปรไฟล์ผู้รายงาน</span>
+            <span id="photoStatusBadge" class="text-[10px] text-slate-500">พร้อมส่งระบบ</span>
+          </div>
+          <input type="text" id="trackerPhotoUrlInput" oninput="handleTrackerPhotoUrlChange(this.value)" placeholder="วาง URL รูปภาพ หรือกดกล้องถ่าย..." class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-[11px] text-white focus:outline-none focus:border-emerald-500">
+        </div>
+      </div>
+
       <div class="grid grid-cols-2 gap-2">
         <div>
           <label class="text-slate-400 block mb-1">รหัสชุด / หมายเลข:</label>
@@ -96,12 +115,38 @@
         </div>
         <div>
           <label class="text-slate-400 block mb-1">ยศ-ชื่อ / ผู้ถือเครื่อง:</label>
-          <input type="text" id="commander" value="กำลังพล RTSD" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-white focus:outline-none focus:border-emerald-500">
+          <input type="text" id="commander" value="กำลังพล RTSD" oninput="updateTrackerAvatarName(this.value)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-white focus:outline-none focus:border-emerald-500">
         </div>
       </div>
       <div>
         <label class="text-slate-400 block mb-1">สังกัดหน่วยงาน / ภารกิจ:</label>
         <input type="text" id="unitName" value="ชุดปฏิบัติการช่วยเหลือผู้ประสบภัย" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500">
+      </div>
+      <div class="grid grid-cols-2 gap-2 mt-2">
+        <div>
+          <label class="text-slate-400 block mb-1">👥 ขนาดของหน่วย:</label>
+          <select id="unitSize" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2 py-2 text-white text-xs focus:outline-none focus:border-emerald-500">
+            <option value="ชุดปฏิบัติการขนาดเล็ก (3-5 นาย)" selected>ชุดเล็ก (3-5 นาย)</option>
+            <option value="หมู่ / หมวดปฏิบัติการ (6-15 นาย)">หมู่/หมวด (6-15 นาย)</option>
+            <option value="กองร้อย / ชุดเคลื่อนที่เร็ว (16-50 นาย)">กองร้อย (16-50 นาย)</option>
+            <option value="กองพัน / บก.ควบคุม (50+ นาย)">กองพัน (50+ นาย)</option>
+            <option value="เจ้าหน้าที่เดี่ยว / ลาดตระเวนคู่ (1-2 นาย)">เดี่ยว/คู่ (1-2 นาย)</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-slate-400 block mb-1">🚜 ยานพาหนะหลัก:</label>
+          <select id="vehicleType" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2 py-2 text-white text-xs focus:outline-none focus:border-emerald-500">
+            <option value="🚗 รถกระบะตรวจการณ์ 4x4" selected>🚗 รถกระบะ 4x4</option>
+            <option value="🚚 รถบรรทุกทหาร 6 ล้อ">🚚 รถบรรทุก 6 ล้อ</option>
+            <option value="🚑 รถพยาบาล / กู้ภัยฉุกเฉิน">🚑 รถพยาบาล/กู้ภัย</option>
+            <option value="🏍️ รถจักรยานยนต์ลาดตระเวน">🏍️ มอเตอร์ไซค์</option>
+            <option value="🚤 เรือท้องแบนกู้ภัย">🚤 เรือท้องแบน</option>
+            <option value="🛶 เรือยางติดเครื่องยนต์">🛶 เรือยางเครื่องยนต์</option>
+            <option value="🛥️ เรือเร็วตรวจการณ์">🛥️ เรือเร็วตรวจการณ์</option>
+            <option value="🚁 โดรนสำรวจ UAV">🚁 โดรนสำรวจ</option>
+            <option value="🚶 ชุดเดินเท้าลาดตระเวน">🚶 เดินเท้า</option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -262,15 +307,95 @@
     let currentCoords = { lat: 13.7857, lon: 100.5912, speed: 0, heading: 0, accuracy: 10 };
     let pingCount = 0;
     let lastTapTime = 0;
+    let userProfilePic = "";
+
+    function getDirectImageUrl(url) {
+      if (!url || url === '-' || url.trim() === '') return null;
+      if (url.includes('/drive/folders/')) return null;
+      const fileMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+      if (fileMatch) {
+        return `https://lh3.googleusercontent.com/d/${fileMatch[1]}`;
+      }
+      return url;
+    }
+
+    function handleTrackerPhotoUpload(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        userProfilePic = e.target.result;
+        const img = document.getElementById('trackerAvatarPreview');
+        if (img) img.src = userProfilePic;
+        const badge = document.getElementById('photoStatusBadge');
+        if (badge) {
+          badge.innerText = 'เลือกรูปถ่ายแล้ว ✅';
+          badge.className = 'text-[10px] text-emerald-400 font-bold';
+        }
+        try {
+          const savedUserStr = localStorage.getItem('rtsd_user') || sessionStorage.getItem('rtsd_user');
+          if (savedUserStr) {
+            const u = JSON.parse(savedUserStr);
+            u.picture_profile = userProfilePic;
+            localStorage.setItem('rtsd_user', JSON.stringify(u));
+          }
+        } catch(err) {}
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function handleTrackerPhotoUrlChange(val) {
+      if (!val || val.trim() === '') return;
+      userProfilePic = getDirectImageUrl(val.trim()) || val.trim();
+      const img = document.getElementById('trackerAvatarPreview');
+      if (img) img.src = userProfilePic;
+      const badge = document.getElementById('photoStatusBadge');
+      if (badge) {
+        badge.innerText = 'URL รูปภาพ ✅';
+        badge.className = 'text-[10px] text-emerald-400 font-bold';
+      }
+      try {
+        const savedUserStr = localStorage.getItem('rtsd_user') || sessionStorage.getItem('rtsd_user');
+        if (savedUserStr) {
+          const u = JSON.parse(savedUserStr);
+          u.picture_profile = userProfilePic;
+          localStorage.setItem('rtsd_user', JSON.stringify(u));
+        }
+      } catch(err) {}
+    }
+
+    function updateTrackerAvatarName(name) {
+      if (!userProfilePic) {
+        const img = document.getElementById('trackerAvatarPreview');
+        if (img) {
+          img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'RTSD')}&background=0284c7&color=fff&size=128`;
+        }
+      }
+    }
 
     // Load registered user from localStorage if exists
     try {
       const savedUserStr = localStorage.getItem('rtsd_user') || sessionStorage.getItem('rtsd_user');
       if (savedUserStr) {
         const u = JSON.parse(savedUserStr);
-        if (u.name) document.getElementById('commander').value = u.name;
+        if (u.name) {
+          document.getElementById('commander').value = u.name;
+          updateTrackerAvatarName(u.name);
+        }
         if (u.unit) document.getElementById('unitName').value = u.unit;
         if (u.phone) document.getElementById('unitId').value = 'RTSD-' + u.phone.slice(-4);
+        if (u.picture_profile && u.picture_profile !== '-') {
+          userProfilePic = getDirectImageUrl(u.picture_profile) || u.picture_profile;
+          const img = document.getElementById('trackerAvatarPreview');
+          if (img) img.src = userProfilePic;
+          const urlInput = document.getElementById('trackerPhotoUrlInput');
+          if (urlInput) urlInput.value = userProfilePic;
+          const badge = document.getElementById('photoStatusBadge');
+          if (badge) {
+            badge.innerText = 'พร้อมส่งระบบ ✅';
+            badge.className = 'text-[10px] text-emerald-400 font-bold';
+          }
+        }
       }
     } catch(e) {}
 
@@ -432,6 +557,9 @@
         accuracy: currentCoords.accuracy,
         battery: battery,
         status: status,
+        unit_size: document.getElementById('unitSize') ? document.getElementById('unitSize').value : 'ชุดปฏิบัติการขนาดเล็ก',
+        vehicle_type: document.getElementById('vehicleType') ? document.getElementById('vehicleType').value : '🚗 รถกระบะตรวจการณ์ 4x4',
+        picture_profile: userProfilePic || '-',
         timestamp: new Date().toISOString()
       };
 

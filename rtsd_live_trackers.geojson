@@ -1,0 +1,22 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [100.5912, 13.7857]
+      },
+      "properties": {
+        "unit_id": "UNIT-01",
+        "unit_name": "ชุดปฏิบัติการช่วยเหลือที่ 1 (รถบรรทุก 6 ล้อ)",
+        "commander": "ร.อ. สมชาย (หัวหน้าชุด)",
+        "speed": 0.0,
+        "heading": 0.0,
+        "battery": 95,
+        "status": "🟢 กำลังปฏิบัติภารกิจ",
+        "last_update": "2026-09-27 19:45:00"
+      }
+    }
+  ]
+}

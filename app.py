@@ -303,8 +303,8 @@ def fetch_registered_users():
         print(f"Error fetching users: {e}")
 
 
-def save_registered_user(line_user_id, name, phone, role="ผู้ใช้งาน", unit="-", position="-", status="อนุมัติแล้ว", purpose="-", picture_profile="-", picture_base64="", username="", unit_size="ชุดปฏิบัติการขนาดเล็ก (3-5 นาย)", vehicle_type="🚗 รถกระบะตรวจการณ์ 4x4 (Pickup 4WD)"):
-    """บันทึกข้อมูลผู้ใช้ใหม่ลง Google Sheets และแคชในหน่วยความจำ พร้อมรูปโปรไฟล์ ขนาดหน่วย และยานพาหนะ"""
+def save_registered_user(line_user_id, name, phone, role="ผู้ใช้งาน", unit="-", position="-", status="อนุมัติแล้ว", purpose="-", picture_profile="-", picture_base64="", username="", unit_size="ชุดปฏิบัติการขนาดเล็ก (3-5 นาย)", vehicle_type="🚗 รถกระบะตรวจการณ์ 4x4 (Pickup 4WD)", area="เชียงราย (ทุกอำเภอ)"):
+    """บันทึกข้อมูลผู้ใช้ใหม่ลง Google Sheets และแคชในหน่วยความจำ พร้อมรูปโปรไฟล์ ขนาดหน่วย ยานพาหนะ และพื้นที่รับผิดชอบ"""
     global registered_users, phone_to_user
     clean_phone = phone.replace("-", "").replace(" ", "")
 
@@ -334,6 +334,8 @@ def save_registered_user(line_user_id, name, phone, role="ผู้ใช้ง�
         "role": role,
         "unit": unit,
         "position": position,
+        "area": area,
+        "district": area,
         "status": status,
         "purpose": purpose,
         "picture_profile": picture_profile or "-",
@@ -590,8 +592,13 @@ def tracker_page():
 @app.route("/download/app", methods=['GET'])
 def download_app_file():
     """ให้บริการดาวน์โหลดไฟล์ RTSD Tactical Tracker Mobile App (.apk) โดยตรง"""
-    apk_filename = "RTSD_Tactical_Tracker_v1.2_FullAuth.apk"
+    apk_filename = "RTSD_Tactical_Tracker_v1.3_FullAuth.apk"
     apk_path = os.path.join(os.path.dirname(__file__), apk_filename)
+    if not os.path.exists(apk_path):
+        v12_path = os.path.join(os.path.dirname(__file__), "RTSD_Tactical_Tracker_v1.2_FullAuth.apk")
+        if os.path.exists(v12_path):
+            apk_path = v12_path
+            apk_filename = "RTSD_Tactical_Tracker_v1.2_FullAuth.apk"
     if not os.path.exists(apk_path):
         parent_apk = os.path.join(os.path.dirname(os.path.dirname(__file__)), apk_filename)
         if os.path.exists(parent_apk):
@@ -600,7 +607,7 @@ def download_app_file():
         return send_file(
             apk_path,
             as_attachment=True,
-            download_name="RTSD_Tactical_Tracker_v1.2.apk",
+            download_name="RTSD_Tactical_Tracker_v1.3.apk" if "v1.3" in apk_filename else "RTSD_Tactical_Tracker_v1.2.apk",
             mimetype="application/vnd.android.package-archive"
         )
     return jsonify({
@@ -1433,6 +1440,7 @@ def api_register_request():
     password = str(data.get("password", "") or data.get("pin", "")).strip()
     unit_size = str(data.get("unit_size", "ชุดปฏิบัติการขนาดเล็ก (3-5 นาย)")).strip()
     vehicle_type = str(data.get("vehicle_type", "🚗 รถกระบะตรวจการณ์ 4x4 (Pickup 4WD)")).strip()
+    area = str(data.get("area", "") or data.get("district", "")).strip() or "เชียงราย (ทุกอำเภอ)"
 
     if not phone or len(phone) < 9 or len(phone) > 10:
         return jsonify({"status": "error", "message": "หมายเลขโทรศัพท์ไม่ถูกต้อง (ต้องเป็น 10 หลัก)"}), 400
@@ -1474,7 +1482,8 @@ def api_register_request():
         picture_base64=picture_base64,
         username=username,
         unit_size=unit_size,
-        vehicle_type=vehicle_type
+        vehicle_type=vehicle_type,
+        area=area
     )
 
     # หากมี LINE User ID หรือเบอร์ตรงกับผู้ใช้ LINE ให้ Push แจ้งเตือนทาง LINE ทันที
@@ -1742,6 +1751,12 @@ def api_user_update_profile():
         user_info["unit_size"] = str(data["unit_size"]).strip()
     if "vehicle_type" in data and str(data["vehicle_type"]).strip():
         user_info["vehicle_type"] = str(data["vehicle_type"]).strip()
+    if "area" in data and str(data["area"]).strip():
+        user_info["area"] = str(data["area"]).strip()
+        user_info["district"] = str(data["area"]).strip()
+    elif "district" in data and str(data["district"]).strip():
+        user_info["area"] = str(data["district"]).strip()
+        user_info["district"] = str(data["district"]).strip()
 
     if "password" in data and str(data["password"]).strip():
         new_pwd = str(data["password"]).strip()
@@ -1780,6 +1795,8 @@ def api_user_update_profile():
             "name": user_info["name"],
             "unit": user_info["unit"],
             "position": user_info["position"],
+            "area": user_info.get("area", "เชียงราย (ทุกอำเภอ)"),
+            "district": user_info.get("district", "เชียงราย (ทุกอำเภอ)"),
             "picture_profile": user_info["picture_profile"],
             "unit_size": user_info.get("unit_size", "ชุดปฏิบัติการขนาดเล็ก (3-5 นาย)"),
             "vehicle_type": user_info.get("vehicle_type", "🚗 รถกระบะตรวจการณ์ 4x4 (Pickup 4WD)")

@@ -1,0 +1,21 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [100.523186, 13.736717]
+      },
+      "properties": {
+        "report_id": "INC-0001",
+        "title": "จุดแจ้งเหตุตัวอย่าง",
+        "incident_type": "น้ำท่วมขัง",
+        "address": "กรุงเทพมหานคร",
+        "reporter": "เจ้าหน้าที่ทดสอบ",
+        "status": "รอดำเนินการ",
+        "report_time": "2026-09-27 13:20:00"
+      }
+    }
+  ]
+}

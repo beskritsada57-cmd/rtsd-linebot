@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+.DS_Store
+Thumbs.db
+RTSD_Tactical_Tracker_v1.2_FullAuth.apk

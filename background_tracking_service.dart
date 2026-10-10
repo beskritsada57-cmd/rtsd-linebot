@@ -57,6 +57,8 @@ class TacticalTaskHandler extends TaskHandler {
         'battery': batteryLevel,
         'status': missionStatus,
         'active_mission': activeMission ?? '-',
+        'unit_size': profile.unitSize,
+        'vehicle_type': profile.vehicleType,
         'picture_profile': '-',
         'timestamp': DateTime.now().toIso8601String(),
       };

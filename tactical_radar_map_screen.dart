@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -6,6 +7,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../data/models/incident_model.dart';
+import '../../../../data/models/tactical_pin_model.dart';
 import '../../../../data/models/track_point_model.dart';
 import '../../../../data/models/unit_profile_model.dart';
 import '../../../../data/services/storage_service.dart';
@@ -13,6 +15,7 @@ import '../../../core/app_colors.dart';
 import '../../mission/views/active_mission_screen.dart';
 import '../widgets/radar_sweep_painter.dart';
 import '../widgets/tactical_incident_marker.dart';
+import '../widgets/tactical_pin_marker.dart';
 import '../widgets/tactical_unit_marker.dart';
 
 enum BasemapStyle { osm, satellite, dark }
@@ -20,13 +23,17 @@ enum BasemapStyle { osm, satellite, dark }
 class TacticalRadarMapScreen extends StatefulWidget {
   final UnitProfileModel? profile;
   final List<IncidentModel> incidents;
+  final List<TacticalPinModel> tacticalPins;
   final IncidentModel? targetIncident; // Optional: auto-focus on a specific incident
+  final TacticalPinModel? targetPin; // Optional: auto-focus on a specific pin
 
   const TacticalRadarMapScreen({
     super.key,
     required this.profile,
     required this.incidents,
+    this.tacticalPins = const [],
     this.targetIncident,
+    this.targetPin,
   });
 
   @override
@@ -45,7 +52,13 @@ class _TacticalRadarMapScreenState extends State<TacticalRadarMapScreen>
 
   BasemapStyle _currentBasemap = BasemapStyle.osm;
   bool _isRadarEnabled = true;
+  String _radarRangeMode = 'auto'; // 'auto', '500', '1000', '2500', '5000', '10000', '20000', '50000'
+  double _radarRangeMeters = 5000.0;
+  double _radarPixelRadius = 160.0;
   String _radarRangeLabel = '5.0 KM';
+  String _radarMidRangeLabel = '3.3 KM';
+  String _radarInnerRangeLabel = '1.7 KM';
+  bool _isRadarCenteredOnUser = false; // true = locked on user GPS coordinate, false = centered on HUD screen
 
   // Movement Trail Log (Breadcrumb Track)
   List<TrackPointModel> _trackPoints = [];
@@ -71,6 +84,173 @@ class _TacticalRadarMapScreenState extends State<TacticalRadarMapScreen>
 
     _loadTrackPoints();
     _initLocationTracking();
+  }
+
+  /// คำนวณขนาดรัศมีเรดาร์ (พิกเซล) และระยะทางจริงตามระดับการซูมของแผนที่ (Dynamic Meters per Pixel)
+  void _updateRadarDimensions(MapCamera camera) {
+    try {
+      final centerLatLng = (_isRadarCenteredOnUser && _currentPosition != null)
+          ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
+          : camera.center;
+
+      // มาตรฐานระยะเรดาร์ทางยุทธวิธี (เมตร)
+      const ranges = [
+        100.0,
+        250.0,
+        500.0,
+        1000.0,
+        2500.0,
+        5000.0,
+        10000.0,
+        20000.0,
+        40000.0,
+        80000.0,
+      ];
+
+      double getPx(double m) {
+        final latOffset = (m / 6378137.0) * (180.0 / math.pi);
+        final c = camera.latLngToScreenOffset(centerLatLng);
+        final n = camera.latLngToScreenOffset(LatLng(centerLatLng.latitude + latOffset, centerLatLng.longitude));
+        return math.max(25.0, (c.dy - n.dy).abs());
+      }
+
+      double targetMeters;
+      if (_radarRangeMode != 'auto') {
+        targetMeters = double.tryParse(_radarRangeMode) ?? 5000.0;
+      } else {
+        // โหมดอัตโนมัติ: เลือกระยะที่ขนาดวงกลมเรดาร์พอดีกับหน้าจอมือถือ (~120 ถึง 240 พิกเซล)
+        double best = 5000.0;
+        double minDiff = double.infinity;
+        for (final r in ranges) {
+          final px = getPx(r);
+          if (px >= 120 && px <= 240) {
+            best = r;
+            break;
+          }
+          final diff = (px - 170.0).abs();
+          if (diff < minDiff) {
+            minDiff = diff;
+            best = r;
+          }
+        }
+        targetMeters = best;
+      }
+
+      final pxRadius = getPx(targetMeters);
+
+      String formatDist(double m) {
+        if (m >= 1000) {
+          final km = m / 1000.0;
+          return km % 1 == 0 ? '${km.toInt()} KM' : '${km.toStringAsFixed(1)} KM';
+        }
+        return '${m.round()} M';
+      }
+
+      if (mounted) {
+        setState(() {
+          _radarRangeMeters = targetMeters;
+          _radarPixelRadius = pxRadius;
+          _radarRangeLabel = formatDist(targetMeters);
+          _radarMidRangeLabel = formatDist(targetMeters * 0.66);
+          _radarInnerRangeLabel = formatDist(targetMeters * 0.33);
+        });
+      }
+    } catch (_) {}
+  }
+
+  void _showRadarRangeSelector() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF0F172A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 38,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const Row(
+                  children: [
+                    Icon(Icons.radar, color: Color(0xFFEF4444), size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      'การตั้งค่าระยะเรดาร์ยุทธวิธี (Radar Range)',
+                      style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'เลือกระยะรัศมีเรดาร์เพื่อคำนวณสเกลพื้นที่จริงตามระดับการซูมของแผนที่',
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 11),
+                ),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _buildRangeChip('⚡ อัตโนมัติ (AUTO)', 'auto', setSheetState),
+                    _buildRangeChip('500 M', '500', setSheetState),
+                    _buildRangeChip('1.0 KM', '1000', setSheetState),
+                    _buildRangeChip('2.5 KM', '2500', setSheetState),
+                    _buildRangeChip('5.0 KM', '5000', setSheetState),
+                    _buildRangeChip('10 KM', '10000', setSheetState),
+                    _buildRangeChip('20 KM', '20000', setSheetState),
+                    _buildRangeChip('50 KM', '50000', setSheetState),
+                  ],
+                ),
+                const Divider(color: Color(0xFF334155), height: 24),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  activeColor: const Color(0xFFEF4444),
+                  title: const Text('ล็อกเป้าเรดาร์ไว้ที่พิกัด GPS ของฉัน', style: TextStyle(color: Colors.white, fontSize: 13)),
+                  subtitle: const Text('หากปิด เรดาร์จะอยู่ที่กึ่งกลางหน้าจอ HUD ตลอดเวลา', style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                  value: _isRadarCenteredOnUser,
+                  onChanged: (val) {
+                    setSheetState(() => _isRadarCenteredOnUser = val);
+                    setState(() => _isRadarCenteredOnUser = val);
+                    _updateRadarDimensions(_mapController.camera);
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRangeChip(String label, String value, StateSetter setSheetState) {
+    final isSelected = _radarRangeMode == value;
+    return ChoiceChip(
+      label: Text(label, style: TextStyle(fontSize: 12, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, color: isSelected ? Colors.white : Colors.white70)),
+      selected: isSelected,
+      selectedColor: const Color(0xFFEF4444),
+      backgroundColor: const Color(0xFF1E293B),
+      onSelected: (selected) {
+        if (selected) {
+          setSheetState(() => _radarRangeMode = value);
+          setState(() => _radarRangeMode = value);
+          _updateRadarDimensions(_mapController.camera);
+          Navigator.pop(context);
+        }
+      },
+    );
   }
 
   void _loadTrackPoints() async {
@@ -206,8 +386,13 @@ class _TacticalRadarMapScreenState extends State<TacticalRadarMapScreen>
 
         _recordTrackPoint(pos);
 
-        // Center map on target incident if provided, otherwise on current position
-        if (widget.targetIncident != null &&
+        // Center map on target pin or target incident if provided, otherwise on current position
+        if (widget.targetPin != null && widget.targetPin!.latitude != 0.0) {
+          _mapController.move(
+            LatLng(widget.targetPin!.latitude, widget.targetPin!.longitude),
+            15.5,
+          );
+        } else if (widget.targetIncident != null &&
             widget.targetIncident!.latitude != 0.0) {
           _mapController.move(
             LatLng(widget.targetIncident!.latitude, widget.targetIncident!.longitude),
@@ -488,15 +673,237 @@ class _TacticalRadarMapScreenState extends State<TacticalRadarMapScreen>
     );
   }
 
+  void _showTacticalPinDetailsModal(TacticalPinModel pin) {
+    double distanceKm = 0.0;
+    if (_currentPosition != null && pin.latitude != 0.0 && pin.longitude != 0.0) {
+      final meters = Geolocator.distanceBetween(
+        _currentPosition!.latitude,
+        _currentPosition!.longitude,
+        pin.latitude,
+        pin.longitude,
+      );
+      distanceKm = meters / 1000.0;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF0F172A),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            border: Border.all(color: const Color(0xFF334155), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.8),
+                blurRadius: 20,
+                spreadRadius: 5,
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Top drag bar
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+
+              // Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF3B82F6).withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFF3B82F6).withOpacity(0.6)),
+                        ),
+                        child: const Icon(Icons.place, color: Color(0xFF3B82F6), size: 18),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        pin.id,
+                        style: const TextStyle(
+                          color: AppColors.primaryLight,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFF10B981).withOpacity(0.5)),
+                    ),
+                    child: Text(
+                      pin.categoryName,
+                      style: const TextStyle(
+                        color: Color(0xFF10B981),
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+
+              // Title
+              Text(
+                pin.title,
+                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 6),
+
+              // Creator & Distance
+              Row(
+                children: [
+                  const Icon(Icons.person_pin_circle_outlined, color: AppColors.primaryLight, size: 16),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      'ผู้สั่งการ: ${pin.creator}',
+                      style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                    ),
+                  ),
+                  if (distanceKm > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.white10,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        'ห่าง ${distanceKm.toStringAsFixed(1)} กม.',
+                        style: const TextStyle(color: AppColors.primaryLight, fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                ],
+              ),
+
+              if (pin.taggedUnits.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.campaign, color: Colors.amber, size: 16),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        'แท็กถึง: ${pin.taggedUnits.join(", ")}',
+                        style: const TextStyle(color: Colors.amber, fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+
+              if (pin.notes.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.04),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: Text(
+                    pin.notes,
+                    style: const TextStyle(color: Colors.white70, fontSize: 12.5),
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 14),
+
+              // Action Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white70,
+                        side: const BorderSide(color: Color(0xFF334155)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      icon: const Icon(Icons.gps_fixed, size: 16, color: AppColors.primaryLight),
+                      label: const Text('ล็อคเป้า'),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _mapController.move(LatLng(pin.latitude, pin.longitude), 16.0);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF3B82F6),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      icon: const Icon(Icons.navigation, size: 16),
+                      label: const Text('นำทาง GPS (Google Maps)'),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _openGoogleMaps(pin.latitude, pin.longitude);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   String _getTileUrl() {
     switch (_currentBasemap) {
       case BasemapStyle.satellite:
         return 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
       case BasemapStyle.dark:
-        return 'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
+        return 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}';
       case BasemapStyle.osm:
       default:
         return 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+    }
+  }
+
+  int _getMaxNativeZoom() {
+    switch (_currentBasemap) {
+      case BasemapStyle.dark:
+        return 16;
+      case BasemapStyle.satellite:
+      case BasemapStyle.osm:
+      default:
+        return 18;
     }
   }
 
@@ -517,36 +924,33 @@ class _TacticalRadarMapScreenState extends State<TacticalRadarMapScreen>
               initialCenter: myLatLng,
               initialZoom: 14.5,
               minZoom: 4,
-              maxZoom: 19,
+              onMapReady: () {
+                _updateRadarDimensions(_mapController.camera);
+              },
               onPositionChanged: (pos, hasGesture) {
-                // Dynamically update radar range label based on zoom
-                if (pos.zoom != null) {
-                  final z = pos.zoom!;
-                  if (z >= 16) {
-                    _radarRangeLabel = '1.0 KM';
-                  } else if (z >= 14) {
-                    _radarRangeLabel = '5.0 KM';
-                  } else if (z >= 12) {
-                    _radarRangeLabel = '10 KM';
-                  } else if (z >= 10) {
-                    _radarRangeLabel = '20 KM';
-                  } else {
-                    _radarRangeLabel = '40 KM';
-                  }
-                }
+                _updateRadarDimensions(_mapController.camera);
               },
             ),
             children: [
               TileLayer(
+                key: ValueKey('tile_base_${_currentBasemap.name}'),
                 urlTemplate: _getTileUrl(),
+                fallbackUrl: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                maxZoom: 20,
+                maxNativeZoom: _getMaxNativeZoom(),
                 userAgentPackageName: 'com.rtsd.tactical_tracker',
-                tileBuilder: (context, widget, tile) {
-                  if (_currentBasemap == BasemapStyle.dark) {
-                    return widget;
-                  }
-                  return widget;
-                },
               ),
+
+              // Reference overlay for labels and borders when in dark basemap mode
+              if (_currentBasemap == BasemapStyle.dark)
+                TileLayer(
+                  key: const ValueKey('tile_dark_reference'),
+                  urlTemplate:
+                      'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+                  maxZoom: 20,
+                  maxNativeZoom: 16,
+                  userAgentPackageName: 'com.rtsd.tactical_tracker',
+                ),
 
               // Movement Trail Polyline Layer (Breadcrumb Path)
               if (_showTrail && _trackPoints.length >= 2)
@@ -634,6 +1038,22 @@ class _TacticalRadarMapScreenState extends State<TacticalRadarMapScreen>
                     );
                   }).whereType<Marker>(),
 
+                  // Tactical Command Pins (หมุดยุทธการจากศูนย์ควบคุม/Admin)
+                  ...widget.tacticalPins.map((pin) {
+                    if (pin.latitude == 0.0 || pin.longitude == 0.0) {
+                      return null;
+                    }
+                    return Marker(
+                      point: LatLng(pin.latitude, pin.longitude),
+                      width: 75,
+                      height: 52,
+                      child: TacticalPinMarker(
+                        pin: pin,
+                        onTap: () => _showTacticalPinDetailsModal(pin),
+                      ),
+                    );
+                  }).whereType<Marker>(),
+
                   // My Tactical Unit Beacon
                   Marker(
                     point: myLatLng,
@@ -641,6 +1061,9 @@ class _TacticalRadarMapScreenState extends State<TacticalRadarMapScreen>
                     height: 80,
                     child: TacticalUnitMarker(
                       unitId: widget.profile?.unitId ?? 'TL-ME',
+                      commander: widget.profile?.commander,
+                      unitName: widget.profile?.unitName,
+                      vehicleType: widget.profile?.vehicleType,
                       heading: _currentHeading,
                       speed: _currentSpeed,
                     ),
@@ -656,14 +1079,27 @@ class _TacticalRadarMapScreenState extends State<TacticalRadarMapScreen>
               child: AnimatedBuilder(
                 animation: _sweepAnimationController,
                 builder: (context, child) {
+                  Offset? centerOffset;
+                  if (_isRadarCenteredOnUser && _currentPosition != null) {
+                    try {
+                      centerOffset = _mapController.camera.latLngToScreenOffset(
+                        LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+                      );
+                    } catch (_) {}
+                  }
+
                   return CustomPaint(
                     size: Size.infinite,
                     painter: RadarSweepPainter(
-                      angle: _sweepAnimationController.value * 2 * 3.1415926535,
+                      angle: _sweepAnimationController.value * 2 * math.pi,
                       radarColor: const Color(0xFFEF4444),
                       showRings: true,
                       showSweep: true,
                       outerDistanceText: _radarRangeLabel,
+                      midDistanceText: _radarMidRangeLabel,
+                      innerDistanceText: _radarInnerRangeLabel,
+                      radarRadius: _radarPixelRadius,
+                      centerOffset: centerOffset,
                     ),
                   );
                 },
@@ -678,41 +1114,56 @@ class _TacticalRadarMapScreenState extends State<TacticalRadarMapScreen>
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   // Status Pill
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0F172A).withOpacity(0.92),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.6)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.6),
-                          blurRadius: 6,
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFEF4444),
-                            shape: BoxShape.circle,
+                  InkWell(
+                    onTap: _showRadarRangeSelector,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F172A).withOpacity(0.92),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.6)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.6),
+                            blurRadius: 6,
                           ),
-                        ),
-                        const SizedBox(width: 6),
-                        const Text(
-                          'RADAR SCAN • 360°',
-                          style: TextStyle(
-                            color: Color(0xFFF87171),
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'monospace',
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFEF4444),
+                              shape: BoxShape.circle,
+                            ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 6),
+                          Text(
+                            'RADAR • $_radarRangeLabel',
+                            style: const TextStyle(
+                              color: Color(0xFFF87171),
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                          if (_radarRangeMode == 'auto') ...[
+                            const SizedBox(width: 5),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEF4444).withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text('AUTO', style: TextStyle(color: Color(0xFFFCA5A5), fontSize: 9, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                   ),
 
@@ -946,7 +1397,7 @@ class _TacticalRadarMapScreenState extends State<TacticalRadarMapScreen>
                         Row(
                           children: [
                             Text(
-                              'อ.${widget.profile?.district ?? "เมือง"} • ${widget.incidents.length} จุดเหตุ',
+                              '${widget.profile?.district.isNotEmpty == true ? widget.profile!.district : "ทุกพื้นที่"} • ${widget.incidents.length} จุดเหตุ',
                               style: const TextStyle(
                                 color: AppColors.textMuted,
                                 fontSize: 10,
