@@ -1212,6 +1212,105 @@ def api_incident_dispatched_list():
     return jsonify(DISPATCHED_INCIDENTS), 200
 
 
+# =========================================================================
+# 📡 5.4 รายงานสดจากหน้างาน: คำขอสนับสนุน & ภาพถ่ายภาคสนาม (Field Reports)
+# =========================================================================
+FIELD_REPORTS = []  # เก็บประวัติรายงานจากชุดปฏิบัติการหน้างาน (Support Requests & Photo Reports)
+
+@app.route("/api/incident/field-report", methods=['POST'])
+def api_incident_field_report():
+    """
+    รับรายงานความคืบหน้า / คำขอสนับสนุน / รูปถ่ายหลักฐาน จากชุดปฏิบัติการหน้างาน
+    - รองรับทั้งจาก RTSD Mobile App, เว็บไซต์ Tracker และแชต LINE
+    - บันทึกลง FIELD_REPORTS เพื่อส่งให้ Dashboard แสดงแจ้งเตือนทันที
+    - อัปเดตสถานะของชุดปฏิบัติการใน active_trackers
+    - นำภาพเข้าเก็บในระบบและส่งต่อไป Google Sheets/Drive
+    """
+    global FIELD_REPORTS, active_trackers
+    data = request.get_json(silent=True) or {}
+
+    unit_id = str(data.get("unit_id") or "FIELD-UNIT").strip()
+    commander = str(data.get("commander") or "").strip()
+    phone = str(data.get("phone") or "").strip()
+    incident_id = str(data.get("incident_id") or "").strip()
+    report_type = str(data.get("report_type") or "support_request").strip()
+    message = str(data.get("message") or data.get("note") or "").strip()
+    lat = data.get("latitude")
+    lon = data.get("longitude")
+    file_base64 = data.get("image_base64") or data.get("picture_base64")
+    image_url = data.get("image_url") or data.get("picture_url") or "-"
+
+    # หากไม่ได้ระบุพิกัดมา ให้ค้นหาจากพิกัดล่าสุดของ tracker
+    if (lat is None or lon is None or lat == 0 or lon == 0) and unit_id in active_trackers:
+        lat = active_trackers[unit_id].get("latitude", 0)
+        lon = active_trackers[unit_id].get("longitude", 0)
+
+    if not commander and unit_id in active_trackers:
+        commander = active_trackers[unit_id].get("commander", unit_id)
+
+    # หากมีรูปภาพ Base64 แนบมา ให้บันทึกเข้า Google Sheets/Drive
+    if file_base64:
+        try:
+            file_name = f"FIELD_{unit_id}_{int(time.time())}.jpg"
+            title = f"[{incident_id or 'หน้างาน'}] ภาพรายงานจาก {commander or unit_id}"
+            save_to_google_sheet(
+                lat=lat or 0,
+                lon=lon or 0,
+                title=title,
+                address=f"จุดปฏิบัติการ {unit_id}",
+                reporter=commander or unit_id,
+                urgency="🔴 วิกฤต" if report_type == "support_request" else "🟡 ปานกลาง",
+                incident_type="📸 ภาพรายงานหน้างาน",
+                file_base64=file_base64,
+                file_name=file_name,
+                mime_type="image/jpeg"
+            )
+            image_url = f"data:image/jpeg;base64,{file_base64}"
+        except Exception as err:
+            print(f"[FieldReport] Error saving photo: {err}")
+
+    rep_id = f"REP-{int(time.time() * 1000) % 1000000:06d}"
+    report_entry = {
+        "id": rep_id,
+        "incident_id": incident_id,
+        "unit_id": unit_id,
+        "commander": commander or unit_id,
+        "phone": phone,
+        "report_type": report_type,
+        "message": message,
+        "image_url": image_url,
+        "latitude": float(lat) if lat is not None else 0.0,
+        "longitude": float(lon) if lon is not None else 0.0,
+        "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+    FIELD_REPORTS.append(report_entry)
+    if len(FIELD_REPORTS) > 100:
+        FIELD_REPORTS = FIELD_REPORTS[-100:]
+
+    # อัปเดตสถานะของ unit ใน active_trackers
+    if unit_id in active_trackers:
+        if report_type == "support_request":
+            active_trackers[unit_id]["status"] = f"⚠️ ขอสนับสนุน: {message[:30]}"
+        elif report_type == "photo_report":
+            active_trackers[unit_id]["status"] = "📸 ส่งภาพรายงานหน้างานแล้ว"
+
+    return jsonify({
+        "status": "success",
+        "message": "บันทึกรายงานหน้างานเรียบร้อย ส่งสัญญาณเข้าศูนย์บัญชาการแล้ว",
+        "report": report_entry
+    }), 200
+
+
+@app.route("/api/incident/field-reports", methods=['GET'])
+def api_incident_field_reports():
+    """ส่งรายการรายงานหน้างานทั้งหมดให้ Dashboard ตรวจสอบ (รองรับทั้งขอสนับสนุนและภาพถ่าย)"""
+    return jsonify({
+        "status": "success",
+        "count": len(FIELD_REPORTS),
+        "reports": list(reversed(FIELD_REPORTS[-50:]))
+    }), 200
+
+
 @app.route("/api/auth/request-otp", methods=['POST'])
 def api_request_otp():
     """สร้างรหัส OTP 6 หลัก แล้วส่งเข้าแชท LINE ของเจ้าหน้าที่โดยตรง"""
@@ -2331,6 +2430,24 @@ def handle_image(event):
     urgency = session.get("urgency", "🟡 ปานกลาง")
     incident_type = session.get("incident_type", "🌊 น้ำท่วมขัง")
 
+    # ตรวจสอบว่าผู้ส่งภาพเป็นเจ้าหน้าที่ชุดปฏิบัติการหรือไม่
+    officer_unit = None
+    officer_info = registered_users.get(user_id) or {}
+    officer_phone = officer_info.get("phone")
+    for uid, tr in active_trackers.items():
+        if tr.get("commander") == officer_info.get("name") or (officer_phone and officer_phone in tr.get("unit_name", "")):
+            officer_unit = tr
+            break
+        if uid.startswith("RTSD") and officer_phone and officer_phone[-4:] in uid:
+            officer_unit = tr
+            break
+
+    # หากเป็นเจ้าหน้าที่ที่กำลังส่งพิกัดสด ให้ดึงพิกัด GPS ล่าสุดมาผูกกับภาพทันที
+    if officer_unit and (not lat or lat == 0):
+        lat = officer_unit.get("latitude", 0)
+        lon = officer_unit.get("longitude", 0)
+        reporter = f"{officer_unit.get('commander', reporter)} ({officer_unit.get('unit_id', '')})"
+
     # ออกรหัสติดตามเหตุการณ์เฉพาะ (Report Tracking ID)
     report_id = f"RTSD-{int(time.time()) % 100000:04d}"
     title = f"[{report_id}] แจ้งเหตุ: {incident_type}"
@@ -2350,6 +2467,25 @@ def handle_image(event):
 
     # บันทึกข้อมูลและรูปเข้า Google Sheets + Drive
     save_to_google_sheet(lat, lon, title, address, reporter, urgency, incident_type, file_base64, file_name, mime_type)
+
+    # ส่งเข้า FIELD_REPORTS เพื่อให้ขึ้นบน Dashboard ทันทีโดยไม่ต้องรอ Google Drive sync
+    global FIELD_REPORTS
+    rep_img_url = f"data:image/jpeg;base64,{file_base64}" if file_base64 else "-"
+    FIELD_REPORTS.append({
+        "id": f"LINE-IMG-{message_id}",
+        "incident_id": report_id,
+        "unit_id": officer_unit.get("unit_id", "LINE-OFFICER") if officer_unit else "LINE-REPORTER",
+        "commander": reporter,
+        "phone": officer_phone or "",
+        "report_type": "photo_report",
+        "message": f"ภาพถ่ายรายงานหน้างาน จากคุณ {reporter}",
+        "image_url": rep_img_url,
+        "latitude": float(lat) if lat else 0.0,
+        "longitude": float(lon) if lon else 0.0,
+        "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    })
+    if len(FIELD_REPORTS) > 100:
+        FIELD_REPORTS = FIELD_REPORTS[-100:]
 
     gmap_text = f"\n🧭 นำทาง Google Maps: https://www.google.com/maps/dir/?api=1&destination={lat},{lon}\n" if (SYSTEM_SETTINGS.get("enable_google_maps") and lat and lon) else ""
 
@@ -2578,6 +2714,68 @@ def handle_text(event):
         with ApiClient(configuration) as api_client:
             line_bot_api = MessagingApi(api_client)
             line_bot_api.reply_message(ReplyMessageRequest(reply_token=event.reply_token, messages=[TextMessage(text=reply_msg)]))
+        return
+
+    # 0.45. รายงานสถานการณ์ / ขอรับการสนับสนุน / ตอบรับคำสั่งจากเจ้าหน้าที่ภาคสนาม
+    if any(k in user_text for k in ["ขอสนับสนุน", "ขอกำลัง", "ขอเรือ", "ขอรถ", "ต้องการกำลัง", "รับทราบคำสั่ง", "ถึงที่เกิดเหตุ", "รายงานหน้างาน"]):
+        officer_unit = None
+        officer_info = registered_users.get(user_id) or {}
+        officer_phone = officer_info.get("phone")
+        for uid, tr in active_trackers.items():
+            if tr.get("commander") == officer_info.get("name") or (officer_phone and officer_phone in tr.get("unit_name", "")):
+                officer_unit = tr
+                break
+            if uid.startswith("RTSD") and officer_phone and officer_phone[-4:] in uid:
+                officer_unit = tr
+                break
+
+        unit_label = officer_unit.get("unit_id") if officer_unit else (user_info.get("name") if user_info else user_name)
+        lat = officer_unit.get("latitude", 0) if officer_unit else 0
+        lon = officer_unit.get("longitude", 0) if officer_unit else 0
+
+        # Update tracker status
+        if officer_unit and officer_unit.get("unit_id") in active_trackers:
+            active_trackers[officer_unit["unit_id"]]["status"] = f"⚠️ {user_text[:35]}"
+
+        # Record in FIELD_REPORTS
+        rep_id = f"LINE-REQ-{int(time.time() * 1000) % 1000000:06d}"
+        field_rep = {
+            "id": rep_id,
+            "incident_id": "FIELD-LINE",
+            "unit_id": unit_label,
+            "commander": officer_info.get("name", user_name),
+            "phone": officer_phone or "",
+            "report_type": "support_request" if ("ขอ" in user_text or "ต้องการ" in user_text) else "status_update",
+            "message": user_text,
+            "image_url": "-",
+            "latitude": float(lat) if lat else 0.0,
+            "longitude": float(lon) if lon else 0.0,
+            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        global FIELD_REPORTS
+        FIELD_REPORTS.append(field_rep)
+        if len(FIELD_REPORTS) > 100:
+            FIELD_REPORTS = FIELD_REPORTS[-100:]
+
+        reply_msg = (f"🚨 [ศูนย์บัญชาการ TOC รับทราบรายงานแล้ว]\n"
+                     f"━━━━━━━━━━━━━━━━━━\n"
+                     f"📡 รายงาน: {user_text}\n"
+                     f"👤 ผู้รายงาน: {officer_info.get('name', user_name)}\n"
+                     f"⏱️ เวลา: {datetime.datetime.now().strftime('%H:%M:%S น.')}\n"
+                     f"━━━━━━━━━━━━━━━━━━\n"
+                     f"ข้อมูลและพิกัดถูกส่งขึ้นหน้าจอ Dashboard เรียบร้อยแล้ว ศูนย์ฯ กำลังเร่งประสานสนับสนุนครับ")
+        quick_reply = QuickReply(items=[
+            QuickReplyItem(action=URIAction(label="🌐 ตรวจสอบบน Dashboard", uri="https://rtsd-linebot.onrender.com/dashboard")),
+            QuickReplyItem(action=MessageAction(label="📸 ส่งภาพถ่ายรายงาน", text="ส่งรูปรายงาน"))
+        ])
+        with ApiClient(configuration) as api_client:
+            line_bot_api = MessagingApi(api_client)
+            line_bot_api.reply_message(
+                ReplyMessageRequest(
+                    reply_token=event.reply_token,
+                    messages=[TextMessage(text=reply_msg, quick_reply=quick_reply)]
+                )
+            )
         return
 
     # 0.5. คำสั่งพิเศษสำหรับแอดมิน: ตั้งแอดมิน / ปลดแอดมิน

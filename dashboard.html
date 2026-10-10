@@ -718,6 +718,25 @@
             </div>
           </div>
 
+          <!-- 🚨 LIVE FIELD SUPPORT & SOS ALERT BANNER (แจ้งเตือนขอกำลังสนับสนุนด่วน) -->
+          <div id="liveFieldSosContainer" class="hidden space-y-1.5 mb-2">
+            <!-- Dynamic SOS / Support Request cards rendered here -->
+          </div>
+
+          <!-- 📸 LIVE FIELD PHOTOS GALLERY STRIP (แกลเลอรีภาพสดจากหน้างาน) -->
+          <div id="liveFieldPhotosContainer" class="hidden space-y-1 mb-2 bg-slate-950/70 border border-slate-800 rounded-xl p-2 shadow-inner">
+            <div class="flex items-center justify-between text-[11px] font-semibold text-slate-300 mb-1">
+              <span class="flex items-center gap-1.5">
+                <i class="fa-solid fa-camera text-sky-400"></i>
+                <span>ภาพถ่ายล่าสุดจากหน้างาน</span>
+                <span id="fieldPhotosCountBadge" class="px-1.5 py-0.2 rounded text-[9px] bg-sky-500/20 text-sky-300 font-mono">0 รูป</span>
+              </span>
+            </div>
+            <div id="liveFieldPhotosList" class="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1">
+              <!-- Dynamic photo thumbnails -->
+            </div>
+          </div>
+
           <!-- Scrollable Incident Cards List -->
           <div id="tacticalIncidentCardsList" class="flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-2 pr-1">
             <div class="text-center py-16 text-slate-500 space-y-2">
@@ -2187,6 +2206,9 @@
       renderTacticalIncidentFeed();
       renderTacticalIncidentMarkers();
       renderQuickStatsPanel(typeCounts, dateCounts);
+
+      // Fetch live field reports and photos
+      fetchFieldReports();
     }
 
     // 4. Render Statistical Charts (Chart.js)
@@ -3370,6 +3392,130 @@
         }
       }
     }
+
+    // =========================================================================
+    // 📡 LIVE FIELD REPORTS & SUPPORT REQUESTS (รายงานสดและขอกำลังสนับสนุน)
+    // =========================================================================
+    let liveFieldReports = [];
+
+    async function fetchFieldReports() {
+      try {
+        const res = await fetch(`${API_BASE}/api/incident/field-reports`);
+        if (res.ok) {
+          const data = await res.json();
+          liveFieldReports = Array.isArray(data) ? data : [];
+          renderLiveFieldReports();
+        }
+      } catch (err) {
+        console.warn('Field reports fetch warning:', err);
+      }
+    }
+
+    function renderLiveFieldReports() {
+      const sosContainer = document.getElementById('liveFieldSosContainer');
+      const photosContainer = document.getElementById('liveFieldPhotosContainer');
+      const photosList = document.getElementById('liveFieldPhotosList');
+      const photosBadge = document.getElementById('fieldPhotosCountBadge');
+
+      if (!sosContainer || !photosContainer || !photosList) return;
+
+      // Filter SOS and Support Requests (status contains SOS or request)
+      const sosReports = liveFieldReports.filter(r => 
+        r.report_type === 'support_request' || 
+        r.status === 'SOS' || 
+        (r.message && (r.message.includes('ขอสนับสนุน') || r.message.includes('ขอกำลัง') || r.message.includes('ขอเรือ') || r.message.includes('ขอรถ') || r.message.includes('ขอกู้ภัย')))
+      );
+
+      // Filter Photo Reports
+      const photoReports = liveFieldReports.filter(r => 
+        r.report_type === 'photo_report' || 
+        (r.photo_url && r.photo_url.length > 5) || 
+        (r.image_url && r.image_url.length > 5)
+      );
+
+      // 1. Render SOS / Support Requests Container
+      if (sosReports.length === 0) {
+        sosContainer.classList.add('hidden');
+        sosContainer.innerHTML = '';
+      } else {
+        sosContainer.classList.remove('hidden');
+        sosContainer.innerHTML = sosReports.map(item => {
+          const sender = item.commander || item.sender_name || item.unit_id || 'เจ้าหน้าที่ชุดปฏิบัติการ';
+          const unit = item.unit_id ? `[${item.unit_id}]` : '';
+          const msg = item.message || item.requested_resource || 'ขอรับการสนับสนุนด่วนจากหน้างาน';
+          const time = item.timestamp ? formatRelativeTime(item.timestamp) : 'เมื่อสักครู่';
+          const lat = parseFloat(item.lat);
+          const lon = parseFloat(item.lon);
+          const hasCoords = !isNaN(lat) && !isNaN(lon) && lat !== 0 && lon !== 0;
+
+          return `
+            <div class="p-2.5 rounded-xl bg-gradient-to-r from-rose-950/80 via-red-900/60 to-slate-900 border border-rose-500/70 shadow-lg shadow-rose-950/50 animate-pulse">
+              <div class="flex items-center justify-between text-xs font-bold text-rose-300 mb-1">
+                <span class="flex items-center gap-1.5">
+                  <span class="relative flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                  </span>
+                  <i class="fa-solid fa-triangle-exclamation text-rose-400"></i>
+                  <span>สัญญาณขอรับการสนับสนุนหน้างาน</span>
+                </span>
+                <span class="text-[10px] text-rose-300 font-mono">${time}</span>
+              </div>
+              <div class="text-xs text-white font-medium pl-3 border-l-2 border-rose-500 my-1">
+                ${msg}
+              </div>
+              <div class="flex items-center justify-between text-[10px] text-slate-300 pt-1 mt-1 border-t border-rose-500/30">
+                <span class="truncate"><i class="fa-solid fa-id-badge text-rose-400 mr-1"></i>${unit} ${sender}</span>
+                <div class="flex items-center gap-1.5 shrink-0">
+                  ${hasCoords ? `
+                    <button onclick="flyToIncident(${lat}, ${lon}, 'ขอสนับสนุน: ${sender}')" class="px-2 py-0.5 rounded bg-rose-600 hover:bg-rose-500 text-white font-bold transition-all shadow-sm">
+                      <i class="fa-solid fa-crosshairs mr-0.5"></i> ไปจุดขอสนับสนุน
+                    </button>
+                  ` : ''}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // 2. Render Field Photos Strip Container
+      if (photoReports.length === 0) {
+        photosContainer.classList.add('hidden');
+        photosList.innerHTML = '';
+        if (photosBadge) photosBadge.innerText = '0 รูป';
+      } else {
+        photosContainer.classList.remove('hidden');
+        if (photosBadge) photosBadge.innerText = `${photoReports.length} รูป`;
+        photosList.innerHTML = photoReports.map((photo, pIdx) => {
+          const imgSrc = photo.photo_url || photo.image_url;
+          const sender = photo.commander || photo.sender_name || photo.unit_id || 'ชุดปฏิบัติการ';
+          const time = photo.timestamp ? formatRelativeTime(photo.timestamp) : '';
+          const lat = parseFloat(photo.lat);
+          const lon = parseFloat(photo.lon);
+          const hasCoords = !isNaN(lat) && !isNaN(lon) && lat !== 0 && lon !== 0;
+
+          return `
+            <div class="relative shrink-0 w-24 h-24 rounded-lg overflow-hidden border border-slate-700/80 bg-slate-900 group shadow-md cursor-pointer" onclick="openPhotoViewer('${imgSrc}', '${sender}', '${photo.message || ''}', '${photo.timestamp || ''}', ${lat}, ${lon})">
+              <img src="${imgSrc}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" alt="ภาพถ่ายหน้างาน" onerror="this.src='https://placehold.co/100x100/1e293b/94a3b8?text=Photo+Error'">
+              <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 opacity-90 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-1">
+                <span class="text-[9px] text-sky-300 font-mono self-end bg-black/60 px-1 rounded">${time}</span>
+                <span class="text-[9px] text-white font-medium truncate bg-black/60 px-1 rounded">${sender}</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    function openPhotoViewer(url, sender, note, time, lat, lon) {
+      if (!url) return;
+      openModal(url);
+      if (!isNaN(lat) && !isNaN(lon) && lat !== 0 && lon !== 0 && tacticalMap) {
+        flyToIncident(lat, lon, `ภาพจาก: ${sender}`);
+      }
+    }
+
 
     function renderQuickStatsPanel(typeCounts, dateCounts) {
       if (!typeCounts) {
@@ -6081,6 +6227,7 @@
         if (refreshIcon && isManual) {
           setTimeout(() => refreshIcon.classList.remove('fa-spin'), 600);
         }
+        fetchFieldReports();
         const syncText = document.getElementById('tacticalLastSyncText');
         if (syncText) {
           const now = new Date();
