@@ -278,6 +278,15 @@
       pointer-events: none;
       box-shadow: 0 4px 10px rgba(0,0,0,0.5);
     }
+    .line-clamp-2 {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .bg-slate-850 {
+      background-color: #111a2e;
+    }
   </style>
 </head>
 <body class="h-screen max-h-screen overflow-hidden flex flex-col bg-[#070c19] text-slate-100">
@@ -615,74 +624,213 @@
         </div>
       </div>
 
-      <!-- RIGHT 50%: TACTICAL UNIT ROSTER -->
+      <!-- RIGHT 50%: MULTI-TAB OPERATIONAL COMMAND FEED -->
       <div class="w-full md:w-1/2 flex flex-col h-full min-h-0 bg-rtsd-card border border-slate-800 rounded-xl p-2.5 shadow-2xl overflow-hidden">
-        <!-- Roster Header (Exact match to reference image) -->
-        <div class="shrink-0 flex items-center justify-between pb-1.5 border-b border-slate-800/80 mb-1.5">
-          <div class="flex items-center gap-2">
-            <h3 class="font-bold text-xs md:text-sm text-slate-200 tracking-wider uppercase font-mono flex items-center gap-1.5">
+        
+        <!-- Tab Bar Header -->
+        <div class="shrink-0 flex items-center justify-between pb-2 border-b border-slate-800/80 mb-2 gap-2 flex-wrap">
+          <div class="flex items-center gap-1 p-1 bg-slate-900/95 rounded-xl border border-slate-800 text-xs font-semibold">
+            <!-- Tab 1: Incident Feed (Default Active) -->
+            <button id="tabFeedIncidents" onclick="switchRightPanelTab('incidents')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-md shadow-red-900/30 transition-all cursor-pointer text-xs font-bold">
+              <i class="fa-solid fa-bullhorn text-amber-300 animate-pulse"></i>
+              <span>เหตุฉุกเฉิน</span>
+              <span id="badgeIncidentsTotal" class="px-1.5 py-0.2 rounded-full bg-black/40 text-white text-[10px] font-mono">0</span>
+            </button>
+            <!-- Tab 2: Tactical Unit Roster -->
+            <button id="tabFeedUnits" onclick="switchRightPanelTab('units')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition-all cursor-pointer text-xs font-semibold">
               <i class="fa-solid fa-crosshairs text-sky-400"></i>
-              TACTICAL UNIT ROSTER
-            </h3>
+              <span>ชุดปฏิบัติการ</span>
+              <span id="badgeUnitsActive" class="px-1.5 py-0.2 rounded-full bg-slate-800 text-emerald-400 text-[10px] font-mono">0</span>
+            </button>
+            <!-- Tab 3: Quick Stats & Analytics -->
+            <button id="tabFeedStats" onclick="switchRightPanelTab('stats')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition-all cursor-pointer text-xs font-semibold">
+              <i class="fa-solid fa-chart-pie text-purple-400"></i>
+              <span>สถิติภาพรวม</span>
+            </button>
           </div>
-          <div class="flex items-center gap-1.5 flex-wrap justify-end">
-            <span id="badgeActiveCount" class="px-2 py-0.5 text-[10px] font-mono font-bold rounded-md bg-emerald-950/60 text-emerald-400 border border-emerald-500/40 shadow-[0_0_8px_rgba(16,185,129,0.2)]">
-              🟢 0 ACTIVE
-            </span>
-            <span id="badgeStandbyCount" class="px-2 py-0.5 text-[10px] font-mono font-bold rounded-md bg-sky-950/60 text-sky-400 border border-sky-500/40">
-              🔵 0 STANDBY
-            </span>
-            <span id="badgeOfflineCount" class="px-2 py-0.5 text-[10px] font-mono font-bold rounded-md bg-slate-900/80 text-slate-400 border border-slate-700/80">
-              ⚪ 0 OFFLINE
-            </span>
-            <button onclick="fetchTacticalUnits(true)" class="p-1 px-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 border border-slate-800 cursor-pointer text-xs transition-colors" title="รีเฟรชข้อมูลสด">
-              <i id="tacticalRefreshIcon" class="fa-solid fa-arrows-rotate"></i>
+
+          <!-- Refresh & Controls -->
+          <div class="flex items-center gap-1.5">
+            <button onclick="refreshAllOperationalData()" class="p-1 px-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 cursor-pointer text-xs transition-colors flex items-center gap-1.5 shadow-sm" title="รีเฟรชข้อมูลเหตุการณ์และชุดปฏิบัติการสดทันที">
+              <i id="quickSyncIcon" class="fa-solid fa-arrows-rotate text-sky-400"></i>
+              <span class="text-[11px] text-slate-300 font-medium">รีเฟรชสด</span>
             </button>
           </div>
         </div>
 
-        <!-- Filter & Search Bar + Status Filter Tabs -->
-        <div class="shrink-0 space-y-1.5 mb-2">
-          <div class="flex items-center gap-2">
-            <div class="relative flex-1">
-              <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-slate-500 text-xs"></i>
-              <input type="text" id="tacticalSearchInput" oninput="filterTacticalUnits()" placeholder="ค้นหาชื่อชุด, CALLSIGN, หัวหน้าชุด..." class="w-full bg-slate-900/90 border border-slate-800 rounded-lg pl-7 pr-2.5 py-1 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 font-mono">
+        <!-- =================================================================== -->
+        <!-- TAB 1: 🚨 LIVE INCIDENT FEED CONTAINER -->
+        <!-- =================================================================== -->
+        <div id="panelIncidentsView" class="flex-1 min-h-0 flex flex-col">
+          <!-- Mini KPI Ribbon -->
+          <div class="shrink-0 grid grid-cols-5 gap-1.5 mb-2 text-center text-xs">
+            <div class="bg-slate-900/90 border border-slate-800 rounded-lg p-1.5">
+              <span class="text-[10px] text-slate-400 block leading-tight">ทั้งหมด</span>
+              <span id="feedKpiTotal" class="text-sm font-bold text-white font-mono">0</span>
             </div>
-            <select id="tacticalDistrictFilter" onchange="filterTacticalUnits()" class="bg-slate-900/90 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-300 focus:outline-none focus:border-sky-500 font-mono">
-              <option value="">ALL UNITS</option>
-            </select>
+            <div class="bg-rose-950/40 border border-rose-900/50 rounded-lg p-1.5">
+              <span class="text-[10px] text-rose-400 block leading-tight">🔴 วิกฤต</span>
+              <span id="feedKpiCritical" class="text-sm font-bold text-rose-400 font-mono">0</span>
+            </div>
+            <div class="bg-sky-950/40 border border-sky-900/50 rounded-lg p-1.5">
+              <span class="text-[10px] text-sky-400 block leading-tight">⏳ รอดำเนิน</span>
+              <span id="feedKpiPending" class="text-sm font-bold text-sky-400 font-mono">0</span>
+            </div>
+            <div class="bg-amber-950/40 border border-amber-900/50 rounded-lg p-1.5">
+              <span class="text-[10px] text-amber-400 block leading-tight">🟡 ช่วยเหลือ</span>
+              <span id="feedKpiInProgress" class="text-sm font-bold text-amber-400 font-mono">0</span>
+            </div>
+            <div class="bg-emerald-950/40 border border-emerald-900/50 rounded-lg p-1.5">
+              <span class="text-[10px] text-emerald-400 block leading-tight">🟢 สำเร็จ</span>
+              <span id="feedKpiResolved" class="text-sm font-bold text-emerald-400 font-mono">0</span>
+            </div>
           </div>
 
-          <!-- Quick Status Tabs -->
-          <div class="flex items-center gap-1.5 text-[11px] font-mono overflow-x-auto pb-0.5">
-            <button id="tabStatusAll" onclick="setTacticalStatusFilter('ALL')" class="px-2.5 py-0.5 rounded-md bg-sky-600 text-white font-bold cursor-pointer transition-colors shadow-sm">
-              ทั้งหมด
-            </button>
-            <button id="tabStatusActive" onclick="setTacticalStatusFilter('ACTIVE')" class="px-2 py-0.5 rounded-md bg-slate-800/80 text-emerald-400 hover:bg-slate-800 border border-slate-700/60 cursor-pointer transition-colors">
-              🟢 Active
-            </button>
-            <button id="tabStatusStandby" onclick="setTacticalStatusFilter('STANDBY')" class="px-2 py-0.5 rounded-md bg-slate-800/80 text-sky-400 hover:bg-slate-800 border border-slate-700/60 cursor-pointer transition-colors">
-              🔵 Standby
-            </button>
-            <button id="tabStatusOffline" onclick="setTacticalStatusFilter('OFFLINE')" class="px-2 py-0.5 rounded-md bg-slate-800/80 text-slate-400 hover:bg-slate-800 border border-slate-700/60 cursor-pointer transition-colors">
-              ⚪ Offline
+          <!-- Filter & Search Bar -->
+          <div class="shrink-0 space-y-1.5 mb-2">
+            <div class="flex items-center gap-1.5">
+              <div class="relative flex-1">
+                <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-slate-500 text-xs"></i>
+                <input type="text" id="tacticalIncidentSearchInput" oninput="filterTacticalIncidents()" placeholder="ค้นหาเหตุการณ์, สถานที่, ผู้แจ้ง..." class="w-full bg-slate-900/90 border border-slate-800 rounded-lg pl-7 pr-2.5 py-1 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500">
+              </div>
+              <select id="tacticalIncidentTypeFilter" onchange="filterTacticalIncidents()" class="bg-slate-900/90 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-300 focus:outline-none focus:border-sky-500 max-w-[130px]">
+                <option value="">ทุกประเภท</option>
+              </select>
+            </div>
+
+            <!-- Quick Status & Urgency Pills -->
+            <div class="flex items-center gap-1.5 text-[11px] overflow-x-auto pb-0.5 custom-scrollbar">
+              <button id="pillIncAll" onclick="setTacticalIncidentFilter('ALL')" class="px-2.5 py-0.5 rounded-md bg-sky-600 text-white font-bold cursor-pointer transition-colors shadow-sm shrink-0">
+                ทั้งหมด
+              </button>
+              <button id="pillIncCritical" onclick="setTacticalIncidentFilter('CRITICAL')" class="px-2 py-0.5 rounded-md bg-slate-800/80 text-rose-400 hover:bg-slate-800 border border-slate-700/60 cursor-pointer transition-colors shrink-0">
+                🔴 วิกฤต
+              </button>
+              <button id="pillIncPending" onclick="setTacticalIncidentFilter('PENDING')" class="px-2 py-0.5 rounded-md bg-slate-800/80 text-sky-400 hover:bg-slate-800 border border-slate-700/60 cursor-pointer transition-colors shrink-0">
+                ⏳ รอดำเนินการ
+              </button>
+              <button id="pillIncProgress" onclick="setTacticalIncidentFilter('IN_PROGRESS')" class="px-2 py-0.5 rounded-md bg-slate-800/80 text-amber-400 hover:bg-slate-800 border border-slate-700/60 cursor-pointer transition-colors shrink-0">
+                🟡 กำลังช่วยเหลือ
+              </button>
+              <button id="pillIncResolved" onclick="setTacticalIncidentFilter('RESOLVED')" class="px-2 py-0.5 rounded-md bg-slate-800/80 text-emerald-400 hover:bg-slate-800 border border-slate-700/60 cursor-pointer transition-colors shrink-0">
+                🟢 สำเร็จ
+              </button>
+            </div>
+          </div>
+
+          <!-- Scrollable Incident Cards List -->
+          <div id="tacticalIncidentCardsList" class="flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-2 pr-1">
+            <div class="text-center py-16 text-slate-500 space-y-2">
+              <i class="fa-solid fa-spinner fa-spin text-3xl text-sky-500/60 mb-2"></i>
+              <p>กำลังโหลดรายงานเหตุการณ์ล่าสุด...</p>
+            </div>
+          </div>
+
+          <!-- Feed Footer -->
+          <div class="shrink-0 mt-1.5 pt-1.5 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500">
+            <span>แตะการ์ดเพื่อ <strong class="text-sky-400">ซูมแผนที่ & ดูพิกัด</strong></span>
+            <span id="tacticalIncidentLastSyncText">อัปเดต: กำลังเชื่อมต่อ...</span>
+          </div>
+        </div>
+
+        <!-- =================================================================== -->
+        <!-- TAB 2: 👥 TACTICAL UNITS ROSTER (LIVE GPS MOBILE TRACKERS) -->
+        <!-- =================================================================== -->
+        <div id="panelUnitsView" class="hidden flex-1 min-h-0 flex flex-col">
+          <!-- Roster Header Stats -->
+          <div class="shrink-0 flex items-center justify-between pb-1.5 border-b border-slate-800/80 mb-1.5">
+            <div class="flex items-center gap-2">
+              <h4 class="font-bold text-xs text-slate-300 font-mono flex items-center gap-1.5">
+                <i class="fa-solid fa-tower-broadcast text-emerald-400"></i>
+                สัญญาณจีพีเอสสด
+              </h4>
+            </div>
+            <div class="flex items-center gap-1.5 flex-wrap justify-end">
+              <span id="badgeActiveCount" class="px-2 py-0.5 text-[10px] font-mono font-bold rounded-md bg-emerald-950/60 text-emerald-400 border border-emerald-500/40">
+                🟢 0 ACTIVE
+              </span>
+              <span id="badgeStandbyCount" class="px-2 py-0.5 text-[10px] font-mono font-bold rounded-md bg-sky-950/60 text-sky-400 border border-sky-500/40">
+                🔵 0 STANDBY
+              </span>
+              <span id="badgeOfflineCount" class="px-2 py-0.5 text-[10px] font-mono font-bold rounded-md bg-slate-900/80 text-slate-400 border border-slate-700/80">
+                ⚪ 0 OFFLINE
+              </span>
+            </div>
+          </div>
+
+          <!-- Filter & Search Bar + Status Filter Tabs -->
+          <div class="shrink-0 space-y-1.5 mb-2">
+            <div class="flex items-center gap-2">
+              <div class="relative flex-1">
+                <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-slate-500 text-xs"></i>
+                <input type="text" id="tacticalSearchInput" oninput="filterTacticalUnits()" placeholder="ค้นหาชื่อชุด, CALLSIGN, หัวหน้าชุด..." class="w-full bg-slate-900/90 border border-slate-800 rounded-lg pl-7 pr-2.5 py-1 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 font-mono">
+              </div>
+              <select id="tacticalDistrictFilter" onchange="filterTacticalUnits()" class="bg-slate-900/90 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-300 focus:outline-none focus:border-sky-500 font-mono">
+                <option value="">ALL UNITS</option>
+              </select>
+            </div>
+
+            <!-- Quick Status Tabs -->
+            <div class="flex items-center gap-1.5 text-[11px] font-mono overflow-x-auto pb-0.5">
+              <button id="tabStatusAll" onclick="setTacticalStatusFilter('ALL')" class="px-2.5 py-0.5 rounded-md bg-sky-600 text-white font-bold cursor-pointer transition-colors shadow-sm">
+                ทั้งหมด
+              </button>
+              <button id="tabStatusActive" onclick="setTacticalStatusFilter('ACTIVE')" class="px-2 py-0.5 rounded-md bg-slate-800/80 text-emerald-400 hover:bg-slate-800 border border-slate-700/60 cursor-pointer transition-colors">
+                🟢 Active
+              </button>
+              <button id="tabStatusStandby" onclick="setTacticalStatusFilter('STANDBY')" class="px-2 py-0.5 rounded-md bg-slate-800/80 text-sky-400 hover:bg-slate-800 border border-slate-700/60 cursor-pointer transition-colors">
+                🔵 Standby
+              </button>
+              <button id="tabStatusOffline" onclick="setTacticalStatusFilter('OFFLINE')" class="px-2 py-0.5 rounded-md bg-slate-800/80 text-slate-400 hover:bg-slate-800 border border-slate-700/60 cursor-pointer transition-colors">
+                ⚪ Offline
+              </button>
+            </div>
+          </div>
+
+          <!-- Scrollable Cards List -->
+          <div id="tacticalUnitsList" class="flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-2 pr-1">
+            <div class="text-center py-16 text-slate-500 space-y-2">
+              <i class="fa-solid fa-satellite-dish fa-spin text-3xl text-red-500/60 mb-2"></i>
+              <p>กำลังค้นหาสัญญาณพิกัดจากมือถือหัวหน้าชุด...</p>
+            </div>
+          </div>
+
+          <!-- Roster Footer -->
+          <div class="shrink-0 mt-1.5 pt-1.5 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-500">
+            <span>แตะการ์ดเพื่อ <strong class="text-sky-400">ล็อคเป้าและซูมแผนที่</strong></span>
+            <span id="tacticalLastSyncText">อัปเดต: กำลังเชื่อมต่อ...</span>
+          </div>
+        </div>
+
+        <!-- =================================================================== -->
+        <!-- TAB 3: 📊 QUICK ANALYTICS & INSIGHTS -->
+        <!-- =================================================================== -->
+        <div id="panelStatsView" class="hidden flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-3 pr-1">
+          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3">
+            <h4 class="text-xs font-bold text-white mb-2 flex items-center gap-1.5">
+              <i class="fa-solid fa-chart-pie text-purple-400"></i> สัดส่วนประเภทเหตุการณ์ (Top Incident Types)
+            </h4>
+            <div class="h-44 relative">
+              <canvas id="quickTypeChart"></canvas>
+            </div>
+          </div>
+
+          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3">
+            <h4 class="text-xs font-bold text-white mb-2 flex items-center gap-1.5">
+              <i class="fa-solid fa-chart-line text-sky-400"></i> แนวโน้มการแจ้งเหตุย้อนหลัง (Incident Trend)
+            </h4>
+            <div class="h-40 relative">
+              <canvas id="quickTrendChart"></canvas>
+            </div>
+          </div>
+
+          <div class="text-center pt-1">
+            <button onclick="switchMainView('stats')" class="w-full py-2 rounded-xl bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 border border-purple-500/40 text-xs font-semibold cursor-pointer transition flex items-center justify-center gap-1.5">
+              <i class="fa-solid fa-arrow-up-right-from-square"></i> เปิดดูสถิติและรายงานฉบับเต็ม (Full Analytics)
             </button>
           </div>
         </div>
 
-        <!-- Scrollable Cards List (Internal smooth scrolling only) -->
-        <div id="tacticalUnitsList" class="flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-2 pr-1">
-          <div class="text-center py-16 text-slate-500 space-y-2">
-            <i class="fa-solid fa-satellite-dish fa-spin text-3xl text-red-500/60 mb-2"></i>
-            <p>กำลังค้นหาสัญญาณพิกัดจากมือถือหัวหน้าชุด...</p>
-          </div>
-        </div>
-
-        <!-- Roster Footer -->
-        <div class="shrink-0 mt-1.5 pt-1.5 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-500">
-          <span>แตะการ์ดเพื่อ <strong class="text-sky-400">ล็อคเป้าและซูมแผนที่</strong></span>
-          <span id="tacticalLastSyncText">อัปเดต: กำลังเชื่อมต่อ...</span>
-        </div>
       </div>
 
     </div>
@@ -1211,7 +1359,7 @@
   <!-- ========================================================================= -->
   <!-- 🛡️ ADMIN PERSONNEL & ACCESS CONTROL MODAL (จัดการสิทธิ์กำลังพล) -->
   <!-- ========================================================================= -->
-  <div id="userManagementModal" class="fixed inset-0 z-[120] bg-black/85 backdrop-blur-md hidden flex items-center justify-center p-2 sm:p-4">
+  <div id="userManagementModal" class="hidden fixed inset-0 z-[120] bg-black/85 backdrop-blur-md items-center justify-center p-2 sm:p-4" style="display: none;">
     <div class="bg-rtsd-card border border-purple-500/40 rounded-2xl max-w-6xl w-full h-[92vh] p-3 sm:p-5 relative shadow-2xl shadow-purple-950/60 flex flex-col overflow-hidden">
       <!-- Modal Header -->
       <div class="shrink-0 flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
@@ -1357,7 +1505,7 @@
   <!-- ========================================================================= -->
   <!-- 🛡️ RTSD TACTICAL AUTHENTICATION MODAL (OTP & PIN GATE) -->
   <!-- ========================================================================= -->
-  <div id="authModal" class="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+  <div id="authModal" class="hidden fixed inset-0 z-[100] bg-black/90 backdrop-blur-md items-center justify-center p-4" style="display: none;">
     <div class="bg-rtsd-card border border-sky-500/30 rounded-2xl max-w-md w-full p-6 relative shadow-2xl shadow-sky-950/50 space-y-5 text-center">
       <button type="button" onclick="closeAuthModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-lg p-1.5 rounded-lg hover:bg-slate-800 transition cursor-pointer" title="ปิดหน้าต่าง / เข้าชมแผนที่">
         <i class="fa-solid fa-xmark"></i>
@@ -1468,7 +1616,7 @@
   <!-- ========================================================================= -->
   <!-- 👤 USER EDIT PROFILE MODAL (PERSONAL PROFILE EDIT) -->
   <!-- ========================================================================= -->
-  <div id="editProfileModal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-[115] hidden flex items-center justify-center p-4">
+  <div id="editProfileModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-md z-[115] items-center justify-center p-4" style="display: none;">
     <div class="bg-rtsd-card border border-sky-500/40 rounded-2xl max-w-lg w-full p-5 sm:p-6 relative shadow-2xl shadow-sky-950/60 space-y-5">
       <!-- Header -->
       <div class="flex items-center justify-between pb-3 border-b border-slate-800">
@@ -1562,7 +1710,7 @@
   <!-- ========================================================================= -->
   <!-- 🖼️ IMAGE PREVIEW MODAL -->
   <!-- ========================================================================= -->
-  <div id="imageModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+  <div id="imageModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 items-center justify-center p-4 cursor-pointer" style="display: none;">
     <div class="bg-rtsd-card border border-slate-700 rounded-2xl max-w-2xl w-full p-4 relative shadow-2xl space-y-3">
       <div class="flex items-center justify-between pb-2 border-b border-slate-800">
         <h3 id="modalTitle" class="font-semibold text-white text-sm">รูปภาพหลักฐานจากจุดเกิดเหตุ</h3>
@@ -1585,7 +1733,7 @@
   <!-- ========================================================================= -->
   <!-- 📍 TACTICAL PIN CREATION MODAL -->
   <!-- ========================================================================= -->
-  <div id="tacticalPinModal" class="hidden fixed inset-0 z-[120] bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+  <div id="tacticalPinModal" class="hidden fixed inset-0 z-[120] bg-black/85 backdrop-blur-md items-center justify-center p-4" style="display: none;">
     <div class="bg-rtsd-card border border-slate-700 rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <div class="flex items-center gap-2.5">
@@ -1675,7 +1823,7 @@
   <!-- ========================================================================= -->
   <!-- 🚨 TOC OFFICIAL INCIDENT REPORT MODAL (ศูนย์ควบคุมเปิดใบแจ้งเหตุใหม่) -->
   <!-- ========================================================================= -->
-  <div id="createIncidentModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-3 bg-slate-950/80 backdrop-blur-md">
+  <div id="createIncidentModal" class="hidden fixed inset-0 z-50 items-center justify-center p-3 bg-slate-950/80 backdrop-blur-md" style="display: none;">
     <div class="relative w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-2xl max-h-[92vh] overflow-y-auto custom-scrollbar">
       <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
         <div class="flex items-center gap-2">
@@ -1774,6 +1922,12 @@
     
     let rawIncidents = [];
     let trendChartInstance, typeChartInstance, urgencyChartInstance, statusChartInstance;
+    let currentRightPanelTab = 'incidents';
+    let tacticalIncidentFilter = 'ALL';
+    let tacticalIncidentSearchQuery = '';
+    let incidentMapMarkers = {};
+    let quickTypeChartInstance = null;
+    let quickTrendChartInstance = null;
 
     // 1. Direct Image URL Formatter (Google Drive, Base64 & Direct Images)
     function getDirectImageUrl(url) {
@@ -1891,14 +2045,44 @@
 
       // Update Dropdowns
       const typeFilter = document.getElementById('typeFilter');
-      typeFilter.innerHTML = '<option value="">ทุกประเภท</option>';
-      Object.keys(typeCounts).forEach(type => {
-        typeFilter.innerHTML += `<option value="${type}">${type} (${typeCounts[type]})</option>`;
-      });
+      if (typeFilter) {
+        typeFilter.innerHTML = '<option value="">ทุกประเภท</option>';
+        Object.keys(typeCounts).forEach(type => {
+          typeFilter.innerHTML += `<option value="${type}">${type} (${typeCounts[type]})</option>`;
+        });
+      }
+
+      // Update Right Panel Mini KPI & Dropdown
+      const incTotalEl = document.getElementById('feedKpiTotal');
+      if (incTotalEl) incTotalEl.innerText = total;
+      const incCritEl = document.getElementById('feedKpiCritical');
+      if (incCritEl) incCritEl.innerText = critical;
+      const incPendEl = document.getElementById('feedKpiPending');
+      if (incPendEl) incPendEl.innerText = statusCounts['⏳ รอดำเนินการ'] || 0;
+      const incProgEl = document.getElementById('feedKpiInProgress');
+      if (incProgEl) incProgEl.innerText = inProgress;
+      const incResEl = document.getElementById('feedKpiResolved');
+      if (incResEl) incResEl.innerText = resolved;
+      const badgeIncTotal = document.getElementById('badgeIncidentsTotal');
+      if (badgeIncTotal) badgeIncTotal.innerText = total;
+
+      const rightTypeFilter = document.getElementById('tacticalIncidentTypeFilter');
+      if (rightTypeFilter) {
+        const curVal = rightTypeFilter.value;
+        rightTypeFilter.innerHTML = '<option value="">ทุกประเภท</option>';
+        Object.keys(typeCounts).forEach(type => {
+          rightTypeFilter.innerHTML += `<option value="${type}" ${curVal === type ? 'selected' : ''}>${type} (${typeCounts[type]})</option>`;
+        });
+      }
 
       // Render Charts & Table
       renderStatisticalCharts(typeCounts, urgencyCounts, statusCounts, dateCounts);
       renderTable(rawIncidents);
+
+      // Render Right Panel Incident Feed, Map Markers, and Quick Stats
+      renderTacticalIncidentFeed();
+      renderTacticalIncidentMarkers();
+      renderQuickStatsPanel(typeCounts, dateCounts);
     }
 
     // 4. Render Statistical Charts (Chart.js)
@@ -2255,17 +2439,35 @@
       document.body.removeChild(link);
     }
 
+    // Modal Visibility Helpers (Guarantees no invisible overlay blocks clicks)
+    function showModal(modalId) {
+      const m = document.getElementById(modalId);
+      if (m) {
+        m.classList.remove('hidden');
+        m.classList.add('flex');
+        m.style.display = 'flex';
+      }
+    }
+    function hideModal(modalId) {
+      const m = document.getElementById(modalId);
+      if (m) {
+        m.classList.add('hidden');
+        m.classList.remove('flex');
+        m.style.display = 'none';
+      }
+    }
+
     // 8. Image Modal
     function openModal(imgSrc, title, addr) {
       document.getElementById('modalImg').src = imgSrc;
       document.getElementById('modalTitle').innerText = title;
       document.getElementById('modalMeta').innerText = addr;
       document.getElementById('modalDirectLink').href = imgSrc;
-      document.getElementById('imageModal').classList.remove('hidden');
+      showModal('imageModal');
     }
 
     function closeModal() {
-      document.getElementById('imageModal').classList.add('hidden');
+      hideModal('imageModal');
     }
 
     // 9. Live Clock
@@ -2275,7 +2477,455 @@
         year: 'numeric', month: 'short', day: 'numeric', 
         hour: '2-digit', minute: '2-digit', second: '2-digit' 
       });
-      document.getElementById('liveClock').innerText = str + " น.";
+      const clockEl = document.getElementById('liveClock');
+      if (clockEl) clockEl.innerText = str + " น.";
+    }
+
+    // =========================================================================
+    // 🎛️ RIGHT PANEL MULTI-TAB CONTROLLER (INCIDENTS / UNITS / QUICK STATS)
+    // =========================================================================
+    function switchRightPanelTab(tabName) {
+      currentRightPanelTab = tabName;
+      const pIncidents = document.getElementById('panelIncidentsView');
+      const pUnits = document.getElementById('panelUnitsView');
+      const pStats = document.getElementById('panelStatsView');
+
+      const bIncidents = document.getElementById('tabFeedIncidents');
+      const bUnits = document.getElementById('tabFeedUnits');
+      const bStats = document.getElementById('tabFeedStats');
+
+      if (pIncidents) pIncidents.classList.add('hidden');
+      if (pUnits) pUnits.classList.add('hidden');
+      if (pStats) pStats.classList.add('hidden');
+
+      const idleClass = 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition-all cursor-pointer text-xs font-semibold';
+      if (bIncidents) bIncidents.className = idleClass;
+      if (bUnits) bUnits.className = idleClass;
+      if (bStats) bStats.className = idleClass;
+
+      if (tabName === 'incidents') {
+        if (pIncidents) pIncidents.classList.remove('hidden');
+        if (bIncidents) bIncidents.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-md shadow-red-900/30 transition-all cursor-pointer text-xs font-bold';
+        renderTacticalIncidentFeed();
+      } else if (tabName === 'units') {
+        if (pUnits) pUnits.classList.remove('hidden');
+        if (bUnits) bUnits.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-sky-600 to-indigo-600 text-white shadow-md shadow-sky-900/30 transition-all cursor-pointer text-xs font-bold';
+      } else if (tabName === 'stats') {
+        if (pStats) pStats.classList.remove('hidden');
+        if (bStats) bStats.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-900/30 transition-all cursor-pointer text-xs font-bold';
+        renderQuickStatsPanel();
+      }
+    }
+
+    function refreshAllOperationalData() {
+      const icon = document.getElementById('quickSyncIcon');
+      if (icon) icon.classList.add('fa-spin');
+      Promise.all([
+        fetchData(),
+        fetchTacticalUnits(true)
+      ]).finally(() => {
+        setTimeout(() => {
+          if (icon) icon.classList.remove('fa-spin');
+        }, 600);
+      });
+    }
+
+    function setTacticalIncidentFilter(filter) {
+      tacticalIncidentFilter = filter;
+      ['All', 'Critical', 'Pending', 'Progress', 'Resolved'].forEach(name => {
+        const btn = document.getElementById(`pillInc${name}`);
+        if (btn) {
+          btn.className = 'px-2 py-0.5 rounded-md bg-slate-800/80 text-slate-400 hover:bg-slate-800 border border-slate-700/60 cursor-pointer transition-colors shrink-0';
+        }
+      });
+
+      const activeMap = {
+        'ALL': 'pillIncAll',
+        'CRITICAL': 'pillIncCritical',
+        'PENDING': 'pillIncPending',
+        'IN_PROGRESS': 'pillIncProgress',
+        'RESOLVED': 'pillIncResolved'
+      };
+      const activeBtn = document.getElementById(activeMap[filter]);
+      if (activeBtn) {
+        if (filter === 'CRITICAL') activeBtn.className = 'px-2.5 py-0.5 rounded-md bg-rose-600 text-white font-bold cursor-pointer transition-colors shadow-sm shrink-0';
+        else if (filter === 'PENDING') activeBtn.className = 'px-2.5 py-0.5 rounded-md bg-sky-600 text-white font-bold cursor-pointer transition-colors shadow-sm shrink-0';
+        else if (filter === 'IN_PROGRESS') activeBtn.className = 'px-2.5 py-0.5 rounded-md bg-amber-600 text-white font-bold cursor-pointer transition-colors shadow-sm shrink-0';
+        else if (filter === 'RESOLVED') activeBtn.className = 'px-2.5 py-0.5 rounded-md bg-emerald-600 text-white font-bold cursor-pointer transition-colors shadow-sm shrink-0';
+        else activeBtn.className = 'px-2.5 py-0.5 rounded-md bg-sky-600 text-white font-bold cursor-pointer transition-colors shadow-sm shrink-0';
+      }
+
+      renderTacticalIncidentFeed();
+    }
+
+    function filterTacticalIncidents() {
+      const searchInput = document.getElementById('tacticalIncidentSearchInput');
+      tacticalIncidentSearchQuery = searchInput ? searchInput.value.toLowerCase().trim() : '';
+      renderTacticalIncidentFeed();
+    }
+
+    function renderTacticalIncidentFeed() {
+      const container = document.getElementById('tacticalIncidentCardsList');
+      if (!container) return;
+
+      const typeVal = document.getElementById('tacticalIncidentTypeFilter')?.value || '';
+      const search = (tacticalIncidentSearchQuery || '').toLowerCase();
+
+      const filtered = rawIncidents.filter(item => {
+        const matchesSearch = !search || 
+          (item.title || '').toLowerCase().includes(search) || 
+          (item.address || '').toLowerCase().includes(search) || 
+          (item.reporter || '').toLowerCase().includes(search) ||
+          (item.raw_type || '').toLowerCase().includes(search);
+
+        const matchesType = !typeVal || item.incident_type === typeVal || item.raw_type === typeVal;
+
+        let matchesStatus = true;
+        if (tacticalIncidentFilter === 'CRITICAL') {
+          matchesStatus = (item.urgency || '').includes('วิกฤต');
+        } else if (tacticalIncidentFilter === 'PENDING') {
+          matchesStatus = (item.status || '').includes('รอ');
+        } else if (tacticalIncidentFilter === 'IN_PROGRESS') {
+          matchesStatus = (item.status || '').includes('ดำเนิน');
+        } else if (tacticalIncidentFilter === 'RESOLVED') {
+          matchesStatus = (item.status || '').includes('เสร็จ') || (item.status || '').includes('เรียบร้อย');
+        }
+
+        return matchesSearch && matchesType && matchesStatus;
+      });
+
+      const lastSyncText = document.getElementById('tacticalIncidentLastSyncText');
+      if (lastSyncText) {
+        lastSyncText.innerText = `แสดง ${filtered.length}/${rawIncidents.length} รายการ • ${new Date().toLocaleTimeString('th-TH')}`;
+      }
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-12 text-slate-500 space-y-2">
+            <i class="fa-solid fa-clipboard-check text-3xl text-slate-600 mb-1"></i>
+            <p class="text-xs">ไม่พบรายการเหตุการณ์ตามเงื่อนไขที่เลือก</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = '';
+      filtered.slice().reverse().forEach(item => {
+        const isCrit = (item.urgency || '').includes('วิกฤต');
+        const isResolved = (item.status || '').includes('เสร็จ') || (item.status || '').includes('เรียบร้อย');
+        const isProgress = (item.status || '').includes('ดำเนิน');
+
+        let urgBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/30">🟡 ปานกลาง</span>';
+        let cardAccent = 'border-slate-800 hover:border-slate-700';
+        if (isCrit) {
+          urgBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-400 border border-rose-500/40 animate-pulse">🔴 วิกฤต</span>';
+          cardAccent = 'border-rose-900/50 hover:border-rose-500/60 bg-rose-950/10';
+        } else if ((item.urgency || '').includes('เฝ้าระวัง')) {
+          urgBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">🟢 เฝ้าระวัง</span>';
+        }
+
+        let statBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-sky-500/20 text-sky-400 border border-sky-500/30">⏳ รอดำเนินการ</span>';
+        if (isResolved) {
+          statBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">🟢 เสร็จสิ้น</span>';
+        } else if (isProgress) {
+          statBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/30">🟡 กำลังช่วยเหลือ</span>';
+        }
+
+        const directImg = getDirectImageUrl(item.media_url);
+        let thumbHtml = '';
+        if (directImg) {
+          thumbHtml = `
+            <div class="relative shrink-0 w-16 h-16 rounded-xl overflow-hidden border border-slate-700 bg-slate-950 group/img cursor-pointer" onclick="event.stopPropagation(); openModal('${directImg}', '${(item.title || '').replace(/'/g, "\\'")}', '${(item.address || '').replace(/'/g, "\\'")}')">
+              <img src="${directImg}" alt="ภาพ" class="w-full h-full object-cover group-hover/img:scale-110 transition-transform">
+              <div class="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white text-xs">
+                <i class="fa-solid fa-magnifying-glass-plus"></i>
+              </div>
+            </div>
+          `;
+        }
+
+        const hasCoords = item.lat && item.lon && !isNaN(item.lat) && !isNaN(item.lon) && item.lat !== 0;
+        const safeTime = encodeURIComponent(item.timestamp || '');
+        const safeTitle = encodeURIComponent(item.title || '');
+
+        const card = document.createElement('div');
+        card.className = `p-3 rounded-xl bg-slate-900/90 border ${cardAccent} hover:bg-slate-850 transition-all shadow-md group relative cursor-pointer`;
+        card.onclick = () => {
+          if (hasCoords) flyToIncident(item.lat, item.lon, item.title);
+        };
+
+        card.innerHTML = `
+          <div class="flex items-start justify-between gap-2 mb-1.5">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                <i class="fa-solid fa-folder-open mr-1"></i>${item.raw_type || item.incident_type}
+              </span>
+              ${urgBadge}
+              ${statBadge}
+            </div>
+            <span class="text-[10px] text-slate-400 font-mono flex items-center gap-1 shrink-0" title="${item.timestamp}">
+              <i class="fa-regular fa-clock text-slate-500"></i> ${formatRelativeTime(item.timestamp)}
+            </span>
+          </div>
+
+          <div class="flex items-start gap-2.5">
+            ${thumbHtml}
+            <div class="flex-1 min-w-0">
+              <h4 class="font-bold text-white text-xs sm:text-sm line-clamp-2 group-hover:text-sky-300 transition-colors">${item.title}</h4>
+              <p class="text-[11px] text-slate-300 mt-1 flex items-center gap-1 truncate" title="${item.address || ''}">
+                <i class="fa-solid fa-location-dot text-rose-400 text-[10px] shrink-0"></i>
+                <span class="truncate">${item.address || 'ไม่ระบุชื่อสถานที่'}</span>
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-800/80 text-[11px] text-slate-400">
+            <span class="flex items-center gap-1 truncate max-w-[140px]" title="${item.reporter}">
+              <i class="fa-solid fa-user text-slate-500 text-[10px]"></i> ${item.reporter || 'ประชาชน'}
+            </span>
+            <div class="flex items-center gap-1.5 shrink-0" onclick="event.stopPropagation()">
+              ${hasCoords ? `
+                <button onclick="flyToIncident(${item.lat}, ${item.lon}, '${(item.title || '').replace(/'/g, "\\'")}')" class="px-2.5 py-0.5 rounded-lg bg-sky-600/30 hover:bg-sky-600 text-sky-300 hover:text-white border border-sky-500/40 text-[10px] font-semibold flex items-center gap-1 transition-all cursor-pointer shadow-sm" title="ซูมและจัดกึ่งกลางบนแผนที่">
+                  <i class="fa-solid fa-crosshairs"></i> ซูมแผนที่
+                </button>
+              ` : `
+                <span class="text-[10px] text-slate-500 italic">ไม่มีพิกัด</span>
+              `}
+              <select data-prev="${item.status}" onchange="updateIncidentStatus(this, '${safeTime}', '${safeTitle}')" class="px-1.5 py-0.5 text-[10px] rounded-lg bg-slate-950 border border-slate-700 text-slate-300 font-medium focus:outline-none focus:border-sky-500 transition-colors cursor-pointer">
+                <option value="⏳ รอดำเนินการ" ${item.status.includes('รอ') ? 'selected' : ''}>⏳ รอดำเนินการ</option>
+                <option value="🟡 กำลังดำเนินการ" ${item.status.includes('ดำเนิน') ? 'selected' : ''}>🟡 กำลังช่วยเหลือ</option>
+                <option value="🟢 แก้ไขแล้วเสร็จ" ${isResolved ? 'selected' : ''}>🟢 แก้ไขแล้ว</option>
+                <option value="❌ ยกเลิก/ระงับเหตุ" ${item.status.includes('ยกเลิก') ? 'selected' : ''}>❌ ยกเลิก</option>
+              </select>
+            </div>
+          </div>
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    function renderTacticalIncidentMarkers() {
+      if (!tacticalMap) return;
+
+      const validIncidents = rawIncidents.filter(item => {
+        const lat = parseFloat(item.lat);
+        const lon = parseFloat(item.lon);
+        return !isNaN(lat) && !isNaN(lon) && lat !== 0 && lon !== 0;
+      });
+
+      const currentIncidentKeys = new Set();
+
+      validIncidents.forEach((item, idx) => {
+        const lat = parseFloat(item.lat);
+        const lon = parseFloat(item.lon);
+        const key = `inc_${item.timestamp || idx}_${lat.toFixed(4)}_${lon.toFixed(4)}`;
+        currentIncidentKeys.add(key);
+
+        const isCrit = (item.urgency || '').includes('วิกฤต');
+        const isResolved = (item.status || '').includes('เสร็จ') || (item.status || '').includes('เรียบร้อย');
+        const isProgress = (item.status || '').includes('ดำเนิน');
+
+        let pinColor = '#38bdf8';
+        let pulseHtml = '';
+        let iconClass = 'fa-triangle-exclamation';
+
+        if (isCrit) {
+          pinColor = '#ef4444';
+          pulseHtml = '<span class="absolute w-8 h-8 rounded-full bg-red-500 opacity-60 animate-ping"></span>';
+          iconClass = 'fa-fire-flame-curved';
+        } else if (isResolved) {
+          pinColor = '#10b981';
+          iconClass = 'fa-check';
+        } else if (isProgress) {
+          pinColor = '#f59e0b';
+          pulseHtml = '<span class="absolute w-8 h-8 rounded-full bg-amber-500 opacity-40 animate-ping"></span>';
+          iconClass = 'fa-person-digging';
+        }
+
+        const t = (item.raw_type || item.incident_type || '').toLowerCase();
+        if (t.includes('ไฟ') || t.includes('เพลิง')) iconClass = 'fa-fire';
+        else if (t.includes('น้ำ') || t.includes('ท่วม')) iconClass = 'fa-water';
+        else if (t.includes('รถ') || t.includes('อุบัติเหตุ')) iconClass = 'fa-car-burst';
+        else if (t.includes('ช่วย') || t.includes('พยาบาล')) iconClass = 'fa-hand-holding-medical';
+
+        const customIcon = L.divIcon({
+          className: 'tactical-div-icon',
+          iconSize: [36, 42],
+          iconAnchor: [18, 38],
+          popupAnchor: [0, -36],
+          html: `
+            <div class="relative flex items-center justify-center cursor-pointer group" style="width: 36px; height: 42px;">
+              ${pulseHtml}
+              <div style="width: 30px; height: 30px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: ${pinColor}; border: 2px solid #ffffff; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.6); transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+                <i class="fa-solid ${iconClass}" style="transform: rotate(45deg); color: #ffffff; font-size: 13px;"></i>
+              </div>
+              <div style="position: absolute; top: -20px; left: 50%; transform: translateX(-50%); background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(255,255,255,0.25); color: #fff; font-size: 9px; font-weight: 600; padding: 1px 6px; border-radius: 4px; white-space: nowrap; pointer-events: none; box-shadow: 0 2px 6px rgba(0,0,0,0.5);">
+                ${item.title.length > 14 ? item.title.slice(0, 14) + '...' : item.title}
+              </div>
+            </div>
+          `
+        });
+
+        const directImg = getDirectImageUrl(item.media_url);
+        const imgHtml = directImg ? `
+          <div style="margin-bottom: 8px; border-radius: 8px; overflow: hidden; max-height: 120px; cursor: pointer;" onclick="openModal('${directImg}', '${(item.title || '').replace(/'/g, "\\'")}', '${(item.address || '').replace(/'/g, "\\'")}')">
+            <img src="${directImg}" style="width: 100%; height: 100%; object-fit: cover;" alt="ภาพหลักฐาน">
+          </div>
+        ` : '';
+
+        const popupContent = `
+          <div style="min-width: 230px; max-width: 280px; font-family: 'Prompt', sans-serif;">
+            ${imgHtml}
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-bottom: 6px;">
+              <span style="font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);">
+                ${item.raw_type || item.incident_type}
+              </span>
+              <span style="font-size: 10px; font-weight: bold; color: ${isCrit ? '#f87171' : isResolved ? '#34d399' : '#fbbf24'};">
+                ${item.urgency}
+              </span>
+            </div>
+            <div style="font-weight: 700; color: #ffffff; font-size: 13px; line-height: 1.3; margin-bottom: 4px;">
+              ${item.title}
+            </div>
+            <div style="font-size: 11px; color: #94a3b8; margin-bottom: 6px; display: flex; align-items: flex-start; gap: 4px;">
+              <i class="fa-solid fa-location-dot" style="color: #f43f5e; margin-top: 2px; font-size: 10px;"></i>
+              <span>${item.address || 'ไม่ระบุที่อยู่'}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #64748b; border-top: 1px solid #1e293b; padding-top: 6px; margin-top: 6px;">
+              <span>👤 ${item.reporter || 'ประชาชน'}</span>
+              <span>${formatRelativeTime(item.timestamp)}</span>
+            </div>
+            <div style="margin-top: 8px; display: flex; gap: 4px;">
+              <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}" target="_blank" style="flex: 1; text-align: center; background: #0284c7; color: #fff; font-size: 10px; font-weight: bold; padding: 4px 6px; border-radius: 6px; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                <i class="fa-solid fa-diamond-turn-right"></i> นำทาง
+              </a>
+              <button onclick="zoomToIncident(${lat}, ${lon})" style="flex: 1; background: #334155; color: #fff; font-size: 10px; font-weight: bold; padding: 4px 6px; border-radius: 6px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                <i class="fa-solid fa-magnifying-glass-plus"></i> ซูมใกล้
+              </button>
+            </div>
+          </div>
+        `;
+
+        if (incidentMapMarkers[key]) {
+          incidentMapMarkers[key].setLatLng([lat, lon]);
+          incidentMapMarkers[key].setIcon(customIcon);
+          incidentMapMarkers[key].setPopupContent(popupContent);
+        } else {
+          const marker = L.marker([lat, lon], { icon: customIcon }).addTo(tacticalMap);
+          marker.bindPopup(popupContent);
+          incidentMapMarkers[key] = marker;
+        }
+      });
+
+      // Remove stale markers
+      Object.keys(incidentMapMarkers).forEach(key => {
+        if (!currentIncidentKeys.has(key)) {
+          tacticalMap.removeLayer(incidentMapMarkers[key]);
+          delete incidentMapMarkers[key];
+        }
+      });
+    }
+
+    function flyToIncident(lat, lon, title) {
+      if (!tacticalMap || isNaN(lat) || isNaN(lon) || lat === 0) {
+        showToast('⚠️ ไม่พบพิกัดตำแหน่งของเหตุการณ์นี้');
+        return;
+      }
+      tacticalMap.flyTo([lat, lon], 16, { animate: true, duration: 1.2 });
+      
+      const marker = Object.values(incidentMapMarkers).find(m => {
+        const ll = m.getLatLng();
+        return Math.abs(ll.lat - lat) < 0.0001 && Math.abs(ll.lng - lon) < 0.0001;
+      });
+      if (marker) {
+        setTimeout(() => {
+          marker.openPopup();
+        }, 1250);
+      }
+    }
+
+    function zoomToIncident(lat, lon) {
+      if (tacticalMap) {
+        tacticalMap.setView([lat, lon], 18, { animate: true });
+      }
+    }
+
+    function renderQuickStatsPanel(typeCounts, dateCounts) {
+      if (!typeCounts) {
+        typeCounts = {};
+        rawIncidents.forEach(item => {
+          const t = item.incident_type || 'อื่นๆ';
+          typeCounts[t] = (typeCounts[t] || 0) + 1;
+        });
+      }
+      if (!dateCounts) {
+        dateCounts = {};
+        rawIncidents.forEach(item => {
+          const d = item.timestamp ? (item.timestamp.split('T')[0].split(' ')[0].substring(5)) : 'ไม่ระบุ';
+          dateCounts[d] = (dateCounts[d] || 0) + 1;
+        });
+      }
+
+      const chartFont = { family: 'Prompt', size: 10 };
+
+      const typeCanvas = document.getElementById('quickTypeChart');
+      if (typeCanvas) {
+        if (quickTypeChartInstance) quickTypeChartInstance.destroy();
+        const labels = Object.keys(typeCounts);
+        const dataVals = labels.map(k => typeCounts[k]);
+        quickTypeChartInstance = new Chart(typeCanvas.getContext('2d'), {
+          type: 'doughnut',
+          data: {
+            labels: labels.length > 0 ? labels : ['ไม่มีข้อมูล'],
+            datasets: [{
+              data: dataVals.length > 0 ? dataVals : [1],
+              backgroundColor: ['#38bdf8', '#ef4444', '#f59e0b', '#10b981', '#a855f7', '#ec4899', '#64748b'],
+              borderWidth: 1,
+              borderColor: '#0f172a'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'right', labels: { color: '#cbd5e1', font: chartFont, boxWidth: 10 } }
+            }
+          }
+        });
+      }
+
+      const trendCanvas = document.getElementById('quickTrendChart');
+      if (trendCanvas) {
+        if (quickTrendChartInstance) quickTrendChartInstance.destroy();
+        const sortedDates = Object.keys(dateCounts).sort();
+        const trendVals = sortedDates.map(d => dateCounts[d]);
+        quickTrendChartInstance = new Chart(trendCanvas.getContext('2d'), {
+          type: 'line',
+          data: {
+            labels: sortedDates.length > 0 ? sortedDates : ['ไม่มีข้อมูล'],
+            datasets: [{
+              label: 'เหตุการณ์',
+              data: trendVals.length > 0 ? trendVals : [0],
+              borderColor: '#38bdf8',
+              backgroundColor: 'rgba(56, 189, 248, 0.2)',
+              fill: true,
+              tension: 0.3,
+              borderWidth: 2,
+              pointRadius: 3
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { ticks: { color: '#94a3b8', font: chartFont }, grid: { display: false } },
+              y: { ticks: { color: '#94a3b8', stepSize: 1, font: chartFont }, grid: { color: '#1e293b' } }
+            }
+          }
+        });
+      }
     }
 
     // =========================================================================
@@ -2326,7 +2976,7 @@
           const guestBtn = document.getElementById('guestLoginBtnContainer');
           if (guestBtn) guestBtn.classList.add('hidden');
 
-          document.getElementById('authModal').classList.add('hidden');
+          hideModal('authModal');
           fetchData();
           return true;
         } catch(e) {}
@@ -2342,13 +2992,17 @@
       if (guestBtn) guestBtn.classList.remove('hidden');
 
       // 👁️ โหมดประชาชน (Citizen / Guest View): เข้าชมแผนที่สดได้ทันทีโดยไม่ต้องล็อกอิน
-      document.getElementById('authModal').classList.add('hidden');
+      hideModal('authModal');
       fetchData();
       return false;
     }
 
     function closeAuthModal() {
-      document.getElementById('authModal').classList.add('hidden');
+      hideModal('authModal');
+    }
+
+    function openAuthModal() {
+      showModal('authModal');
     }
 
     // 👤 จัดการการแก้ไขข้อมูลโปรไฟล์ส่วนตัว (Personal Profile Edit)
@@ -2381,14 +3035,14 @@
           fallbackIcon.classList.remove('hidden');
         }
 
-        document.getElementById('editProfileModal').classList.remove('hidden');
+        showModal('editProfileModal');
       } catch (e) {
         console.error("Error opening profile modal:", e);
       }
     }
 
     function closeEditProfileModal() {
-      document.getElementById('editProfileModal').classList.add('hidden');
+      hideModal('editProfileModal');
     }
 
     function handleEditProfileImageSelect(e) {
@@ -2748,19 +3402,13 @@
     let allRegisteredUsers = [];
 
     async function openUserManagementModal() {
-      const modal = document.getElementById('userManagementModal');
-      if (modal) {
-        modal.classList.remove('hidden');
-        fetchAdminUsers();
-        fetchSystemSettings();
-      }
+      showModal('userManagementModal');
+      fetchAdminUsers();
+      fetchSystemSettings();
     }
 
     function closeUserManagementModal() {
-      const modal = document.getElementById('userManagementModal');
-      if (modal) {
-        modal.classList.add('hidden');
-      }
+      hideModal('userManagementModal');
     }
 
     // --- 🌐 Google Maps OPSEC Settings ---
@@ -3572,13 +4220,11 @@
     let portalSelectedProfileBase64 = "";
 
     function openAuthModal() {
-      const modal = document.getElementById('authModal');
-      if (modal) modal.classList.remove('hidden');
+      showModal('authModal');
     }
 
     function goToRegisterFromAuthModal() {
-      const modal = document.getElementById('authModal');
-      if (modal) modal.classList.add('hidden');
+      hideModal('authModal');
       switchMainView('register');
     }
 
@@ -3884,13 +4530,12 @@
         }
       }
 
-      modal.classList.remove('hidden');
+      showModal('tacticalPinModal');
       setTimeout(() => document.getElementById('pinTitle')?.focus(), 100);
     }
 
     function closeTacticalPinModal() {
-      const modal = document.getElementById('tacticalPinModal');
-      if (modal) modal.classList.add('hidden');
+      hideModal('tacticalPinModal');
       pendingPinLatLng = null;
     }
 
@@ -3987,13 +4632,12 @@
         } catch(e) {}
       }
 
-      modal.classList.remove('hidden');
+      showModal('createIncidentModal');
       setTimeout(() => document.getElementById('incTitle')?.focus(), 100);
     }
 
     function closeCreateIncidentModal() {
-      const modal = document.getElementById('createIncidentModal');
-      if (modal) modal.classList.add('hidden');
+      hideModal('createIncidentModal');
     }
 
     async function handleSaveNewIncident(e) {
@@ -4764,9 +5408,18 @@
     }
 
     function fitMapToAllUnits() {
-      if (!tacticalMap || Object.keys(tacticalMarkers).length === 0) return;
-      const group = L.featureGroup(Object.values(tacticalMarkers));
-      tacticalMap.fitBounds(group.getBounds().pad(0.3));
+      if (!tacticalMap) return;
+      const allLayers = [
+        ...Object.values(tacticalMarkers || {}),
+        ...Object.values(customPinMarkers || {}),
+        ...Object.values(incidentMapMarkers || {})
+      ];
+      if (allLayers.length === 0) {
+        tacticalMap.setView([13.7563, 100.5018], 6);
+        return;
+      }
+      const group = L.featureGroup(allLayers);
+      tacticalMap.fitBounds(group.getBounds().pad(0.2));
     }
 
     let isMapFullscreen = false;
@@ -5213,6 +5866,8 @@
       if (badgeActive) badgeActive.innerText = `🟢 ${countActive} ACTIVE`;
       if (badgeStandby) badgeStandby.innerText = `🔵 ${countStandby} STANDBY`;
       if (badgeOffline) badgeOffline.innerText = `⚪ ${countOffline} OFFLINE`;
+      const tabUnitsActive = document.getElementById('badgeUnitsActive');
+      if (tabUnitsActive) tabUnitsActive.innerText = countActive;
 
       if (displayUnits.length === 0) {
         container.innerHTML = `
