@@ -4,7 +4,7 @@ import time
 import base64
 import math
 import requests
-from flask import Flask, request, abort, jsonify
+from flask import Flask, request, abort, jsonify, send_file
 from linebot.v3 import WebhookHandler
 from linebot.v3.exceptions import InvalidSignatureError
 import random
@@ -66,33 +66,25 @@ GOOGLE_SHEET_URL = os.environ.get('GOOGLE_SHEET_URL', "https://script.google.com
 MASTER_PIN = os.environ.get('MASTER_PIN', 'RTSD2024')
 
 # =========================================================================
-# 🎨 3. การกำหนดค่า LINE Rich Menu ยุทธการ (Role-based Rich Menus)
+# 🎨 3. การกำหนดค่า LINE Rich Menu บูรณาการ (Unified 4-Grid Menu)
 # =========================================================================
-OFFICER_RICH_MENU_ID = os.environ.get('OFFICER_RICH_MENU_ID', 'richmenu-535b36e352f7cfa6adaa82b6d3467cb6')
-CITIZEN_RICH_MENU_ID = os.environ.get('CITIZEN_RICH_MENU_ID', 'richmenu-5e6689f4c2f92df5e6cb89ac03eb6f4d')
+UNIFIED_RICH_MENU_ID = os.environ.get('UNIFIED_RICH_MENU_ID', 'richmenu-8c2b92141212ba4832157a7e6d9f6d02')
+OFFICER_RICH_MENU_ID = UNIFIED_RICH_MENU_ID
+CITIZEN_RICH_MENU_ID = UNIFIED_RICH_MENU_ID
 
 def switch_user_rich_menu(user_id, role="citizen"):
     """
-    สลับริชเมนูตามบทบาทผู้ใช้แบบไดนามิก (Role-based Rich Menu Switcher)
-    - role ในกลุ่มเจ้าหน้าที่ (officer, admin, operator, field_officer) -> ผูกเมนูเจ้าหน้าที่ 2A
-    - role ประชาชน/ทั่วไป (citizen, observer) -> ปลดการผูกเพื่อกลับไปใช้เมนูประชาชน 1B (Default)
+    จัดสรรริชเมนูบูรณาการ (Unified Rich Menu)
     """
     if not user_id or str(user_id).startswith("-"):
         return False
     try:
         headers = {"Authorization": f"Bearer {CHANNEL_ACCESS_TOKEN}"}
-        r_role = str(role or "").lower()
-        is_officer = any(k in r_role for k in ["admin", "officer", "operator", "หัวหน้า", "เจ้าหน้าที่", "ผู้บังคับบัญชา", "ทหาร", "toc"])
-        if is_officer and OFFICER_RICH_MENU_ID:
-            url = f"https://api.line.me/v2/bot/user/{user_id}/richmenu/{OFFICER_RICH_MENU_ID}"
-            resp = requests.post(url, headers=headers, timeout=5)
-            return resp.status_code == 200
-        else:
-            url = f"https://api.line.me/v2/bot/user/{user_id}/richmenu"
-            resp = requests.delete(url, headers=headers, timeout=5)
-            return resp.status_code == 200
+        url = f"https://api.line.me/v2/bot/user/{user_id}/richmenu"
+        resp = requests.delete(url, headers=headers, timeout=5)
+        return resp.status_code == 200
     except Exception as e:
-        print(f"Error switching rich menu for user {user_id}: {e}")
+        print(f"Error resetting rich menu for user {user_id}: {e}")
         return False
 
 # ที่เก็บสถานะการสนทนาชั่วคราวของผู้ใช้ (User State Session)
@@ -593,6 +585,28 @@ def tracker_page():
         with open(html_path, "r", encoding="utf-8") as f:
             return f.read(), 200, {'Content-Type': 'text/html; charset=utf-8'}
     return "Tracker HTML template not found on server", 404
+
+
+@app.route("/download/app", methods=['GET'])
+def download_app_file():
+    """ให้บริการดาวน์โหลดไฟล์ RTSD Tactical Tracker Mobile App (.apk) โดยตรง"""
+    apk_filename = "RTSD_Tactical_Tracker_v1.2_FullAuth.apk"
+    apk_path = os.path.join(os.path.dirname(__file__), apk_filename)
+    if not os.path.exists(apk_path):
+        parent_apk = os.path.join(os.path.dirname(os.path.dirname(__file__)), apk_filename)
+        if os.path.exists(parent_apk):
+            apk_path = parent_apk
+    if os.path.exists(apk_path):
+        return send_file(
+            apk_path,
+            as_attachment=True,
+            download_name="RTSD_Tactical_Tracker_v1.2.apk",
+            mimetype="application/vnd.android.package-archive"
+        )
+    return jsonify({
+        "status": "error",
+        "message": "ไม่พบไฟล์ APK บนเซิร์ฟเวอร์ กรุณาติดต่อผู้ดูแลระบบ"
+    }), 404
 
 
 @app.route("/api/tracker/update", methods=['POST'])
@@ -2712,6 +2726,31 @@ def handle_text(event):
                   "เพื่อให้ระบบเรดาร์สแกนเหตุการณ์ฉุกเฉินและชุดปฏิบัติการในรัศมี 15 กม. รอบจุดตรวจการณ์ทันทีครับ"),
             quick_reply=quick_reply
         )
+
+    # =========================================================================
+    # 📱 ดาวน์โหลดแอปพลิเคชันมือถือ RTSD Tactical Tracker
+    # =========================================================================
+    elif user_text in ["ดาวน์โหลดแอป", "โหลดแอป", "แอปมือถือ", "ดาวน์โหลด", "app", "apk", "แอป", "ดาวน์โหลดแอป rtsd", "ดาวน์โหลดแอปมือถือ"]:
+        reply_msg = (
+            "📱 แอปพลิเคชัน RTSD Tactical Tracker\n"
+            "━━━━━━━━━━━━━━━━━━\n"
+            "ระบบติดตามพิกัด GPS สด & เรดาร์ยุทธการ สำหรับเจ้าหน้าที่ภาคสนาม\n\n"
+            "🎖️ สังกัด: กรมแผนที่ทหาร (RTSD)\n"
+            "📦 เวอร์ชัน: v1.2 (Full Auth & Radar)\n"
+            "⚙️ ขนาดไฟล์: ~55 MB (Android 8.0+)\n"
+            "━━━━━━━━━━━━━━━━━━\n"
+            "📥 ลิงก์ดาวน์โหลดตรง (.APK):\n"
+            "👉 https://rtsd-linebot.onrender.com/download/app\n\n"
+            "🛡️ คำแนะนำความปลอดภัย:\n"
+            "แอปพลิเคชันนี้พัฒนาเพื่อภารกิจภายในกรมแผนที่ทหาร ปลอดภัย 100% ไม่มีมัลแวร์\n"
+            "หากระบบ Android ขึ้นเตือน ให้กด 'ติดตั้งต่อไป (Install anyway)' ได้เลยครับ"
+        )
+        quick_reply = QuickReply(items=[
+            QuickReplyItem(action=URIAction(label="📥 ดาวน์โหลดไฟล์ APK", uri="https://rtsd-linebot.onrender.com/download/app")),
+            QuickReplyItem(action=URIAction(label="🗺️ แผนที่สถานการณ์", uri="https://rtsd-linebot.onrender.com/dashboard")),
+            QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุฉุกเฉิน", text="แจ้งเหตุ"))
+        ])
+        reply_message = TextMessage(text=reply_msg, quick_reply=quick_reply)
 
     # =========================================================================
     # 🆘 ระบบเบอร์ฉุกเฉิน & ข้อแนะนำรับมือภัยพิบัติ

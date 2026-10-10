@@ -305,6 +305,14 @@
 
       <!-- Quick Actions & Clock -->
       <div class="flex items-center space-x-2 text-xs">
+        <!-- Guest / Public Citizen Mode Login Button -->
+        <div id="guestLoginBtnContainer" class="flex items-center gap-1.5">
+          <button onclick="openAuthModal()" class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-600/30 hover:bg-sky-600/50 text-sky-300 border border-sky-500/40 text-xs font-medium cursor-pointer transition shadow" title="สำหรับเจ้าหน้าที่ยืนยันตัวตนเพื่อสั่งการ">
+            <i class="fa-solid fa-lock text-sky-400"></i>
+            <span>เข้าสู่ระบบเจ้าหน้าที่</span>
+          </button>
+        </div>
+
         <!-- User Profile Badge & Logout -->
         <div id="userBadge" class="hidden items-center space-x-2 px-2.5 py-1 rounded-lg bg-sky-950/70 border border-sky-500/40 text-sky-300">
           <div onclick="openEditProfileModal()" class="flex items-center gap-1.5 cursor-pointer hover:text-white transition-colors" title="คลิกเพื่อแก้ไขโปรไฟล์ส่วนตัวและเปลี่ยนรูป">
@@ -1351,6 +1359,9 @@
   <!-- ========================================================================= -->
   <div id="authModal" class="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
     <div class="bg-rtsd-card border border-sky-500/30 rounded-2xl max-w-md w-full p-6 relative shadow-2xl shadow-sky-950/50 space-y-5 text-center">
+      <button type="button" onclick="closeAuthModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-lg p-1.5 rounded-lg hover:bg-slate-800 transition cursor-pointer" title="ปิดหน้าต่าง / เข้าชมแผนที่">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
       <!-- RTSD Emblem -->
       <div class="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center text-white text-3xl shadow-xl shadow-sky-500/30">
         <i class="fa-solid fa-shield-halved"></i>
@@ -1441,11 +1452,14 @@
       </div>
 
       <!-- Register Link -->
-      <div class="pt-3 border-t border-slate-800/80 flex items-center justify-center gap-1.5 text-xs text-slate-400">
-        <span>ยังไม่มีบัญชีผู้ใช้งาน?</span>
+      <div class="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+        <button type="button" onclick="closeAuthModal()" class="text-slate-400 hover:text-white transition flex items-center gap-1">
+          <i class="fa-solid fa-map-location-dot text-sky-400"></i>
+          <span>เข้าชมแผนที่ (Guest Mode)</span>
+        </button>
         <button type="button" onclick="goToRegisterFromAuthModal()" class="text-cyan-400 hover:text-cyan-300 font-semibold cursor-pointer underline flex items-center gap-1 transition">
           <i class="fa-solid fa-user-plus"></i>
-          <span>สมัครสมาชิกใหม่ (ยื่นขอใช้งาน)</span>
+          <span>สมัครสมาชิก</span>
         </button>
       </div>
     </div>
@@ -2309,6 +2323,9 @@
             }
           }
 
+          const guestBtn = document.getElementById('guestLoginBtnContainer');
+          if (guestBtn) guestBtn.classList.add('hidden');
+
           document.getElementById('authModal').classList.add('hidden');
           fetchData();
           return true;
@@ -2321,8 +2338,17 @@
         adminBtn.classList.remove('flex');
       }
 
-      document.getElementById('authModal').classList.remove('hidden');
+      const guestBtn = document.getElementById('guestLoginBtnContainer');
+      if (guestBtn) guestBtn.classList.remove('hidden');
+
+      // 👁️ โหมดประชาชน (Citizen / Guest View): เข้าชมแผนที่สดได้ทันทีโดยไม่ต้องล็อกอิน
+      document.getElementById('authModal').classList.add('hidden');
+      fetchData();
       return false;
+    }
+
+    function closeAuthModal() {
+      document.getElementById('authModal').classList.add('hidden');
     }
 
     // 👤 จัดการการแก้ไขข้อมูลโปรไฟล์ส่วนตัว (Personal Profile Edit)
