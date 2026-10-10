@@ -280,8 +280,8 @@ def fetch_registered_users():
         print(f"Error fetching users: {e}")
 
 
-def save_registered_user(line_user_id, name, phone, role="ผู้ใช้งาน", unit="-", position="-", status="อนุมัติแล้ว", purpose="-", picture_profile="-", picture_base64="", username=""):
-    """บันทึกข้อมูลผู้ใช้ใหม่ลง Google Sheets และแคชในหน่วยความจำ พร้อมรูปโปรไฟล์ (รองรับทั้ง URL และ Base64 จาก Gallery/Camera)"""
+def save_registered_user(line_user_id, name, phone, role="ผู้ใช้งาน", unit="-", position="-", status="อนุมัติแล้ว", purpose="-", picture_profile="-", picture_base64="", username="", unit_size="ชุดปฏิบัติการขนาดเล็ก (3-5 นาย)", vehicle_type="🚗 รถกระบะตรวจการณ์ 4x4 (Pickup 4WD)"):
+    """บันทึกข้อมูลผู้ใช้ใหม่ลง Google Sheets และแคชในหน่วยความจำ พร้อมรูปโปรไฟล์ ขนาดหน่วย และยานพาหนะ"""
     global registered_users, phone_to_user
     clean_phone = phone.replace("-", "").replace(" ", "")
 
@@ -314,6 +314,8 @@ def save_registered_user(line_user_id, name, phone, role="ผู้ใช้ง�
         "status": status,
         "purpose": purpose,
         "picture_profile": picture_profile or "-",
+        "unit_size": unit_size,
+        "vehicle_type": vehicle_type,
         "permissions": get_user_permissions(role)
     }
     registered_users[line_user_id] = user_data
@@ -533,26 +535,69 @@ def api_tracker_update():
                 pic = u.get("picture_profile", "-")
                 break
 
+    speed = float(data.get("speed", 0))
+    raw_status = str(data.get("status", "🟢 สแตนด์บายพร้อมปฏิบัติการ")).strip()
+    
+    # Real-time state deduction: ถ้า speed > 2 กม./ชม. หรือมีคีย์เวิร์ดภารกิจถือว่า ACTIVE เคลื่อนที่
     active_trackers[unit_id] = {
         "unit_id": unit_id,
         "unit_name": str(data.get("unit_name", "ชุดปฏิบัติการ")),
         "commander": commander,
         "latitude": float(data.get("latitude", 0)),
         "longitude": float(data.get("longitude", 0)),
-        "speed": float(data.get("speed", 0)),
+        "speed": speed,
         "heading": float(data.get("heading", 0)),
         "battery": int(data.get("battery", 100)),
-        "status": str(data.get("status", "🟢 กำลังปฏิบัติภารกิจ")),
+        "status": raw_status,
         "picture_profile": pic or "-",
-        "last_update": data.get("timestamp", time.strftime("%Y-%m-%d %H:%M:%S"))
+        "unit_size": str(data.get("unit_size", "-")),
+        "vehicle_type": str(data.get("vehicle_type", "-")),
+        "last_update": data.get("timestamp", time.strftime("%Y-%m-%d %H:%M:%S")),
+        "last_seen_epoch": time.time()
     }
     return jsonify({"status": "success", "unit_id": unit_id}), 200
 
 
+@app.route("/api/tracker/offline", methods=['POST'])
+def api_tracker_offline():
+    """รับสัญญาณแจ้งเตือนเมื่อเจ้าหน้าที่กดปิดการส่งพิกัดหรือออกจากระบบ (เปลี่ยนสถานะเป็น OFFLINE ทันที)"""
+    data = request.get_json(silent=True) or {}
+    unit_id = str(data.get("unit_id") or "").strip()
+    if unit_id and unit_id in active_trackers:
+        active_trackers[unit_id]["status"] = "⚫ OFFLINE (พักเวร/ปิดระบบ)"
+        active_trackers[unit_id]["speed"] = 0
+        active_trackers[unit_id]["last_seen_epoch"] = time.time() - 3600 # mark as offline immediately
+    return jsonify({"status": "success", "message": "Unit marked as OFFLINE"}), 200
+
+
 @app.route("/api/tracker/units", methods=['GET'])
 def api_tracker_units():
-    """ส่งรายการพิกัดสดของทุกหน่วยให้ Dashboard และ Geoportal RTSD Sync"""
-    return jsonify(list(active_trackers.values())), 200
+    """ส่งรายการพิกัดสดของทุกหน่วยให้ Dashboard และ Geoportal RTSD Sync โดยคำนวณสถานะ ACTIVE/STANDBY/OFFLINE ตามเวลาจริง"""
+    now = time.time()
+    result = []
+    for uid, unit in list(active_trackers.items()):
+        u = dict(unit)
+        last_epoch = u.get("last_seen_epoch", now)
+        elapsed_sec = now - last_epoch
+        speed = float(u.get("speed", 0))
+        status_text = (u.get("status") or "").upper()
+
+        if "OFFLINE" in status_text or elapsed_sec > 180: # เกิน 3 นาที
+            u["calculated_state"] = "OFFLINE"
+            u["state_label"] = "OFFLINE"
+            u["state_color"] = "gray"
+        elif speed >= 2 or "EN ROUTE" in status_text or "เดินทาง" in status_text or "ระงับเหตุ" in status_text:
+            u["calculated_state"] = "ACTIVE"
+            u["state_label"] = "ACTIVE"
+            u["state_color"] = "emerald"
+        else:
+            u["calculated_state"] = "STANDBY"
+            u["state_label"] = "STANDBY"
+            u["state_color"] = "sky"
+            
+        u["elapsed_seconds"] = int(elapsed_sec)
+        result.append(u)
+    return jsonify(result), 200
 
 
 @app.route("/api/system/settings", methods=['GET', 'POST'])
@@ -575,6 +620,61 @@ def api_incidents():
         return jsonify(res.json()), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/incident/create", methods=['POST'])
+def api_create_incident():
+    """API สำหรับให้ศูนย์ควบคุม TOC หรือระบบเว็บเปิดใบแจ้งเหตุการณ์ใหม่ลง Google Sheets และแจ้งเตือนกำลังพล"""
+    data = request.get_json(silent=True) or {}
+    report_id = f"RTSD-{random.randint(1000, 9999)}"
+    title = f"[{report_id}] {data.get('title', 'แจ้งเหตุฉุกเฉิน')}"
+    address = data.get("address", "ศูนย์ควบคุม TOC (พิกัดแผนที่)")
+    lat = float(data.get("latitude", 0))
+    lon = float(data.get("longitude", 0))
+    reporter = data.get("reporter", "ศูนย์ควบคุม TOC")
+    urgency = data.get("urgency", "🔴 ด่วนที่สุด")
+    incident_type = data.get("incident_type", "อื่นๆ")
+    file_base64 = data.get("file_base64")
+    file_name = data.get("file_name")
+    mime_type = data.get("mime_type", "image/jpeg")
+
+    # บันทึกลง Google Sheets
+    success = save_to_google_sheet(
+        lat=lat,
+        lon=lon,
+        title=title,
+        address=address,
+        reporter=reporter,
+        urgency=urgency,
+        incident_type=incident_type,
+        file_base64=file_base64,
+        file_name=file_name,
+        mime_type=mime_type
+    )
+
+    # ส่ง Push Notification ไปยัง Admin/Line
+    if success:
+        push_text = (
+            f"🚨 มีการเปิดใบแจ้งเหตุใหม่จากศูนย์ TOC!\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"🆔 รหัสเหตุ: #{report_id}\n"
+            f"📌 เรื่อง: {title}\n"
+            f"⚠️ ความเร่งด่วน: {urgency}\n"
+            f"📍 สถานที่: {address}\n"
+            f"👤 ผู้เปิดเรื่อง: {reporter}\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"🧭 แผนที่: https://www.google.com/maps/dir/?api=1&destination={lat},{lon}"
+        )
+        for admin_phone in ADMIN_PHONES:
+            for phone, u in phone_to_user.items():
+                if phone == admin_phone and u.get("user_id"):
+                    push_line_message(u["user_id"], push_text)
+
+    return jsonify({
+        "status": "success" if success else "error",
+        "report_id": report_id,
+        "title": title
+    }), (200 if success else 500)
 
 
 @app.route("/api/incident/update-status", methods=['POST'])
@@ -978,6 +1078,11 @@ def api_auth_login():
         user_info["role"] = "ผู้ดูแลระบบสูงสุด (Super Admin)"
         user_info["permissions"] = get_user_permissions(user_info["role"])
 
+    if not user_info.get("unit_size"):
+        user_info["unit_size"] = "ชุดปฏิบัติการขนาดเล็ก (3-5 นาย)"
+    if not user_info.get("vehicle_type"):
+        user_info["vehicle_type"] = "🚗 รถกระบะตรวจการณ์ 4x4 (Pickup 4WD)"
+
     if cred and cred.get("username"):
         user_info["username"] = cred["username"]
 
@@ -1231,6 +1336,8 @@ def api_register_request():
     picture_base64 = str(data.get("picture_base64", "")).strip()
     username = str(data.get("username", "")).strip().replace(" ", "").lower()
     password = str(data.get("password", "") or data.get("pin", "")).strip()
+    unit_size = str(data.get("unit_size", "ชุดปฏิบัติการขนาดเล็ก (3-5 นาย)")).strip()
+    vehicle_type = str(data.get("vehicle_type", "🚗 รถกระบะตรวจการณ์ 4x4 (Pickup 4WD)")).strip()
 
     if not phone or len(phone) < 9 or len(phone) > 10:
         return jsonify({"status": "error", "message": "หมายเลขโทรศัพท์ไม่ถูกต้อง (ต้องเป็น 10 หลัก)"}), 400
@@ -1270,7 +1377,9 @@ def api_register_request():
         purpose=purpose,
         picture_profile=picture_profile,
         picture_base64=picture_base64,
-        username=username
+        username=username,
+        unit_size=unit_size,
+        vehicle_type=vehicle_type
     )
 
     # หากมี LINE User ID หรือเบอร์ตรงกับผู้ใช้ LINE ให้ Push แจ้งเตือนทาง LINE ทันที
@@ -1527,6 +1636,10 @@ def api_user_update_profile():
         user_info["unit"] = str(data["unit"]).strip()
     if "position" in data and str(data["position"]).strip():
         user_info["position"] = str(data["position"]).strip()
+    if "unit_size" in data and str(data["unit_size"]).strip():
+        user_info["unit_size"] = str(data["unit_size"]).strip()
+    if "vehicle_type" in data and str(data["vehicle_type"]).strip():
+        user_info["vehicle_type"] = str(data["vehicle_type"]).strip()
 
     if "password" in data and str(data["password"]).strip():
         new_pwd = str(data["password"]).strip()
@@ -1565,7 +1678,9 @@ def api_user_update_profile():
             "name": user_info["name"],
             "unit": user_info["unit"],
             "position": user_info["position"],
-            "picture_profile": user_info["picture_profile"]
+            "picture_profile": user_info["picture_profile"],
+            "unit_size": user_info.get("unit_size", "ชุดปฏิบัติการขนาดเล็ก (3-5 นาย)"),
+            "vehicle_type": user_info.get("vehicle_type", "🚗 รถกระบะตรวจการณ์ 4x4 (Pickup 4WD)")
         })
 
     # ซิงค์ Session ปัจจุบัน
