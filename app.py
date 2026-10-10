@@ -998,27 +998,77 @@ def api_incident_dispatch():
     - รองรับการเลือกทั้งหมด (Dispatch All Units / Broadcast)
     - ส่ง Push Notification ทาง LINE ไปยังเจ้าหน้าที่เป้าหมายทันที
     """
-    global DISPATCHED_INCIDENTS
+    global DISPATCHED_INCIDENTS, TACTICAL_PINS
     data = request.get_json(silent=True) or {}
 
     incident_id = str(data.get("incident_id") or data.get("report_id") or "").strip()
-    title = str(data.get("title") or "เหตุการณ์ฉุกเฉิน").strip()
+    title = str(data.get("title") or data.get("incident_title") or "เหตุการณ์ฉุกเฉิน").strip()
     incident_type = str(data.get("incident_type") or "ทั่วไป").strip()
     urgency = str(data.get("urgency") or "🟡 ปานกลาง").strip()
-    address = str(data.get("address") or "ไม่ระบุสถานที่").strip()
-    lat = data.get("latitude")
-    lon = data.get("longitude")
-    target_units = data.get("target_units", [])
-    if isinstance(target_units, str):
-        target_units = [target_units]
-    dispatch_all = bool(data.get("dispatch_all", False) or "ALL" in target_units or "all" in target_units)
-    directive_note = str(data.get("directive_note") or "ให้ชุดปฏิบัติการเร่งรัดเข้าตรวจสอบและช่วยเหลือประชาชน ณ จุดเกิดเหตุโดยด่วน").strip()
+    address = str(data.get("address") or data.get("location") or "ไม่ระบุสถานที่").strip()
+    lat = data.get("latitude") if data.get("latitude") is not None else data.get("lat")
+    lon = data.get("longitude") if data.get("longitude") is not None else data.get("lon")
+    raw_units = data.get("target_units") or data.get("units") or []
+    if isinstance(raw_units, str):
+        raw_units = [raw_units]
+
+    target_phones = set()
+    target_unit_ids = set()
+    target_names = set()
+
+    for item in raw_units:
+        if isinstance(item, dict):
+            p = normalize_phone_number(str(item.get("phone", "")).strip())
+            if p:
+                target_phones.add(p)
+            uid = str(item.get("unit_id", "")).strip()
+            if uid:
+                target_unit_ids.add(uid)
+            cmd = str(item.get("commander", "")).strip()
+            if cmd:
+                target_names.add(cmd)
+        else:
+            s = str(item).strip()
+            if not s:
+                continue
+            p = normalize_phone_number(s)
+            if p:
+                target_phones.add(p)
+            target_unit_ids.add(s)
+            target_names.add(s)
+
+    dispatch_all = bool(data.get("dispatch_all", False) or "ALL" in target_unit_ids or "all" in target_unit_ids)
+    directive_note = str(data.get("directive_note") or data.get("directive") or "ให้ชุดปฏิบัติการเร่งรัดเข้าตรวจสอบและช่วยเหลือประชาชน ณ จุดเกิดเหตุโดยด่วน").strip()
     commander_name = str(data.get("commander_name") or "ศูนย์บัญชาการ TOC กรมแผนที่ทหาร").strip()
 
     if not incident_id:
         match = re.search(r'\[(RTSD-\d+)\]', title)
         incident_id = match.group(1) if match else f"INC-{int(time.time()) % 100000}"
 
+    # 1. สร้างหมุดยุทธการ TACTICAL_PINS เพื่อให้ RTSD Mobile App เด้งแจ้งเตือน Modal บนจอมือถือทันที!
+    pin_id = f"DISP-{int(time.time() * 1000) % 1000000:06d}"
+    try:
+        p_lat = float(lat) if (lat is not None and float(lat) != 0) else 19.907
+        p_lon = float(lon) if (lon is not None and float(lon) != 0) else 99.832
+    except:
+        p_lat, p_lon = 19.907, 99.832
+
+    pin_tagged = ["ALL"] if dispatch_all else list(target_phones | target_unit_ids | target_names)
+    new_pin = {
+        "id": pin_id,
+        "latitude": p_lat,
+        "longitude": p_lon,
+        "category": "emergency",
+        "title": f"🚨 [ภารกิจสั่งการด่วน] {title}",
+        "creator": commander_name,
+        "notes": f"⚡ ข้อสั่งการ: {directive_note}\n📍 จุดเกิดเหตุ: {address}",
+        "tagged_units": pin_tagged,
+        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    }
+    TACTICAL_PINS.append(new_pin)
+    save_tactical_pins()
+
+    # 2. ค้นหาผู้รับข้อความแจ้งเตือนทาง LINE (LINE Messaging API)
     fetch_registered_users()
 
     target_lids = set()
@@ -1029,53 +1079,60 @@ def api_incident_dispatch():
         for lid, u in registered_users.items():
             if str(lid).startswith("U"):
                 target_lids.add(str(lid))
-        for uid, tr in active_trackers.items():
-            cmd = tr.get("commander")
-            if cmd:
-                for p, u in phone_to_user.items():
-                    if u.get("name") == cmd:
-                        lid = u.get("line_user_id")
-                        if lid and str(lid).startswith("U"):
-                            target_lids.add(str(lid))
+        for p, u in phone_to_user.items():
+            lid = u.get("line_user_id")
+            if lid and str(lid).startswith("U"):
+                target_lids.add(str(lid))
     else:
-        for t in target_units:
-            t_str = str(t).strip()
-            if not t_str:
-                continue
-            matched = False
-            for uid, tr in active_trackers.items():
-                if uid == t_str or tr.get("commander") == t_str or tr.get("unit_name") == t_str:
-                    cmd_name = tr.get("commander") or tr.get("unit_name") or uid
-                    if cmd_name not in target_unit_names:
-                        target_unit_names.append(cmd_name)
-                    for p, u in phone_to_user.items():
-                        if u.get("name") == tr.get("commander"):
-                            lid = u.get("line_user_id")
-                            if lid and str(lid).startswith("U"):
-                                target_lids.add(str(lid))
-                                matched = True
-            clean_phone = normalize_phone_number(t_str)
-            if clean_phone in phone_to_user:
-                u = phone_to_user[clean_phone]
-                name = u.get("name", t_str)
+        # A. จับคู่จากหมายเลขโทรศัพท์
+        for p in target_phones:
+            if p in phone_to_user:
+                u = phone_to_user[p]
+                name = u.get("name", p)
                 if name not in target_unit_names:
                     target_unit_names.append(name)
                 lid = u.get("line_user_id")
                 if lid and str(lid).startswith("U"):
                     target_lids.add(str(lid))
-                    matched = True
-            for lid, u in registered_users.items():
-                if u.get("name") == t_str or lid == t_str:
-                    name = u.get("name", t_str)
-                    if name not in target_unit_names:
-                        target_unit_names.append(name)
-                    if str(lid).startswith("U"):
-                        target_lids.add(str(lid))
-                        matched = True
-            if not matched and t_str not in target_unit_names:
-                target_unit_names.append(t_str)
 
-    nav_link = f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}" if (lat and lon and float(lat) != 0) else None
+        # B. จับคู่จาก unit_id ใน active_trackers
+        for uid in target_unit_ids:
+            if uid in active_trackers:
+                tr = active_trackers[uid]
+                cmd_name = tr.get("commander") or tr.get("unit_name") or uid
+                if cmd_name not in target_unit_names:
+                    target_unit_names.append(cmd_name)
+                for p, u in phone_to_user.items():
+                    if u.get("name") == tr.get("commander") or (p and p[-4:] in uid):
+                        lid = u.get("line_user_id")
+                        if lid and str(lid).startswith("U"):
+                            target_lids.add(str(lid))
+
+        # C. จับคู่จากชื่อเจ้าหน้าที่ / ชุดปฏิบัติการ
+        for name in target_names:
+            if name not in target_unit_names:
+                target_unit_names.append(name)
+            for p, u in phone_to_user.items():
+                if u.get("name") == name or name in u.get("name", ""):
+                    lid = u.get("line_user_id")
+                    if lid and str(lid).startswith("U"):
+                        target_lids.add(str(lid))
+
+        # D. Fallback: หากยังไม่พบ LINE ID จากชุดที่เลือก ให้ส่งเข้า LINE ของผู้ดูแลระบบ/ผู้ใช้ที่มี LINE ID เสมอ
+        if not target_lids:
+            for p, u in phone_to_user.items():
+                lid = u.get("line_user_id")
+                if lid and str(lid).startswith("U"):
+                    target_lids.add(str(lid))
+
+    nav_link = None
+    try:
+        f_lat = float(lat)
+        f_lon = float(lon)
+        if f_lat != 0 and f_lon != 0:
+            nav_link = f"https://www.google.com/maps/dir/?api=1&destination={f_lat},{f_lon}"
+    except:
+        nav_link = None
 
     msg_lines = [
         "🚨 [คำสั่งด่วนจากศูนย์บัญชาการ TOC กรมแผนที่ทหาร]",

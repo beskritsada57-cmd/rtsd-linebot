@@ -3308,15 +3308,21 @@
 
       try {
         const payload = {
+          incident_id: selectedIncidentForDispatch.report_id || selectedIncidentForDispatch.id || '',
+          title: selectedIncidentForDispatch.title || '',
           incident_title: selectedIncidentForDispatch.title || '',
+          timestamp: selectedIncidentForDispatch.timestamp || '',
           incident_timestamp: selectedIncidentForDispatch.timestamp || '',
           incident_type: selectedIncidentForDispatch.incident_type || selectedIncidentForDispatch.raw_type || 'ทั่วไป',
           urgency: selectedIncidentForDispatch.urgency || '🟡 ปานกลาง',
+          address: selectedIncidentForDispatch.address || '',
           location: selectedIncidentForDispatch.address || '',
           latitude: selectedIncidentForDispatch.lat || 0,
           longitude: selectedIncidentForDispatch.lon || 0,
           directive: directive,
+          directive_note: directive,
           units: targetUnits,
+          target_units: targetUnits,
           dispatch_all: isDispatchAllSelected
         };
 
