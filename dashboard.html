@@ -3403,7 +3403,13 @@
         const res = await fetch(`${API_BASE}/api/incident/field-reports`);
         if (res.ok) {
           const data = await res.json();
-          liveFieldReports = Array.isArray(data) ? data : [];
+          if (Array.isArray(data)) {
+            liveFieldReports = data;
+          } else if (data && Array.isArray(data.reports)) {
+            liveFieldReports = data.reports;
+          } else {
+            liveFieldReports = [];
+          }
           renderLiveFieldReports();
         }
       } catch (err) {
@@ -3444,8 +3450,8 @@
           const unit = item.unit_id ? `[${item.unit_id}]` : '';
           const msg = item.message || item.requested_resource || 'ขอรับการสนับสนุนด่วนจากหน้างาน';
           const time = item.timestamp ? formatRelativeTime(item.timestamp) : 'เมื่อสักครู่';
-          const lat = parseFloat(item.lat);
-          const lon = parseFloat(item.lon);
+          const lat = parseFloat(item.latitude !== undefined ? item.latitude : item.lat);
+          const lon = parseFloat(item.longitude !== undefined ? item.longitude : item.lon);
           const hasCoords = !isNaN(lat) && !isNaN(lon) && lat !== 0 && lon !== 0;
 
           return `
@@ -3491,8 +3497,8 @@
           const imgSrc = photo.photo_url || photo.image_url;
           const sender = photo.commander || photo.sender_name || photo.unit_id || 'ชุดปฏิบัติการ';
           const time = photo.timestamp ? formatRelativeTime(photo.timestamp) : '';
-          const lat = parseFloat(photo.lat);
-          const lon = parseFloat(photo.lon);
+          const lat = parseFloat(photo.latitude !== undefined ? photo.latitude : photo.lat);
+          const lon = parseFloat(photo.longitude !== undefined ? photo.longitude : photo.lon);
           const hasCoords = !isNaN(lat) && !isNaN(lon) && lat !== 0 && lon !== 0;
 
           return `
