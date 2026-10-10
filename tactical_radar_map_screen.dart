@@ -199,11 +199,73 @@ class _TacticalRadarMapScreenState extends State<TacticalRadarMapScreen>
                   'เลือกระยะรัศมีเรดาร์เพื่อคำนวณสเกลพื้นที่จริงตามระดับการซูมของแผนที่',
                   style: TextStyle(color: AppColors.textMuted, fontSize: 11),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
+
+                // 1. Radar Master Switch
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: _isRadarEnabled
+                        ? const Color(0xFFEF4444).withValues(alpha: 0.15)
+                        : const Color(0xFF1E293B),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _isRadarEnabled
+                          ? const Color(0xFFEF4444).withValues(alpha: 0.6)
+                          : const Color(0xFF334155),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.radar,
+                            color: _isRadarEnabled ? const Color(0xFFEF4444) : Colors.white38,
+                            size: 22,
+                          ),
+                          const SizedBox(width: 10),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _isRadarEnabled ? 'เปิดเรดาร์สแกน (RADAR ON)' : 'ปิดเรดาร์ (RADAR OFF)',
+                                style: TextStyle(
+                                  color: _isRadarEnabled ? Colors.white : Colors.white70,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                _isRadarEnabled
+                                    ? 'กำลังกวาดสัญญาณและจำลองวงแหวนยุทธวิธี'
+                                    : 'ปิดการแสดงวงแหวนและเส้นกวาดเรดาร์',
+                                style: const TextStyle(color: AppColors.textMuted, fontSize: 10),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      Switch(
+                        value: _isRadarEnabled,
+                        activeThumbColor: const Color(0xFFEF4444),
+                        activeTrackColor: const Color(0xFFEF4444).withValues(alpha: 0.4),
+                        onChanged: (val) {
+                          setSheetState(() => _isRadarEnabled = val);
+                          setState(() => _isRadarEnabled = val);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: [
+                    _buildRadarOffChip(setSheetState),
                     _buildRangeChip('⚡ อัตโนมัติ (AUTO)', 'auto', setSheetState),
                     _buildRangeChip('500 M', '500', setSheetState),
                     _buildRangeChip('1.0 KM', '1000', setSheetState),
@@ -235,8 +297,33 @@ class _TacticalRadarMapScreenState extends State<TacticalRadarMapScreen>
     );
   }
 
+  Widget _buildRadarOffChip(StateSetter setSheetState) {
+    final isOff = !_isRadarEnabled;
+    return ChoiceChip(
+      avatar: Icon(Icons.power_settings_new, size: 14, color: isOff ? Colors.white : Colors.white54),
+      label: Text(
+        'ปิดเรดาร์ (OFF)',
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: isOff ? FontWeight.bold : FontWeight.normal,
+          color: isOff ? Colors.white : Colors.white70,
+        ),
+      ),
+      selected: isOff,
+      selectedColor: const Color(0xFF475569),
+      backgroundColor: const Color(0xFF1E293B),
+      onSelected: (selected) {
+        if (selected) {
+          setSheetState(() => _isRadarEnabled = false);
+          setState(() => _isRadarEnabled = false);
+          Navigator.pop(context);
+        }
+      },
+    );
+  }
+
   Widget _buildRangeChip(String label, String value, StateSetter setSheetState) {
-    final isSelected = _radarRangeMode == value;
+    final isSelected = _isRadarEnabled && _radarRangeMode == value;
     return ChoiceChip(
       label: Text(label, style: TextStyle(fontSize: 12, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, color: isSelected ? Colors.white : Colors.white70)),
       selected: isSelected,
@@ -244,8 +331,14 @@ class _TacticalRadarMapScreenState extends State<TacticalRadarMapScreen>
       backgroundColor: const Color(0xFF1E293B),
       onSelected: (selected) {
         if (selected) {
-          setSheetState(() => _radarRangeMode = value);
-          setState(() => _radarRangeMode = value);
+          setSheetState(() {
+            _isRadarEnabled = true;
+            _radarRangeMode = value;
+          });
+          setState(() {
+            _isRadarEnabled = true;
+            _radarRangeMode = value;
+          });
           _updateRadarDimensions(_mapController.camera);
           Navigator.pop(context);
         }
@@ -1120,12 +1213,16 @@ class _TacticalRadarMapScreenState extends State<TacticalRadarMapScreen>
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0F172A).withOpacity(0.92),
+                        color: const Color(0xFF0F172A).withValues(alpha: 0.92),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.6)),
+                        border: Border.all(
+                          color: _isRadarEnabled
+                              ? const Color(0xFFEF4444).withValues(alpha: 0.6)
+                              : Colors.white24,
+                        ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.6),
+                            color: Colors.black.withValues(alpha: 0.6),
                             blurRadius: 6,
                           ),
                         ],
@@ -1136,27 +1233,27 @@ class _TacticalRadarMapScreenState extends State<TacticalRadarMapScreen>
                           Container(
                             width: 8,
                             height: 8,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFEF4444),
+                            decoration: BoxDecoration(
+                              color: _isRadarEnabled ? const Color(0xFFEF4444) : Colors.white38,
                               shape: BoxShape.circle,
                             ),
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            'RADAR • $_radarRangeLabel',
-                            style: const TextStyle(
-                              color: Color(0xFFF87171),
+                            _isRadarEnabled ? 'RADAR • $_radarRangeLabel' : 'RADAR: ปิด (OFF)',
+                            style: TextStyle(
+                              color: _isRadarEnabled ? const Color(0xFFF87171) : Colors.white60,
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
                               fontFamily: 'monospace',
                             ),
                           ),
-                          if (_radarRangeMode == 'auto') ...[
+                          if (_isRadarEnabled && _radarRangeMode == 'auto') ...[
                             const SizedBox(width: 5),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFEF4444).withOpacity(0.2),
+                                color: const Color(0xFFEF4444).withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: const Text('AUTO', style: TextStyle(color: Color(0xFFFCA5A5), fontSize: 9, fontWeight: FontWeight.bold)),
@@ -1171,7 +1268,7 @@ class _TacticalRadarMapScreenState extends State<TacticalRadarMapScreen>
                   Container(
                     padding: const EdgeInsets.all(3),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0F172A).withOpacity(0.92),
+                      color: const Color(0xFF0F172A).withValues(alpha: 0.92),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: const Color(0xFF334155)),
                     ),
@@ -1186,13 +1283,21 @@ class _TacticalRadarMapScreenState extends State<TacticalRadarMapScreen>
                         InkWell(
                           onTap: () {
                             setState(() => _isRadarEnabled = !_isRadarEnabled);
+                            ScaffoldMessenger.of(context).removeCurrentSnackBar();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                backgroundColor: const Color(0xFF1E293B),
+                                duration: const Duration(seconds: 1),
+                                content: Text(_isRadarEnabled ? '🎯 เปิดเรดาร์แล้ว' : '⏸️ ปิดเรดาร์แล้ว'),
+                              ),
+                            );
                           },
                           borderRadius: BorderRadius.circular(8),
                           child: Container(
                             padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
                               color: _isRadarEnabled
-                                  ? const Color(0xFFEF4444).withOpacity(0.25)
+                                  ? const Color(0xFFEF4444).withValues(alpha: 0.25)
                                   : Colors.transparent,
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
@@ -1259,6 +1364,29 @@ class _TacticalRadarMapScreenState extends State<TacticalRadarMapScreen>
                   tooltip: 'ดูภาพรวมทุกจุด',
                   child: const Icon(Icons.fullscreen),
                   onPressed: _fitAllMarkers,
+                ),
+                const SizedBox(height: 8),
+
+                // Radar Quick Toggle
+                FloatingActionButton.small(
+                  heroTag: 'radar_quick_toggle_fab',
+                  backgroundColor: _isRadarEnabled ? const Color(0xFFEF4444) : const Color(0xFF1E293B),
+                  foregroundColor: Colors.white,
+                  tooltip: _isRadarEnabled ? 'แตะเพื่อปิดเรดาร์' : 'แตะเพื่อเปิดเรดาร์',
+                  child: Icon(Icons.radar, color: _isRadarEnabled ? Colors.white : Colors.white54, size: 18),
+                  onPressed: () {
+                    setState(() => _isRadarEnabled = !_isRadarEnabled);
+                    ScaffoldMessenger.of(context).removeCurrentSnackBar();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        backgroundColor: const Color(0xFF1E293B),
+                        duration: const Duration(seconds: 1),
+                        content: Text(
+                          _isRadarEnabled ? '🎯 เปิดเรดาร์ตรวจจับยุทธวิธีแล้ว' : '⏸️ ปิดการทำงานเรดาร์แล้ว',
+                        ),
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 8),
 
