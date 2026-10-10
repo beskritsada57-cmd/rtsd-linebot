@@ -2,6 +2,7 @@ import os
 import re
 import time
 import base64
+import math
 import requests
 from flask import Flask, request, abort, jsonify
 from linebot.v3 import WebhookHandler
@@ -63,6 +64,36 @@ handler = WebhookHandler(CHANNEL_SECRET)
 # =========================================================================
 GOOGLE_SHEET_URL = os.environ.get('GOOGLE_SHEET_URL', "https://script.google.com/macros/s/AKfycbw5Gepu7a5s9j1vXtgE55403L0K3sKtOcpUNArNCm6RJO1ulNp735XyZgAbTlMBwxI/exec")
 MASTER_PIN = os.environ.get('MASTER_PIN', 'RTSD2024')
+
+# =========================================================================
+# 🎨 3. การกำหนดค่า LINE Rich Menu ยุทธการ (Role-based Rich Menus)
+# =========================================================================
+OFFICER_RICH_MENU_ID = os.environ.get('OFFICER_RICH_MENU_ID', 'richmenu-535b36e352f7cfa6adaa82b6d3467cb6')
+CITIZEN_RICH_MENU_ID = os.environ.get('CITIZEN_RICH_MENU_ID', 'richmenu-5e6689f4c2f92df5e6cb89ac03eb6f4d')
+
+def switch_user_rich_menu(user_id, role="citizen"):
+    """
+    สลับริชเมนูตามบทบาทผู้ใช้แบบไดนามิก (Role-based Rich Menu Switcher)
+    - role ในกลุ่มเจ้าหน้าที่ (officer, admin, operator, field_officer) -> ผูกเมนูเจ้าหน้าที่ 2A
+    - role ประชาชน/ทั่วไป (citizen, observer) -> ปลดการผูกเพื่อกลับไปใช้เมนูประชาชน 1B (Default)
+    """
+    if not user_id or str(user_id).startswith("-"):
+        return False
+    try:
+        headers = {"Authorization": f"Bearer {CHANNEL_ACCESS_TOKEN}"}
+        r_role = str(role or "").lower()
+        is_officer = any(k in r_role for k in ["admin", "officer", "operator", "หัวหน้า", "เจ้าหน้าที่", "ผู้บังคับบัญชา", "ทหาร", "toc"])
+        if is_officer and OFFICER_RICH_MENU_ID:
+            url = f"https://api.line.me/v2/bot/user/{user_id}/richmenu/{OFFICER_RICH_MENU_ID}"
+            resp = requests.post(url, headers=headers, timeout=5)
+            return resp.status_code == 200
+        else:
+            url = f"https://api.line.me/v2/bot/user/{user_id}/richmenu"
+            resp = requests.delete(url, headers=headers, timeout=5)
+            return resp.status_code == 200
+    except Exception as e:
+        print(f"Error switching rich menu for user {user_id}: {e}")
+        return False
 
 # ที่เก็บสถานะการสนทนาชั่วคราวของผู้ใช้ (User State Session)
 user_sessions = {}
@@ -375,8 +406,32 @@ def notify_admins(message_text):
         print(f"Error initializing line api for admin push: {e}")
 
 
+# แคชข้อมูลเหตุการณ์จาก Google Sheets เพื่อความเร็วและลด API quota
+INCIDENTS_CACHE = {
+    "data": [],
+    "last_fetched": 0
+}
+
+
+def calculate_distance_km(lat1, lon1, lat2, lon2):
+    """คำนวณระยะทางทางภูมิศาสตร์เป็นกิโลเมตรด้วยสูตร Haversine"""
+    try:
+        lat1, lon1, lat2, lon2 = float(lat1), float(lon1), float(lat2), float(lon2)
+        if (lat1 == 0 and lon1 == 0) or (lat2 == 0 and lon2 == 0):
+            return 999999.0
+        R = 6371.0 # รัศมีโลกเฉลี่ย (กิโลเมตร)
+        dlat = math.radians(lat2 - lat1)
+        dlon = math.radians(lon2 - lon1)
+        a = math.sin(dlat / 2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2)**2
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+        return round(R * c, 2)
+    except Exception:
+        return 999999.0
+
+
 def save_to_google_sheet(lat, lon, title, address, reporter, urgency, incident_type, file_base64=None, file_name=None, mime_type=None):
     """ส่งข้อมูลครบทั้ง 10 คอลัมน์ (รวมรูปถ่าย/วิดีโอ) ไปบันทึกลง Google Sheets และ Drive"""
+    global INCIDENTS_CACHE
     try:
         payload = {
             "title": str(title),
@@ -391,6 +446,7 @@ def save_to_google_sheet(lat, lon, title, address, reporter, urgency, incident_t
             "mime_type": mime_type
         }
         res = requests.post(GOOGLE_SHEET_URL, json=payload, timeout=20)
+        INCIDENTS_CACHE["last_fetched"] = 0 # ล้างแคชเพื่อให้ดึงข้อมูลใหม่ทันที
         return res.status_code == 200
     except Exception as e:
         print(f"Error saving to Google Sheets: {e}")
@@ -399,6 +455,7 @@ def save_to_google_sheet(lat, lon, title, address, reporter, urgency, incident_t
 
 def update_google_sheet_status(title=None, timestamp=None, new_status="🟢 แก้ไขแล้วเสร็จ"):
     """ส่งคำสั่งไปค้นหาแถวเดิมและอัปเดตสถานะใน Google Sheets"""
+    global INCIDENTS_CACHE
     try:
         payload = {
             "action": "update_status",
@@ -407,6 +464,7 @@ def update_google_sheet_status(title=None, timestamp=None, new_status="🟢 แ�
             "status": str(new_status)
         }
         res = requests.post(GOOGLE_SHEET_URL, json=payload, timeout=20)
+        INCIDENTS_CACHE["last_fetched"] = 0 # ล้างแคชเพื่อให้ดึงข้อมูลใหม่ทันที
         if res.status_code == 200:
             return res.json()
         return {"status": "error", "message": f"HTTP {res.status_code}"}
@@ -415,60 +473,78 @@ def update_google_sheet_status(title=None, timestamp=None, new_status="🟢 แ�
         return {"status": "error", "message": str(e)}
 
 
-def get_user_incidents(query_text=None, user_name=None):
-    """ดึงข้อมูลสถานะการแจ้งเหตุจาก Google Sheets (ผ่าน doGet) เพื่อระบบ Tracking"""
-    try:
-        res = requests.get(GOOGLE_SHEET_URL, timeout=20)
-        if res.status_code != 200:
-            return []
-        rows = res.json()
-        if not rows or len(rows) <= 1:
-            return []
-        
-        data_rows = rows[1:]  # ข้ามแถวหัวตาราง
-        matched = []
-        
-        # ค้นหาจากแถวใหม่ล่าสุดย้อนกลับไปแถวแรก
-        for r in reversed(data_rows):
-            if len(r) < 9:
-                continue
-            timestamp = str(r[0])
-            title = str(r[1])
-            address = str(r[2])
-            reporter = str(r[5])
-            urgency = str(r[6])
-            incident_type = str(r[7])
-            status = str(r[8]).strip() or "⏳ รอดำเนินการ"
-            media_url = str(r[9]) if len(r) > 9 else "-"
-            
-            # ถ้าผู้ใช้ระบุรหัสเหตุ เช่น RTSD-1234
-            if query_text and (query_text.lower() in title.lower() or query_text.lower() in timestamp.lower()):
-                matched.append({
-                    "timestamp": timestamp,
-                    "title": title,
-                    "address": address,
-                    "reporter": reporter,
-                    "urgency": urgency,
-                    "incident_type": incident_type,
-                    "status": status,
-                    "media_url": media_url
-                })
-            # ถ้าไม่ระบุรหัส ให้ค้นจากชื่อผู้แจ้ง
-            elif user_name and user_name.lower() in reporter.lower():
-                matched.append({
-                    "timestamp": timestamp,
-                    "title": title,
-                    "address": address,
-                    "reporter": reporter,
-                    "urgency": urgency,
-                    "incident_type": incident_type,
-                    "status": status,
-                    "media_url": media_url
-                })
-        return matched
-    except Exception as e:
-        print(f"Error fetching incidents for tracking: {e}")
+def get_user_incidents(query_text=None, user_name=None, limit=50):
+    """ดึงข้อมูลสถานะการแจ้งเหตุจาก Google Sheets (ผ่าน doGet) เพื่อระบบ Tracking และ SitRep รอบตัว"""
+    global INCIDENTS_CACHE
+    now = time.time()
+    rows = None
+
+    # ตรวจสอบแคชก่อน (อายุแคช 30 วินาที)
+    if INCIDENTS_CACHE.get("data") and (now - INCIDENTS_CACHE.get("last_fetched", 0) < 30):
+        rows = INCIDENTS_CACHE["data"]
+    else:
+        try:
+            res = requests.get(GOOGLE_SHEET_URL, timeout=20)
+            if res.status_code == 200:
+                rows = res.json()
+                INCIDENTS_CACHE["data"] = rows
+                INCIDENTS_CACHE["last_fetched"] = now
+        except Exception as e:
+            print(f"Error fetching incidents from Google Sheets: {e}")
+            rows = INCIDENTS_CACHE.get("data")
+
+    if not rows or len(rows) <= 1:
         return []
+
+    data_rows = rows[1:]  # ข้ามแถวหัวตาราง
+    matched = []
+
+    # ค้นหาจากแถวใหม่ล่าสุดย้อนกลับไปแถวแรก
+    for r in reversed(data_rows):
+        if len(r) < 9:
+            continue
+        timestamp = str(r[0])
+        title = str(r[1])
+        address = str(r[2])
+        try:
+            lat_val = float(r[3])
+            lon_val = float(r[4])
+        except (ValueError, TypeError, IndexError):
+            lat_val = 0.0
+            lon_val = 0.0
+
+        reporter = str(r[5])
+        urgency = str(r[6])
+        incident_type = str(r[7])
+        status = str(r[8]).strip() or "⏳ รอดำเนินการ"
+        media_url = str(r[9]) if len(r) > 9 else "-"
+
+        item = {
+            "timestamp": timestamp,
+            "title": title,
+            "address": address,
+            "latitude": lat_val,
+            "longitude": lon_val,
+            "reporter": reporter,
+            "urgency": urgency,
+            "incident_type": incident_type,
+            "status": status,
+            "media_url": media_url
+        }
+
+        # ถ้าผู้ใช้ระบุรหัสเหตุ เช่น RTSD-1234
+        if query_text and (query_text.lower() in title.lower() or query_text.lower() in timestamp.lower()):
+            matched.append(item)
+        # ถ้าไม่ระบุรหัส ให้ค้นจากชื่อผู้แจ้ง
+        elif user_name and user_name.lower() in reporter.lower():
+            matched.append(item)
+        # ถ้าไม่ระบุทั้งสอง ให้ดึงทั้งหมดตามจำนวน limit
+        elif not query_text and not user_name:
+            matched.append(item)
+            if len(matched) >= limit:
+                break
+
+    return matched
 
 
 # ที่เก็บข้อมูลพิกัดสดของหน่วยกำลังพล / ยานพาหนะ (In-memory Active Units)
@@ -570,9 +646,8 @@ def api_tracker_offline():
     return jsonify({"status": "success", "message": "Unit marked as OFFLINE"}), 200
 
 
-@app.route("/api/tracker/units", methods=['GET'])
-def api_tracker_units():
-    """ส่งรายการพิกัดสดของทุกหน่วยให้ Dashboard และ Geoportal RTSD Sync โดยคำนวณสถานะ ACTIVE/STANDBY/OFFLINE ตามเวลาจริง"""
+def get_computed_active_units():
+    """คำนวณสถานะ ACTIVE/STANDBY/OFFLINE ของหน่วยกำลังพลทั้งหมดตามเวลาจริง"""
     now = time.time()
     result = []
     for uid, unit in list(active_trackers.items()):
@@ -597,7 +672,13 @@ def api_tracker_units():
             
         u["elapsed_seconds"] = int(elapsed_sec)
         result.append(u)
-    return jsonify(result), 200
+    return result
+
+
+@app.route("/api/tracker/units", methods=['GET'])
+def api_tracker_units():
+    """ส่งรายการพิกัดสดของทุกหน่วยให้ Dashboard และ Geoportal RTSD Sync โดยคำนวณสถานะ ACTIVE/STANDBY/OFFLINE ตามเวลาจริง"""
+    return jsonify(get_computed_active_units()), 200
 
 
 @app.route("/api/system/settings", methods=['GET', 'POST'])
@@ -1527,6 +1608,12 @@ def api_admin_update_role():
     # Push แจ้งเตือนทาง LINE หากมี LINE ID
     if lid and lid.startswith("U"):
         try:
+            # สลับริชเมนูตามสิทธิ์ใหม่แบบอัตโนมัติ
+            if new_status == "อนุมัติแล้ว":
+                switch_user_rich_menu(lid, new_role)
+            else:
+                switch_user_rich_menu(lid, "citizen")
+
             role_emoji = "⭐" if "แอดมิน" in new_role or "ผู้ดูแล" in new_role or "บัญชา" in new_role else ("🎯" if "ศูนย์" in new_role or "TOC" in new_role else "🔺")
             if new_status == "อนุมัติแล้ว":
                 push_msg = (
@@ -1537,6 +1624,7 @@ def api_admin_update_role():
                     f"🔰 ระดับสิทธิ์: {role_emoji} {new_role}\n"
                     f"🟢 สถานะ: อนุมัติเรียบร้อย (Active)\n"
                     f"━━━━━━━━━━━━━━━━━━\n"
+                    f"⚡ ระบบได้เปิดใช้งาน 'ริชเมนูยุทธการ (Tactical Command)' ให้ท่านแล้ว!\n"
                     f"✨ ท่านสามารถเข้าสู่ระบบผ่านแอปพลิเคชัน RTSD Mobile หรือ Tactical Dashboard ได้ทันทีครับ"
                 )
             elif new_status in ["ระงับสิทธิ์", "ระงับการใช้งาน", "suspended"]:
@@ -1749,6 +1837,12 @@ def handle_follow(event):
         user_info = registered_users.get(user_id)
 
     if user_info:
+        # สลับริชเมนูให้ตรงกับบทบาทของผู้ใช้
+        if user_info.get("status") == "อนุมัติแล้ว":
+            switch_user_rich_menu(user_id, user_info.get("role", "citizen"))
+        else:
+            switch_user_rich_menu(user_id, "citizen")
+
         welcome_msg = (
             f"👋 ยินดีต้อนรับกลับครับ คุณ{user_info.get('name', user_name)}!\n"
             f"━━━━━━━━━━━━━━━━━━\n"
@@ -1798,34 +1892,162 @@ def handle_follow(event):
 @handler.add(MessageEvent, message=LocationMessageContent)
 def handle_location(event):
     user_id = event.source.user_id
-    lat = event.message.latitude
-    lon = event.message.longitude
+    lat = float(event.message.latitude)
+    lon = float(event.message.longitude)
     address = event.message.address or "ไม่ระบุที่อยู่"
     title = event.message.title or "จุดแจ้งเหตุ"
 
+    user_info = registered_users.get(user_id) or {}
+    user_name = user_info.get("name") or user_sessions.get(user_id, {}).get("user_name", "ผู้ใช้งาน LINE")
+
     session = user_sessions.get(user_id, {})
+    is_reporting = bool(session.get("incident_type"))
+
+    # บันทึกพิกัดล่าสุดลง Session เสมอ
     session["lat"] = lat
     session["lon"] = lon
     session["address"] = address
     session["title"] = title
-    session["waiting_for_media"] = True
     user_sessions[user_id] = session
 
-    # ถามผู้ใช้ต่อว่าต้องการส่งรูปหรือวิดีโอแนบมาด้วยไหม
-    quick_reply = QuickReply(items=[
-        QuickReplyItem(action=MessageAction(label="⏩ ข้าม (ไม่ส่งรูป)", text="ข้ามการส่งรูป"))
-    ])
-    
-    reply = (f"📍 ได้รับพิกัดเรียบร้อยแล้วครับ!\n\n"
-             f"🏠 สถานที่: {address}\n\n"
-             f"📸 เพื่อความสมบูรณ์ของข้อมูล กรุณากดถ่ายหรือส่ง [รูปถ่าย] หรือ [คลิปวิดีโอ] หลักฐานเข้ามาได้เลยครับ (หรือกดปุ่ม 'ข้าม' ด้านล่าง)")
+    # -------------------------------------------------------------
+    # กรณีที่ 1: ผู้ใช้อยู่ในขั้นตอน "แจ้งเหตุ" (เลือกประเภทเหตุไว้แล้ว)
+    # -------------------------------------------------------------
+    if is_reporting:
+        session["waiting_for_media"] = True
+        user_sessions[user_id] = session
+
+        # สแกนหากำลังพลใกล้เคียงเพื่อแจ้งให้ผู้แจ้งเหตุอุ่นใจ
+        active_units = get_computed_active_units()
+        nearby_units = []
+        for u in active_units:
+            if u.get("calculated_state") in ["ACTIVE", "STANDBY"]:
+                u_lat = u.get("latitude", 0)
+                u_lon = u.get("longitude", 0)
+                dist = calculate_distance_km(lat, lon, u_lat, u_lon)
+                if dist <= 15.0:
+                    nearby_units.append((dist, u))
+
+        nearby_support_text = ""
+        if nearby_units:
+            nearby_units.sort(key=lambda x: x[0])
+            closest_dist, closest_unit = nearby_units[0]
+            nearby_support_text = f"\n\n🛡️ มีชุดปฏิบัติการใกล้เคียง: {closest_unit.get('unit_name')} (ห่าง ~{closest_dist:.1f} กม. พร้อมเข้าช่วยเหลือ)"
+
+        quick_reply = QuickReply(items=[
+            QuickReplyItem(action=MessageAction(label="⏩ ข้าม (ไม่ส่งรูป)", text="ข้ามการส่งรูป"))
+        ])
+
+        reply = (f"📍 ได้รับพิกัดจุดเกิดเหตุเรียบร้อยแล้วครับ!\n"
+                 f"──────────────────────\n"
+                 f"🚨 ประเภท: {session.get('incident_type')}\n"
+                 f"⚠️ ความเร่งด่วน: {session.get('urgency', '🟡 ปานกลาง')}\n"
+                 f"🏠 สถานที่: {address}{nearby_support_text}\n"
+                 f"──────────────────────\n"
+                 f"📸 กรุณากดถ่ายหรือส่ง [รูปถ่าย] หรือ [คลิปวิดีโอ] หลักฐานเข้ามาได้เลยครับ (หรือกดปุ่ม '⏩ ข้าม (ไม่ส่งรูป)' ด้านล่าง)")
+
+        with ApiClient(configuration) as api_client:
+            line_bot_api = MessagingApi(api_client)
+            line_bot_api.reply_message(
+                ReplyMessageRequest(
+                    reply_token=event.reply_token,
+                    messages=[TextMessage(text=reply, quick_reply=quick_reply)]
+                )
+            )
+        return
+
+    # -------------------------------------------------------------
+    # กรณีที่ 2: ผู้ใช้แชร์พิกัดมาโดยตรง -> แสดง SitRep สถานการณ์รอบตัว (รัศมี 15 กม.)
+    # -------------------------------------------------------------
+    all_incidents = get_user_incidents(limit=50)
+    nearby_incidents = []
+    for inc in all_incidents:
+        inc_lat = inc.get("latitude", 0)
+        inc_lon = inc.get("longitude", 0)
+        if inc_lat and inc_lon:
+            dist = calculate_distance_km(lat, lon, inc_lat, inc_lon)
+            if dist <= 15.0:
+                inc_copy = dict(inc)
+                inc_copy["dist_km"] = dist
+                nearby_incidents.append(inc_copy)
+    nearby_incidents.sort(key=lambda x: x["dist_km"])
+
+    active_units = get_computed_active_units()
+    nearby_units = []
+    for u in active_units:
+        u_lat = u.get("latitude", 0)
+        u_lon = u.get("longitude", 0)
+        if u_lat and u_lon:
+            dist = calculate_distance_km(lat, lon, u_lat, u_lon)
+            if dist <= 15.0:
+                u_copy = dict(u)
+                u_copy["dist_km"] = dist
+                nearby_units.append(u_copy)
+    nearby_units.sort(key=lambda x: x["dist_km"])
+
+    sitrep_msg = [
+        "📡 รายงานสถานการณ์รอบตัว (SitRep)",
+        "━━━━━━━━━━━━━━━━━━",
+        f"📍 พิกัด: {lat:.4f}, {lon:.4f}",
+        f"🏠 ตำแหน่ง: {address[:40]}",
+        "━━━━━━━━━━━━━━━━━━"
+    ]
+
+    # สรุปเหตุการณ์ใกล้เคียง
+    if nearby_incidents:
+        sitrep_msg.append(f"🚨 เหตุการณ์ใกล้เคียง (พบ {len(nearby_incidents)} จุดในระยะ 15 กม.):")
+        for idx, inc in enumerate(nearby_incidents[:3], 1):
+            st = inc.get("status", "⏳ รอดำเนินการ")
+            st_icon = "🟢" if ("เสร็จ" in st or "เรียบร้อย" in st) else ("🟡" if "ดำเนิน" in st else "⏳")
+            sitrep_msg.append(
+                f"{idx}. {inc.get('incident_type', 'เหตุ')} (ห่าง {inc['dist_km']:.1f} กม.)\n"
+                f"   {st_icon} {st} | {inc.get('urgency', 'ปานกลาง')}\n"
+                f"   🏠 {inc.get('address', '-')[:28]}"
+            )
+    else:
+        sitrep_msg.append("🚨 เหตุการณ์ใกล้เคียง: ✅ ไม่พบเหตุการณ์ฉุกเฉินในระยะ 15 กม.")
+
+    sitrep_msg.append("──────────────────")
+
+    # สรุปกำลังพลใกล้เคียง
+    if nearby_units:
+        sitrep_msg.append(f"👥 ชุดปฏิบัติการใกล้เคียง (พบ {len(nearby_units)} หน่วย):")
+        for u in nearby_units[:3]:
+            u_state = u.get("calculated_state", "STANDBY")
+            u_icon = "🟢" if u_state == "ACTIVE" else ("🔵" if u_state == "STANDBY" else "⚫")
+            sitrep_msg.append(
+                f"• {u_icon} {u.get('unit_name')} ({u.get('commander')})\n"
+                f"  🚘 {u.get('vehicle_type', '-')} | ห่าง {u['dist_km']:.1f} กม. [{u_state}]"
+            )
+    else:
+        sitrep_msg.append("👥 ชุดปฏิบัติการใกล้เคียง: ℹ️ ไม่พบหน่วยส่ง GPS สดในระยะ 15 กม.")
+
+    sitrep_msg.append("━━━━━━━━━━━━━━━━━━")
+    sitrep_msg.append("💡 หากพบเหตุฉุกเฉิน กดปุ่ม '🚨 แจ้งเหตุ ณ จุดนี้' ได้ทันทีครับ")
+
+    quick_items = [
+        QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุ ณ จุดนี้", text="แจ้งเหตุ ณ จุดนี้")),
+        QuickReplyItem(action=MessageAction(label="👥 เช็กกำลังพล", text="เช็กกำลังพล")),
+        QuickReplyItem(action=MessageAction(label="🔍 ติดตามสถานะ", text="ติดตามสถานะ")),
+        QuickReplyItem(action=MessageAction(label="🆘 เบอร์ฉุกเฉิน", text="เบอร์ฉุกเฉิน")),
+        QuickReplyItem(action=MessageAction(label="🛰️ ส่งพิกัดสด GPS", text="แทร็กกิ้ง"))
+    ]
+
+    # ถ้ามีเหตุการณ์ใกล้เคียงและเปิดแชร์ Google Maps ให้เพิ่มปุ่มนำทาง
+    if SYSTEM_SETTINGS.get("enable_google_maps") and nearby_incidents:
+        top_inc = nearby_incidents[0]
+        if top_inc.get("latitude") and top_inc.get("longitude"):
+            quick_items.insert(1, QuickReplyItem(action=URIAction(
+                label=f"🧭 นำทาง ({top_inc['dist_km']:.1f} กม.)",
+                uri=f"https://www.google.com/maps/dir/?api=1&destination={top_inc['latitude']},{top_inc['longitude']}"
+            )))
 
     with ApiClient(configuration) as api_client:
         line_bot_api = MessagingApi(api_client)
         line_bot_api.reply_message(
             ReplyMessageRequest(
                 reply_token=event.reply_token,
-                messages=[TextMessage(text=reply, quick_reply=quick_reply)]
+                messages=[TextMessage(text="\n".join(sitrep_msg), quick_reply=QuickReply(items=quick_items))]
             )
         )
 
@@ -2027,8 +2249,73 @@ def handle_text(event):
             )
         return
 
-    # 0.5. คำสั่งพิเศษสำหรับแอดมิน: ตั้งแอดมิน / ปลดแอดมิน
+    # 0.4. คำสั่งเชื่อมต่อบัญชี LINE เข้ากับแอปมือถือ (Account Linking)
     clean_cmd_text = re.sub(r'[\s\-]', '', user_text)
+    if any(clean_cmd_text.startswith(k) for k in ["ผูกบัญชี", "ผูกแอป", "เชื่อมแอป", "เชื่อมต่อแอป", "linkapp"]):
+        phone_match = re.search(r'(0[689]\d{8}|0[2-9]\d{7})', clean_cmd_text)
+        if not phone_match:
+            reply_msg = ("📱 คำสั่งผูกบัญชี LINE เข้ากับแอปมือถือ RTSD\n"
+                         "━━━━━━━━━━━━━━━━━━\n"
+                         "กรุณาระบุเบอร์โทรศัพท์ที่ท่านใช้สมัครในแอป เช่น:\n"
+                         "👉 'ผูกบัญชี 0812345678'\n"
+                         "👉 'ผูกแอป 0891234567'")
+        else:
+            target_phone = phone_match.group(1)
+            if target_phone not in phone_to_user:
+                fetch_registered_users()
+
+            if target_phone in phone_to_user:
+                user_record = phone_to_user[target_phone]
+                user_record["line_user_id"] = user_id
+                save_registered_user(
+                    line_user_id=user_id,
+                    name=user_record.get("name", user_name),
+                    phone=target_phone,
+                    role=user_record.get("role", "ผู้ใช้งานทั่วไป"),
+                    unit=user_record.get("unit", "-"),
+                    position=user_record.get("position", "-"),
+                    status="อนุมัติแล้ว",
+                    purpose=user_record.get("purpose", "-"),
+                    unit_size=user_record.get("unit_size", "-"),
+                    vehicle_type=user_record.get("vehicle_type", "-")
+                )
+                registered_users[user_id] = user_record
+                user_sessions[user_id]["user_name"] = f"{user_record.get('name')} ({target_phone})"
+                
+                # สลับริชเมนูตามบทบาทเจ้าหน้าที่
+                switch_user_rich_menu(user_id, user_record.get('role', 'officer'))
+
+                reply_msg = (f"🎉 ผูกบัญชี LINE กับแอปมือถือสำเร็จแล้ว!\n"
+                             f"━━━━━━━━━━━━━━━━━━\n"
+                             f"👤 เจ้าหน้าที่: {user_record.get('name')}\n"
+                             f"📱 เบอร์โทรศัพท์: {target_phone}\n"
+                             f"🔰 สังกัดหน่วย: {user_record.get('unit', '-')}\n"
+                             f"🎖️ ตำแหน่ง: {user_record.get('position', '-')}\n"
+                             f"🛡️ สิทธิ์: {user_record.get('role', 'ผู้ใช้งานทั่วไป')}\n"
+                             f"━━━━━━━━━━━━━━━━━━\n"
+                             f"⚡ ระบบได้สลับเป็น 'ริชเมนูยุทธการ (Tactical Command)' ให้ท่านเรียบร้อยแล้ว!\n"
+                             f"✅ ทุกการแจ้งเตือนและการสั่งการจากศูนย์ TOC จะส่งตรงเข้า LINE และแอปของท่านพร้อมกันทันทีครับ!")
+            else:
+                # บันทึกใหม่พร้อมผูก LINE ทันที
+                save_registered_user(
+                    line_user_id=user_id,
+                    name=user_name,
+                    phone=target_phone,
+                    role="ผู้ใช้งานทั่วไป",
+                    status="อนุมัติแล้ว"
+                )
+                reply_msg = (f"✅ ผูกบัญชีและลงทะเบียนเรียบร้อยแล้ว!\n"
+                             f"━━━━━━━━━━━━━━━━━━\n"
+                             f"👤 ชื่อ: {user_name}\n"
+                             f"📱 เบอร์โทร: {target_phone}\n"
+                             f"👉 บัญชี LINE นี้เชื่อมต่อกับแอปมือถือเรียบร้อยแล้วครับ")
+
+        with ApiClient(configuration) as api_client:
+            line_bot_api = MessagingApi(api_client)
+            line_bot_api.reply_message(ReplyMessageRequest(reply_token=event.reply_token, messages=[TextMessage(text=reply_msg)]))
+        return
+
+    # 0.5. คำสั่งพิเศษสำหรับแอดมิน: ตั้งแอดมิน / ปลดแอดมิน
     if user_text.startswith("ตั้งแอดมิน") or user_text.startswith("ปลดแอดมิน") or clean_cmd_text.startswith("ตั้งแอดมิน") or clean_cmd_text.startswith("ปลดแอดมิน"):
         is_sender_admin = (user_info and any(k in user_info.get("role", "") for k in ["แอดมิน", "ผู้ดูแล", "บัญชา"])) or (user_info and user_info.get("phone") in ADMIN_PHONES)
         if not is_sender_admin:
@@ -2326,30 +2613,272 @@ def handle_text(event):
                 QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุเตือนภัย", text="แจ้งเหตุ"))
             ])
 
-    # ด่านปรับปรุง/แก้ไขสถานะเหตุการณ์เดิม (สำหรับเจ้าหน้าที่สั่งผ่าน LINE Bot)
-    elif any(user_text.startswith(prefix) for prefix in ["ปรับสถานะ", "อัปเดตสถานะ", "อัปเดต", "แก้ไขสถานะ", "เสร็จสิ้น"]):
-        parts = user_text.split()
-        target_id = ""
-        status_raw = ""
+    # =========================================================================
+    # 👥 ระบบเช็กกำลังพล & สถานะเวรปฏิบัติการ (Personnel & Unit Roster)
+    # =========================================================================
+    elif user_text in ["เช็กกำลังพล", "กำลังพล", "สถานะเวร", "เช็คกำลังพล", "ยอดกำลังพล", "เวร", "หน่วย", "roster", "units", "กำลังพลเวร"]:
+        units = get_computed_active_units()
         
-        if user_text.startswith("เสร็จสิ้น"):
-            target_id = parts[1].replace("#", "").strip() if len(parts) > 1 else ""
-            status_raw = "เสร็จสิ้น"
-        elif len(parts) >= 3:
-            target_id = parts[1].replace("#", "").strip()
-            status_raw = " ".join(parts[2:]).strip()
-        elif len(parts) == 2:
-            target_id = parts[1].replace("#", "").strip()
-            status_raw = "กำลังดำเนินการ"
+        active_list = [u for u in units if u.get("calculated_state") == "ACTIVE"]
+        standby_list = [u for u in units if u.get("calculated_state") == "STANDBY"]
+        offline_list = [u for u in units if u.get("calculated_state") == "OFFLINE"]
+        total_registered = len(phone_to_user)
+        
+        msg_lines = [
+            "🎖️ รายงานยอดกำลังพล & สถานะเวรปฏิบัติการ",
+            "━━━━━━━━━━━━━━━━━━",
+            "📊 สรุปความพร้อมรบ/สนับสนุน:",
+            f"🟢 ปฏิบัติการในพื้นที่ (ACTIVE): {len(active_list)} หน่วย",
+            f"🔵 พร้อมออกเหตุ (STANDBY): {len(standby_list)} หน่วย",
+            f"⚫ ปิดระบบ/พักเวร (OFFLINE): {len(offline_list)} หน่วย",
+            f"👥 ทะเบียนกำลังพลในระบบ: {total_registered} นาย",
+            "━━━━━━━━━━━━━━━━━━"
+        ]
+        
+        deployed_units = active_list + standby_list
+        if deployed_units:
+            msg_lines.append("📋 รายชื่อชุดปฏิบัติการที่ออนไลน์:")
+            for u in deployed_units[:6]:
+                st = u.get("calculated_state", "STANDBY")
+                icon = "🟢" if st == "ACTIVE" else "🔵"
+                spd = float(u.get("speed", 0))
+                spd_text = f"ความเร็ว {spd:.0f} กม./ชม." if spd > 1 else "จอดประจำจุด"
+                msg_lines.append(
+                    f"• {icon} {u.get('unit_name')} ({u.get('commander')})\n"
+                    f"  🚘 {u.get('vehicle_type', '-')} | 👥 {u.get('unit_size', '-')}\n"
+                    f"  📍 {u.get('status', '-')} ({spd_text})"
+                )
+            if len(deployed_units) > 6:
+                msg_lines.append(f"...และอีก {len(deployed_units) - 6} หน่วย")
+        else:
+            msg_lines.append("ℹ️ ขณะนี้ยังไม่มีชุดปฏิบัติการส่งสัญญาณ GPS สด")
+            msg_lines.append("💡 เจ้าหน้าที่สามารถกด '🛰️ ส่งพิกัดสด GPS' หรือเปิดหน้าเว็บ https://rtsd-linebot.onrender.com/tracker เพื่อเริ่มเข้าเวรได้ทันทีครับ")
+            
+        msg_lines.append("━━━━━━━━━━━━━━━━━━")
+        msg_lines.append("🌐 ดูแผนที่ Tactical GIS สด:\n👉 https://rtsd-linebot.onrender.com/dashboard")
+        
+        quick_reply = QuickReply(items=[
+            QuickReplyItem(action=MessageAction(label="🔄 รีเฟรชยอด", text="เช็กกำลังพล")),
+            QuickReplyItem(action=LocationAction(label="📍 เช็กสถานการณ์รอบตัว")),
+            QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุเตือนภัย", text="แจ้งเหตุ")),
+            QuickReplyItem(action=MessageAction(label="🛰️ ส่งพิกัดสด GPS", text="แทร็กกิ้ง"))
+        ])
+        reply_message = TextMessage(text="\n".join(msg_lines), quick_reply=quick_reply)
+
+    # =========================================================================
+    # 📍 แจ้งเหตุ ณ จุดนี้ (เชื่อมต่อจากพิกัดเดิมที่เพิ่งแชร์มา)
+    # =========================================================================
+    elif user_text in ["แจ้งเหตุ ณ จุดนี้", "แจ้งเหตุที่นี่", "แจ้งเหตุพิกัดนี้"]:
+        session = user_sessions.get(user_id, {})
+        lat = session.get("lat")
+        lon = session.get("lon")
+        addr = session.get("address", "พิกัดที่ระบุ")
+        if not lat or not lon:
+            quick_reply = QuickReply(items=[
+                QuickReplyItem(action=LocationAction(label="📍 ส่งตำแหน่งพิกัด"))
+            ])
+            reply_message = TextMessage(
+                text="👉 กรุณากดปุ่ม '📍 ส่งตำแหน่งพิกัด' ด้านล่างก่อน เพื่อระบุตำแหน่งจุดเกิดเหตุครับ",
+                quick_reply=quick_reply
+            )
+        else:
+            quick_reply = QuickReply(items=[
+                QuickReplyItem(action=MessageAction(label="🌊 น้ำท่วมขัง", text="เลือกเหตุ: 🌊 น้ำท่วมขัง")),
+                QuickReplyItem(action=MessageAction(label="🚧 ถนนชำรุด", text="เลือกเหตุ: 🚧 ดินถล่ม / ผิวทางชำรุด")),
+                QuickReplyItem(action=MessageAction(label="💥 อุบัติเหตุ", text="เลือกเหตุ: 💥 อุบัติเหตุจราจร")),
+                QuickReplyItem(action=MessageAction(label="🔥 ไฟไหม้", text="เลือกเหตุ: 🔥 ไฟไหม้ / หมอกควัน")),
+                QuickReplyItem(action=MessageAction(label="📌 อื่นๆ", text="เลือกเหตุ: 📌 อื่นๆ"))
+            ])
+            reply_message = TextMessage(
+                text=(f"📍 ตำแหน่งจุดเกิดเหตุ: {addr}\n"
+                      f"📌 พิกัด: {lat:.4f}, {lon:.4f}\n\n"
+                      f"กรุณาเลือก [ประเภทเหตุการณ์] ด้านล่างนี้ครับ 👇"),
+                quick_reply=quick_reply
+            )
+
+    # =========================================================================
+    # 📡 ผู้ใช้พิมพ์ขอเช็กสถานการณ์รอบตัว / เรดาร์ตรวจการณ์ (Radar SitRep)
+    # =========================================================================
+    elif user_text in ["เรดาร์ตรวจการณ์", "เรดาร์", "เรดาห์", "radar", "sitrep", "เช็กสถานการณ์รอบตัว", "สถานการณ์รอบตัว", "รอบตัว", "เหตุการณ์ใกล้เคียง", "เหตุใกล้เคียง", "สถานการณ์"]:
+        quick_reply = QuickReply(items=[
+            QuickReplyItem(action=LocationAction(label="📍 ส่งตำแหน่งเพื่อเช็ก")),
+            QuickReplyItem(action=MessageAction(label="👥 เช็กกำลังพล", text="เช็กกำลังพล")),
+            QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุศูนย์ TOC", text="แจ้งเหตุ"))
+        ])
+        reply_message = TextMessage(
+            text=("📡 ระบบเรดาร์ตรวจการณ์ & ประเมินสถานการณ์รอบตัว (Radar SitRep)\n"
+                  "━━━━━━━━━━━━━━━━━━\n"
+                  "👉 กรุณากดปุ่ม '📍 ส่งตำแหน่งเพื่อเช็ก' ด้านล่างนี้\n"
+                  "เพื่อให้ระบบเรดาร์สแกนเหตุการณ์ฉุกเฉินและชุดปฏิบัติการในรัศมี 15 กม. รอบจุดตรวจการณ์ทันทีครับ"),
+            quick_reply=quick_reply
+        )
+
+    # =========================================================================
+    # 🆘 ระบบเบอร์ฉุกเฉิน & ข้อแนะนำรับมือภัยพิบัติ
+    # =========================================================================
+    elif user_text in ["ฉุกเฉิน", "เบอร์ฉุกเฉิน", "สายด่วน", "ช่วยเหลือ", "sos", "emergency", "จุดอพยพ", "คู่มือ", "เบอร์ติดต่อ", "ติดต่อฉุกเฉิน", "ขอความช่วยเหลือ"]:
+        reply_msg = (
+            "🆘 หมายเลขโทรศัพท์ฉุกเฉิน & ช่องทางช่วยเหลือ 24 ชม.\n"
+            "━━━━━━━━━━━━━━━━━━\n"
+            "📞 สายด่วนบรรเทาสาธารณภัย & กู้ชีพ:\n"
+            "• 1784 : กรมป้องกันและบรรเทาสาธารณภัย (ปภ.)\n"
+            "• 1669 : ศูนย์การแพทย์ฉุกเฉิน / กู้ชีพ\n"
+            "• 191 : แจ้งเหตุด่วนเหตุร้าย (ตำรวจ)\n"
+            "• 199 : ดับเพลิงและกู้ภัย\n"
+            "• 1196 : อุบัติเหตุทางน้ำ\n"
+            "• 1193 : ตำรวจทางหลวง\n"
+            "• 02-221-2871 : ศูนย์ประสานงาน กรมแผนที่ทหาร (TOC)\n"
+            "━━━━━━━━━━━━━━━━━━\n"
+            "🌊 ข้อแนะนำการรับมือภัยพิบัติฉุกเฉิน:\n"
+            "1. ตัดสะพานไฟทันทีเมื่อระดับน้ำท่วมถึงปลั๊กไฟ\n"
+            "2. เคลื่อนย้ายเด็ก ผู้สูงอายุ และสัตว์เลี้ยงขึ้นที่ปลอดภัย\n"
+            "3. หลีกเลี่ยงการเดินลุยน้ำเชี่ยวและเสาไฟฟ้าส่องสว่าง\n"
+            "4. เตรียมกระเป๋าฉุกเฉิน (น้ำดื่ม ยาประจำตัว ไฟฉาย เอกสารสำคัญ)\n"
+            "━━━━━━━━━━━━━━━━━━\n"
+            "👉 ท่านสามารถกดปุ่ม '📍 เช็กสถานการณ์รอบตัว' หรือ '🚨 แจ้งเหตุเตือนภัย' ด้านล่างได้ทันทีครับ"
+        )
+        quick_reply = QuickReply(items=[
+            QuickReplyItem(action=LocationAction(label="📍 เช็กสถานการณ์รอบตัว")),
+            QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุเตือนภัย", text="แจ้งเหตุ")),
+            QuickReplyItem(action=MessageAction(label="👥 เช็กกำลังพล", text="เช็กกำลังพล")),
+            QuickReplyItem(action=MessageAction(label="🔍 ติดตามสถานะ", text="ติดตามสถานะ"))
+        ])
+        reply_message = TextMessage(text=reply_msg, quick_reply=quick_reply)
+
+    # =========================================================================
+    # 📦 จุดปลอดภัย & ศูนย์พักพิงชั่วคราว (Safe Zones & Shelters)
+    # =========================================================================
+    elif user_text in ["จุดปลอดภัย", "ศูนย์อพยพ", "จุดอพยพ", "ศูนย์พักพิง", "safe zones", "safe zone", "จุดปลอดภัย/ศูนย์อพยพ"]:
+        quick_reply = QuickReply(items=[
+            QuickReplyItem(action=LocationAction(label="📍 ส่งตำแหน่งเพื่อหาจุดปลอดภัย")),
+            QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุเตือนภัย", text="แจ้งเหตุ")),
+            QuickReplyItem(action=MessageAction(label="🆘 สายด่วนกู้ภัย", text="เบอร์ฉุกเฉิน"))
+        ])
+        reply_message = TextMessage(
+            text=("📦 ข้อมูลศูนย์พักพิงชั่วคราวและจุดปลอดภัย (Evacuation Safe Zones)\n"
+                  "━━━━━━━━━━━━━━━━━━\n"
+                  "👉 กรุณากดปุ่ม '📍 ส่งตำแหน่งเพื่อหาจุดปลอดภัย' ด้านล่าง\n"
+                  "เพื่อให้ระบบแนะนำศูนย์พักพิงและจุดแจกจ่ายถุงยังชีพที่ใกล้ท่านที่สุดครับ\n\n"
+                  "💡 ศูนย์ประสานงาน กรมแผนที่ทหาร (RTSD TOC) โทร: 02-221-2871"),
+            quick_reply=quick_reply
+        )
+
+    # =========================================================================
+    # 🛡️ เข้าสู่ระบบและยืนยันตัวตนเจ้าหน้าที่ (Staff Login / Link Account)
+    # =========================================================================
+    elif user_text in ["เข้าสู่ระบบเจ้าหน้าที่", "ยืนยันตัวตนเจ้าหน้าที่", "staff login", "ระบบเจ้าหน้าที่", "สำหรับเจ้าหน้าที่", "เมนูเจ้าหน้าที่", "เมนูยุทธการ"]:
+        if user_info and user_info.get("status") == "อนุมัติแล้ว":
+            # สลับเป็นริชเมนูเจ้าหน้าที่ 2A
+            switch_user_rich_menu(user_id, user_info.get("role", "officer"))
+
+            reply_msg = (f"🛡️ บัญชีเจ้าหน้าที่ของท่านได้รับการยืนยันแล้ว!\n"
+                         f"━━━━━━━━━━━━━━━━━━\n"
+                         f"👤 เจ้าหน้าที่: คุณ{user_info.get('name')}\n"
+                         f"📱 เบอร์โทรศัพท์: {user_info.get('phone')}\n"
+                         f"🔰 สิทธิ์การใช้งาน: {user_info.get('role')}\n"
+                         f"🏢 สังกัดหน่วย: {user_info.get('unit', '-')}\n"
+                         f"━━━━━━━━━━━━━━━━━━\n"
+                         f"⚡ ระบบเปิดใช้งาน 'ริชเมนูยุทธการ (Tactical Command)' ให้ท่านแล้ว!\n"
+                         f"👉 ท่านสามารถเข้าสู่ระบบ Dashboard War Room หรือสั่งการผ่านปุ่มด้านล่างได้ทันทีครับ")
+            quick_reply = QuickReply(items=[
+                QuickReplyItem(action=URIAction(label="🌐 แดชบอร์ด War Room", uri="https://rtsd-linebot.onrender.com/dashboard")),
+                QuickReplyItem(action=MessageAction(label="👥 เช็กกำลังพล", text="เช็กกำลังพล")),
+                QuickReplyItem(action=MessageAction(label="⚡ อัปเดตงานสนาม", text="อัปเดตงานสนาม")),
+                QuickReplyItem(action=MessageAction(label="🔄 สลับเมนูประชาชน", text="เมนูประชาชน"))
+            ])
+        else:
+            reply_msg = ("🛡️ เข้าสู่ระบบและยืนยันตัวตนเจ้าหน้าที่ RTSD\n"
+                         "━━━━━━━━━━━━━━━━━━\n"
+                         "สำหรับเจ้าหน้าที่ออกปฏิบัติการ / ผู้บังคับบัญชา:\n\n"
+                         "1️⃣ พิมพ์เบอร์โทรศัพท์ 10 หลัก เพื่อขอรับรหัส OTP หรือผูกบัญชี เช่น:\n"
+                         "👉 0812345678\n\n"
+                         "2️⃣ หรือลงทะเบียนข้อมูลยศ/สังกัด/ยานพาหนะ ได้ที่:\n"
+                         "👉 https://rtsd-linebot.onrender.com/register\n\n"
+                         "💡 เมื่อผ่านการอนุมัติ ระบบจะปลดล็อกริชเมนูยุทธการให้อัตโนมัติครับ")
+            quick_reply = QuickReply(items=[
+                QuickReplyItem(action=URIAction(label="📝 ลงทะเบียนเจ้าหน้าที่", uri="https://rtsd-linebot.onrender.com/register")),
+                QuickReplyItem(action=MessageAction(label="👤 โปรไฟล์ของฉัน", text="โปรไฟล์")),
+                QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุเตือนภัย", text="แจ้งเหตุ"))
+            ])
+        reply_message = TextMessage(text=reply_msg, quick_reply=quick_reply)
+
+    # 🔄 สลับกลับไปใช้เมนูประชาชน (Switch to Citizen Menu)
+    elif user_text in ["เมนูประชาชน", "สลับเมนูประชาชน", "เมนูทั่วไป", "ริชเมนูประชาชน"]:
+        switch_user_rich_menu(user_id, "citizen")
+        reply_message = TextMessage(
+            text=("🔄 สลับกลับสู่ 'เมนูช่วยเหลือประชาชน (Citizen Mode)' เรียบร้อยแล้วครับ!\n"
+                  "━━━━━━━━━━━━━━━━━━\n"
+                  "หากต้องการกลับมาใช้เมนูยุทธการ ให้กดปุ่ม '🛡️ เข้าสู่ระบบเจ้าหน้าที่' ได้ทุกเมื่อครับ"),
+            quick_reply=QuickReply(items=[
+                QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุเตือนภัย", text="แจ้งเหตุ")),
+                QuickReplyItem(action=MessageAction(label="🛡️ เมนูเจ้าหน้าที่", text="เข้าสู่ระบบเจ้าหน้าที่"))
+            ])
+        )
+
+    # =========================================================================
+    # ⚡ เมนูช่วยเหลืออัปเดตงานสนาม (Field Task Quick Helper)
+    # =========================================================================
+    elif user_text in ["อัปเดตงานสนาม", "รายงานภาคสนาม", "รายงานสนาม", "field update", "อัปเดตงาน"]:
+        quick_reply = QuickReply(items=[
+            QuickReplyItem(action=MessageAction(label="🚗 กำลังเข้าพื้นที่", text="กำลังเข้าพื้นที่")),
+            QuickReplyItem(action=MessageAction(label="📍 ถึงที่เกิดเหตุ", text="ถึงที่เกิดเหตุ")),
+            QuickReplyItem(action=MessageAction(label="🟢 เสร็จสิ้นภารกิจ", text="เสร็จสิ้น")),
+            QuickReplyItem(action=MessageAction(label="🔍 ติดตามสถานะ", text="ติดตามสถานะ"))
+        ])
+        reply_message = TextMessage(
+            text=("⚡ รายงานสถานะภารกิจภาคสนาม (Field Task Update)\n\n"
+                  "เจ้าหน้าที่สามารถพิมพ์คำสั่งพร้อมรหัสเหตุ เช่น:\n"
+                  "• 'กำลังเข้าพื้นที่ RTSD-1234'\n"
+                  "• 'ถึงที่เกิดเหตุ RTSD-1234'\n"
+                  "• 'เสร็จสิ้น RTSD-1234'\n\n"
+                  "👉 หรือเลือกกดปุ่มสถานะด่วนด้านล่างนี้ได้เลยครับ 👇"),
+            quick_reply=quick_reply
+        )
+
+    # =========================================================================
+    # 🚨 แจ้งเหตุศูนย์ TOC (TOC Dispatch Help)
+    # =========================================================================
+    elif user_text in ["แจ้งเหตุศูนย์ toc", "แจ้งเหตุ toc", "toc dispatch", "แจ้งเหตุศูนย์"]:
+        quick_reply = QuickReply(items=[
+            QuickReplyItem(action=URIAction(label="🚨 เปิดระบบแจ้งเหตุ TOC", uri="https://rtsd-linebot.onrender.com/dashboard")),
+            QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุผ่านแชต", text="แจ้งเหตุ")),
+            QuickReplyItem(action=MessageAction(label="👥 เช็กกำลังพล", text="เช็กกำลังพล"))
+        ])
+        reply_message = TextMessage(
+            text=("🚨 ระบบแจ้งเหตุและสั่งการศูนย์ควบคุม TOC (TOC Dispatch)\n"
+                  "━━━━━━━━━━━━━━━━━━\n"
+                  "ศูนย์ควบคุมสามารถเปิดใบสั่งการและปักหมุดเรดาร์ Tactical Pins ได้ที่:\n"
+                  "👉 https://rtsd-linebot.onrender.com/dashboard\n\n"
+                  "หรือแจ้งเหตุฉุกเฉินด่วนผ่านแชต LINE ได้ทันทีครับ"),
+            quick_reply=quick_reply
+        )
+
+    # =========================================================================
+    # ⚡ ปรับปรุง/แก้ไขสถานะเหตุการณ์ภาคสนาม (สำหรับเจ้าหน้าที่สั่งผ่าน LINE Bot)
+    # =========================================================================
+    elif any(user_text.startswith(prefix) for prefix in [
+        "ปรับสถานะ", "อัปเดตสถานะ", "อัปเดต", "แก้ไขสถานะ", 
+        "เสร็จสิ้น", "เสร็จ", "เรียบร้อย", "ปิดเหตุ", 
+        "กำลังเข้าพื้นที่", "เข้าพื้นที่", "กำลังเดินทาง", "เดินทาง", 
+        "ถึงที่เกิดเหตุ", "ถึงจุดเกิดเหตุ", "ถึงแล้ว", "ยกเลิก"
+    ]):
+        id_match = re.search(r'rtsd-\d+', user_text, re.IGNORECASE)
+        target_id = id_match.group(0).upper() if id_match else ""
 
         if target_id:
-            new_status = "🟡 กำลังดำเนินการ"
-            if any(w in status_raw for w in ["เสร็จ", "เรียบร้อย", "สำเร็จ", "done", "close"]):
+            raw_lower = user_text.lower()
+            if any(w in raw_lower for w in ["เสร็จ", "เรียบร้อย", "ปิดเหตุ", "done", "close", "สำเร็จ"]):
                 new_status = "🟢 แก้ไขแล้วเสร็จ"
-            elif any(w in status_raw for w in ["รอ", "wait", "pending"]):
-                new_status = "⏳ รอดำเนินการ"
-            elif any(w in status_raw for w in ["ยกเลิก", "ระงับ", "cancel"]):
+            elif any(w in raw_lower for w in ["ถึงที่เกิดเหตุ", "ถึงจุดเกิดเหตุ", "ถึงแล้ว", "ถึงหน้างาน"]):
+                new_status = "🟡 ถึงจุดเกิดเหตุ / กำลังปฏิบัติการ"
+            elif any(w in raw_lower for w in ["เข้าพื้นที่", "เดินทาง", "en route", "enroute"]):
+                new_status = "🟡 กำลังเดินทางเข้าพื้นที่"
+            elif any(w in raw_lower for w in ["ยกเลิก", "ระงับ", "cancel"]):
                 new_status = "❌ ยกเลิก/ระงับเหตุ"
+            elif any(w in raw_lower for w in ["รอ", "wait", "pending"]):
+                new_status = "⏳ รอดำเนินการ"
+            else:
+                new_status = "🟡 กำลังดำเนินการ"
 
             res = update_google_sheet_status(title=target_id, new_status=new_status)
             if res.get("status") == "success":
@@ -2361,20 +2890,33 @@ def handle_text(event):
                              f"⏰ เวลา: {time.strftime('%H:%M:%S น.')}\n"
                              f"──────────────────────\n"
                              f"📡 ระบบได้บันทึกลง Google Sheets และ Dashboard เรียบร้อยแล้วครับ")
+                
+                # ส่งแจ้งเตือนด่วนไปยังกลุ่มแอดมิน
+                admin_notice = (
+                    f"📢 [LINE Bot Update] มีการปรับสถานะเหตุการณ์ภาคสนาม!\n"
+                    f"━━━━━━━━━━━━━━━━━━\n"
+                    f"📌 รหัส: #{target_id}\n"
+                    f"🔄 สถานะใหม่: {new_status}\n"
+                    f"👤 ผู้ปรับ: {user_name}\n"
+                    f"⏰ เวลา: {time.strftime('%H:%M:%S น.')}"
+                )
+                notify_admins(admin_notice)
             else:
                 reply_msg = (f"⚠️ ไม่สามารถอัปเดตสถานะได้\n\n"
                              f"ไม่พบเหตุการณ์ที่มีรหัส '{target_id}' ในระบบ หรือ Google Sheets ยังไม่ตอบกลับ\n"
                              f"💡 กรุณาตรวจสอบรหัสเหตุการณ์อีกครั้งครับ")
         else:
-            reply_msg = ("ℹ️ คำสั่งปรับสถานะเหตุการณ์สำหรับเจ้าหน้าที่:\n\n"
-                         "👉 'ปรับสถานะ [รหัสเหตุการณ์] กำลังดำเนินการ'\n"
-                         "👉 'ปรับสถานะ [รหัสเหตุการณ์] เสร็จสิ้น'\n"
-                         "👉 'เสร็จสิ้น [รหัสเหตุการณ์]'\n\n"
-                         "ตัวอย่าง: เสร็จสิ้น RTSD-0927-1420")
+            reply_msg = ("ℹ️ รูปแบบคำสั่งปรับสถานะเหตุการณ์ภาคสนาม:\n\n"
+                         "👉 'กำลังเข้าพื้นที่ RTSD-1234'\n"
+                         "👉 'ถึงที่เกิดเหตุ RTSD-1234'\n"
+                         "👉 'เสร็จสิ้น RTSD-1234'\n"
+                         "👉 'ปรับสถานะ RTSD-1234 กำลังดำเนินการ'\n\n"
+                         "ตัวอย่าง: เสร็จสิ้น RTSD-0927")
 
         quick_reply = QuickReply(items=[
-            QuickReplyItem(action=MessageAction(label="🔍 ติดตามสถานะ", text="ติดตามสถานะ")),
-            QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุเตือนภัย", text="แจ้งเหตุ"))
+            QuickReplyItem(action=MessageAction(label=f"🔍 ติดตาม {target_id}" if target_id else "🔍 ติดตามสถานะ", text=f"ติดตาม {target_id}" if target_id else "ติดตามสถานะ")),
+            QuickReplyItem(action=MessageAction(label="👥 เช็กกำลังพล", text="เช็กกำลังพล")),
+            QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุใหม่", text="แจ้งเหตุ"))
         ])
         reply_message = TextMessage(text=reply_msg, quick_reply=quick_reply)
         
@@ -2388,29 +2930,58 @@ def handle_text(event):
                      f"1️⃣ เปิดระบบส่งพิกัดสดต่อเนื่อง (มีโหมดพรางหน้าจอ/ประหยัดแบตเตอรี่):\n"
                      f"👉 {tracker_url}\n\n"
                      f"2️⃣ เปิดดูแผนที่ติดตามกำลังพลบน Portal RTSD:\n"
-                     f"👉 {portal_map_url}\n"
+                     f"👉 {portal_map_url}\n\n"
+                     f"3️⃣ เปิดดู Tactical Dashboard ศูนย์ควบคุม:\n"
+                     f"👉 https://rtsd-linebot.onrender.com/dashboard\n"
                      f"━━━━━━━━━━━━━━━━━━\n"
                      f"💡 หรือกดปุ่ม '📍 ส่งตำแหน่งปัจจุบัน' ด้านล่างเพื่อเช็กอินจุดพิกัดทันทีได้เลยครับ")
         quick_reply = QuickReply(items=[
             QuickReplyItem(action=LocationAction(label="📍 ส่งตำแหน่งปัจจุบัน")),
+            QuickReplyItem(action=MessageAction(label="👥 เช็กกำลังพล", text="เช็กกำลังพล")),
             QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุเตือนภัย", text="แจ้งเหตุ")),
             QuickReplyItem(action=MessageAction(label="🔍 ติดตามสถานะ", text="ติดตามสถานะ"))
         ])
         reply_message = TextMessage(text=reply_msg, quick_reply=quick_reply)
 
+    # เมนูแนะนำคำสั่งและการใช้งาน (Menu / Help)
+    elif user_text in ['ช่วย', 'เมนู', 'menu', 'วิธีใช้', 'คำสั่ง', 'สวัสดี', 'hi', 'hello', 'เริ่มต้น', 'start']:
+        quick_reply = QuickReply(items=[
+            QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุเตือนภัย", text="แจ้งเหตุ")),
+            QuickReplyItem(action=LocationAction(label="📍 เช็กสถานการณ์รอบตัว")),
+            QuickReplyItem(action=MessageAction(label="👥 เช็กกำลังพล", text="เช็กกำลังพล")),
+            QuickReplyItem(action=MessageAction(label="🔍 ติดตามสถานะ", text="ติดตามสถานะ")),
+            QuickReplyItem(action=MessageAction(label="🆘 เบอร์ฉุกเฉิน", text="เบอร์ฉุกเฉิน")),
+            QuickReplyItem(action=MessageAction(label="🛰️ ส่งพิกัดสด GPS", text="แทร็กกิ้ง"))
+        ])
+        reply_message = TextMessage(
+            text=(f"สวัสดีครับคุณ {user_name} 🛡️\n"
+                  f"ยินดีต้อนรับสู่ศูนย์บัญชาการสถานการณ์ RTSD\n"
+                  f"━━━━━━━━━━━━━━━━━━\n"
+                  f"📱 คำสั่งด่วนที่สามารถพิมพ์สั่งงานได้:\n"
+                  f"• 'แจ้งเหตุ' : แจ้งเหตุฉุกเฉินและภัยพิบัติ\n"
+                  f"• แชร์พิกัด / กดปุ่มพิกัด : ตรวจสถานการณ์รอบตัว (SitRep)\n"
+                  f"• 'เช็กกำลังพล' : ดูยอดหน่วยปฏิบัติการและเวร\n"
+                  f"• 'ติดตาม' : ตรวจสอบสถานะการแก้ไขเหตุ\n"
+                  f"• 'กำลังเข้าพื้นที่ RTSD-xxxx' : อัปเดตงานสนาม\n"
+                  f"• 'เสร็จสิ้น RTSD-xxxx' : ปิดงานเหตุการณ์\n"
+                  f"• 'เบอร์ฉุกเฉิน' : เบอร์ติดต่อกู้ภัย 24 ชม.\n"
+                  f"━━━━━━━━━━━━━━━━━━\n"
+                  f"👉 หรือเลือกกดปุ่มลัดด้านล่างนี้ได้เลยครับ 👇"),
+            quick_reply=quick_reply
+        )
+
     # ด่านที่ 1: ผู้ใช้เริ่มแจ้งเหตุ -> เด้ง Dropdown ให้เลือก "ประเภทเหตุการณ์"
-    elif user_text in ['ช่วย', 'แจ้งเหตุ', 'แจ้งเตือน', 'menu', 'วิธีใช้', 'สวัสดี', 'hi', 'hello']:
+    elif user_text in ['แจ้งเหตุ', 'แจ้งเตือน']:
         quick_reply = QuickReply(items=[
             QuickReplyItem(action=MessageAction(label="🌊 น้ำท่วมขัง", text="เลือกเหตุ: 🌊 น้ำท่วมขัง")),
             QuickReplyItem(action=MessageAction(label="🚧 ถนนชำรุด", text="เลือกเหตุ: 🚧 ดินถล่ม / ผิวทางชำรุด")),
             QuickReplyItem(action=MessageAction(label="💥 อุบัติเหตุ", text="เลือกเหตุ: 💥 อุบัติเหตุจราจร")),
             QuickReplyItem(action=MessageAction(label="🔥 ไฟไหม้", text="เลือกเหตุ: 🔥 ไฟไหม้ / หมอกควัน")),
-            QuickReplyItem(action=MessageAction(label="🔍 ติดตามสถานะ", text="ติดตามสถานะ")),
-            QuickReplyItem(action=MessageAction(label="🛰️ ส่งพิกัดสด GPS", text="แทร็กกิ้ง")),
-            QuickReplyItem(action=MessageAction(label="📌 อื่นๆ", text="เลือกเหตุ: 📌 อื่นๆ"))
+            QuickReplyItem(action=MessageAction(label="📌 อื่นๆ", text="เลือกเหตุ: 📌 อื่นๆ")),
+            QuickReplyItem(action=MessageAction(label="🔍 ติดตามสถานะ", text="ติดตามสถานะ"))
         ])
         reply_message = TextMessage(
-            text=f"สวัสดีครับคุณ {user_name} 🚨\nกรุณาเลือก [ประเภทเหตุการณ์], [ติดตามสถานะ] หรือ [ส่งพิกัดสด] ด้านล่างนี้ครับ 👇",
+            text=f"🚨 ขั้นตอนการแจ้งเหตุเตือนภัย\n\nกรุณาเลือก [ประเภทเหตุการณ์] ที่ท่านพบเห็นด้านล่างนี้ครับ 👇",
             quick_reply=quick_reply
         )
 
@@ -2474,10 +3045,13 @@ def handle_text(event):
     else:
         quick_reply = QuickReply(items=[
             QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุเตือนภัย", text="แจ้งเหตุ")),
-            QuickReplyItem(action=MessageAction(label="🔍 ติดตามสถานะ", text="ติดตามสถานะ"))
+            QuickReplyItem(action=LocationAction(label="📍 เช็กสถานการณ์รอบตัว")),
+            QuickReplyItem(action=MessageAction(label="👥 เช็กกำลังพล", text="เช็กกำลังพล")),
+            QuickReplyItem(action=MessageAction(label="🔍 ติดตามสถานะ", text="ติดตามสถานะ")),
+            QuickReplyItem(action=MessageAction(label="🆘 เบอร์ฉุกเฉิน", text="เบอร์ฉุกเฉิน"))
         ])
         reply_message = TextMessage(
-            text=f"หากต้องการแจ้งเหตุ หรือติดตามสถานะงาน กรุณาเลือกปุ่มด้านล่างนี้ได้เลยครับ 👇",
+            text=f"หากต้องการแจ้งเหตุ เช็กกำลังพล หรือสั่งการระบบ กรุณาเลือกปุ่มด้านล่างนี้ได้เลยครับ 👇",
             quick_reply=quick_reply
         )
 

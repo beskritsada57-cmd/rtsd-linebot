@@ -4960,6 +4960,33 @@
           facet2 = '#34d399';
         }
 
+        // Vehicle Icon Detection
+        let vehicleIcon = '🚗';
+        const rawVehicle = (u.vehicle_type || '').toLowerCase();
+        if (rawVehicle.includes('เรือ') || rawVehicle.includes('boat')) vehicleIcon = '🚤';
+        else if (rawVehicle.includes('บรรทุก') || rawVehicle.includes('truck') || rawVehicle.includes('6 ล้อ') || rawVehicle.includes('10 ล้อ')) vehicleIcon = '🚛';
+        else if (rawVehicle.includes('ฮ.') || rawVehicle.includes('เฮลิคอปเตอร์') || rawVehicle.includes('heli')) vehicleIcon = '🚁';
+        else if (rawVehicle.includes('พยาบาล') || rawVehicle.includes('กู้ชีพ') || rawVehicle.includes('ambulance')) vehicleIcon = '🚑';
+        else if (rawVehicle.includes('มอเตอร์ไซค์') || rawVehicle.includes('จักรยานยนต์') || rawVehicle.includes('motorcycle')) vehicleIcon = '🏍️';
+        else if (rawVehicle.includes('โดรน') || rawVehicle.includes('drone') || rawVehicle.includes('uav')) vehicleIcon = '🛸';
+
+        // Smart Tag Resolution (ดึงชื่อเจ้าหน้าที่ + ชื่อชุด จากฐานข้อมูลและ Telemetry)
+        const cmdDetails = getCommanderDetails(u.commander, uid);
+        const resolvedCommander = (cmdDetails && cmdDetails.name) ? cmdDetails.name.trim() : ((u.commander && u.commander !== '-' && u.commander !== 'หัวหน้าชุด') ? u.commander.trim() : '');
+        const rawUnit = (u.unit_name && u.unit_name !== '-' && !u.unit_name.includes('UNIT-')) ? u.unit_name.trim() : ((cmdDetails && cmdDetails.unit && cmdDetails.unit !== '-') ? cmdDetails.unit.trim() : '');
+        const shortUnit = rawUnit.replace('ชุดปฏิบัติการ', 'ชุด').trim();
+
+        let smartTag = '';
+        if (resolvedCommander && shortUnit) {
+          smartTag = `${vehicleIcon} ${resolvedCommander} (${shortUnit})`;
+        } else if (resolvedCommander) {
+          smartTag = `${vehicleIcon} ${resolvedCommander}`;
+        } else if (shortUnit) {
+          smartTag = `${vehicleIcon} ${shortUnit}`;
+        } else {
+          smartTag = `${vehicleIcon} ${uid}`;
+        }
+
         // Tactical Directional Triangle Marker matching user's request (3 เหลี่ยมที่หันหน้าไปตามทิศทาง)
         const iconHtml = `
           <div class="relative flex items-center justify-center cursor-pointer pointer-events-auto select-none group">
@@ -4968,7 +4995,7 @@
             <!-- Directional Tactical Triangle (Rotates according to Heading) -->
             <div class="relative w-9 h-9 flex items-center justify-center transform group-hover:scale-125 transition-transform duration-300 z-20 ${isOffline ? 'opacity-60 grayscale' : ''}"
                  style="transform: rotate(${Math.round(heading)}deg); transform-origin: 50% 50%;"
-                 title="${uid} • ${statusObj.label} • ทิศทาง ${Math.round(heading)}° (${getCompassDirection(heading)})">
+                 title="${smartTag} • ${statusObj.label} • ทิศทาง ${Math.round(heading)}° (${getCompassDirection(heading)})">
               <svg width="34" height="34" viewBox="0 0 34 34" class="${isOffline ? '' : 'drop-shadow-[0_0_12px_rgba(34,211,238,0.95)]'}">
                 <!-- Tactical Triangle Polygon (Pointed UP at 0° North) -->
                 <polygon points="17,3 30,29 4,29" 
@@ -4991,14 +5018,15 @@
               </svg>
             </div>
 
-            <!-- Tactical GPS HUD Callout Box -->
-            <div class="absolute left-8 -top-3.5 bg-slate-950/90 border border-slate-700/90 px-2 py-1 rounded shadow-2xl text-left pointer-events-none whitespace-nowrap backdrop-blur-sm z-30">
-              <div class="text-[10px] font-mono font-bold text-white tracking-wider flex items-center gap-1.5">
-                <span>${uid}</span>
-                <span class="${isOffline ? 'text-slate-400' : 'text-cyan-400'} text-[9px] font-normal">• ${statusObj.label}</span>
+            <!-- Tactical GPS HUD Callout Box (Smart Tag + Vehicle Icon + Compass Heading) -->
+            <div class="absolute left-8 -top-3.5 bg-slate-950/92 border border-slate-700/90 px-2.5 py-1 rounded-md shadow-2xl text-left pointer-events-none whitespace-nowrap backdrop-blur-sm z-30">
+              <div class="text-[10px] font-sans font-bold text-white tracking-wide flex items-center gap-1.5">
+                <span class="truncate max-w-[190px] drop-shadow-sm">${smartTag}</span>
+                <span class="${isOffline ? 'text-slate-400' : 'text-cyan-400'} text-[9px] font-mono font-normal">• ${statusObj.label}</span>
               </div>
-              <div class="text-[9px] font-mono ${isOffline ? 'text-slate-500' : 'text-cyan-400'}">
-                GPS: ${latFmt} ${lonFmt}
+              <div class="text-[9px] font-mono ${isOffline ? 'text-slate-500' : 'text-cyan-400'} flex items-center justify-between gap-2.5 mt-0.5">
+                <span>GPS: ${latFmt} ${lonFmt}</span>
+                <span class="text-[8px] text-slate-500 font-normal">#${uid}</span>
               </div>
             </div>
           </div>
