@@ -1,0 +1,23 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [100.4767, 7.0084]
+      },
+      "properties": {
+        "report_id": "INC-SOUTH-0001",
+        "title": "จุดแจ้งเหตุตัวอย่าง ภาคใต้",
+        "incident_type": "น้ำท่วมขัง",
+        "urgency": "ด่วนมาก",
+        "address": "อ.หาดใหญ่ จ.สงขลา",
+        "reporter": "ศูนย์ปฏิบัติการ ทภ.4",
+        "status": "รอดำเนินการ",
+        "report_time": "2026-10-11 20:00:00",
+        "media_url": "-"
+      }
+    }
+  ]
+}

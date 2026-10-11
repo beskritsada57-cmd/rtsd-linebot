@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="th" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>แผนที่สถานการณ์ RTSD - Mobile Situational Map</title>
+  
+  <!-- Web App Manifest & Mobile Meta -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#060b17">
+  
+  <!-- Google Fonts: Prompt & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Font Awesome 6 Pro / Free CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            tactical: {
+              navy: '#060b17',
+              panel: '#0c1427',
+              card: '#111d38',
+              border: '#1e293b'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    * {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    html, body {
+      height: 100%;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #060b17;
+      font-family: 'Prompt', sans-serif;
+    }
+    #map {
+      height: 100dvh;
+      width: 100vw;
+      background-color: #060b17;
+      z-index: 1;
+    }
+    
+    /* Custom Scrollbar */
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    /* Pulse Animations */
+    @keyframes tacticalPulse {
+      0% { transform: scale(0.95); opacity: 0.9; box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+      70% { transform: scale(1.05); opacity: 1; box-shadow: 0 0 0 16px rgba(239, 68, 68, 0); }
+      100% { transform: scale(0.95); opacity: 0.9; box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+    @keyframes unitPulse {
+      0% { transform: scale(0.95); opacity: 0.9; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+      70% { transform: scale(1.05); opacity: 1; box-shadow: 0 0 0 16px rgba(16, 185, 129, 0); }
+      100% { transform: scale(0.95); opacity: 0.9; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+    @keyframes blueBeacon {
+      0% { transform: scale(0.9); opacity: 0.8; box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.8); }
+      70% { transform: scale(1.1); opacity: 1; box-shadow: 0 0 0 20px rgba(14, 165, 233, 0); }
+      100% { transform: scale(0.9); opacity: 0.8; box-shadow: 0 0 0 0 rgba(14, 165, 233, 0); }
+    }
+    .pulse-incident {
+      animation: tacticalPulse 2s infinite ease-in-out;
+    }
+    .pulse-unit {
+      animation: unitPulse 2s infinite ease-in-out;
+    }
+    .pulse-me {
+      animation: blueBeacon 1.8s infinite ease-in-out;
+    }
+
+    /* Bottom Sheet Slide Up Animation */
+    .sheet-transition {
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+    }
+    .sheet-hidden {
+      transform: translateY(110%);
+      opacity: 0;
+      pointer-events: none;
+    }
+    .sheet-visible {
+      transform: translateY(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* Safe Area insets for modern mobile notches */
+    .pt-safe {
+      padding-top: max(10px, env(safe-area-inset-top));
+    }
+    .pb-safe {
+      padding-bottom: max(14px, env(safe-area-inset-bottom));
+    }
+  </style>
+</head>
+<body class="bg-[#060b17] text-slate-100 flex flex-col h-full w-full relative">
+
+  <!-- =================================================================== -->
+  <!-- 🗺️ FULLSCREEN LEAFLET MAP CONTAINER -->
+  <!-- =================================================================== -->
+  <div id="map"></div>
+
+  <!-- =================================================================== -->
+  <!-- 🛰️ FLOATING TOP APP BAR (HEADER) -->
+  <!-- =================================================================== -->
+  <header class="absolute top-0 inset-x-0 z-30 pt-safe px-3 pointer-events-none">
+    <div class="pointer-events-auto bg-[#0c1427]/90 backdrop-blur-md border border-slate-700/70 rounded-2xl p-2.5 shadow-2xl flex items-center justify-between gap-2">
+      
+      <!-- Brand & Live Indicator -->
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center text-white text-base shadow-md shadow-sky-600/30 shrink-0">
+          <i class="fa-solid fa-satellite-dish animate-pulse"></i>
+        </div>
+        <div class="min-w-0">
+          <div class="flex items-center gap-1.5">
+            <h1 class="font-bold text-sm text-white tracking-wide truncate">แผนที่สถานการณ์ RTSD</h1>
+            <span class="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> สด
+            </span>
+          </div>
+          <p class="text-[10px] text-slate-400 font-mono truncate">เฉพาะเหตุการณ์ & ชุดปฏิบัติการ Active</p>
+        </div>
+      </div>
+
+      <!-- Quick Action: Switch to Full Desktop Dashboard -->
+      <div class="flex items-center gap-1 shrink-0">
+        <a href="/dashboard" class="px-2.5 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-slate-700 text-sky-400 hover:text-white text-xs font-medium transition-colors flex items-center gap-1 shadow-sm" title="เปิดหน้าจอศูนย์ควบคุมหลัก (เหมาะสำหรับ PC)">
+          <i class="fa-solid fa-desktop text-[11px]"></i>
+          <span class="hidden sm:inline text-[11px]">TOC Dashboard</span>
+        </a>
+      </div>
+
+    </div>
+
+    <!-- Quick Filter Chips Toolbar -->
+    <div class="pointer-events-auto mt-2 flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-1 text-xs">
+      <!-- Toggle Incidents -->
+      <button id="btnFilterIncidents" onclick="toggleIncidentsLayer()" class="px-3 py-1.5 rounded-xl bg-red-600/20 border border-red-500/70 text-red-300 font-semibold shadow-md flex items-center gap-1.5 shrink-0 transition-all cursor-pointer backdrop-blur-md">
+        <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+        <span>จุดเกิดเหตุ</span>
+        <span id="badgeIncidentCount" class="px-1.5 py-0.2 rounded-full bg-red-500 text-white text-[10px] font-mono">0</span>
+      </button>
+
+      <!-- Toggle Active Units -->
+      <button id="btnFilterUnits" onclick="toggleUnitsLayer()" class="px-3 py-1.5 rounded-xl bg-emerald-600/20 border border-emerald-500/70 text-emerald-300 font-semibold shadow-md flex items-center gap-1.5 shrink-0 transition-all cursor-pointer backdrop-blur-md">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span>ชุดปฏิบัติการ Active</span>
+        <span id="badgeUnitCount" class="px-1.5 py-0.2 rounded-full bg-emerald-500 text-white text-[10px] font-mono">0</span>
+      </button>
+
+      <!-- Locate Me (GPS) -->
+      <button onclick="locateUserPosition()" class="px-2.5 py-1.5 rounded-xl bg-slate-900/80 border border-slate-700/80 hover:border-sky-500 text-slate-300 hover:text-sky-300 shadow-md flex items-center gap-1 shrink-0 transition-all cursor-pointer backdrop-blur-md">
+        <i class="fa-solid fa-crosshairs text-sky-400"></i>
+        <span>พิกัดฉัน</span>
+      </button>
+
+      <!-- 3-Way Segmented Basemap Switcher (ถนน / ดาวเทียม / มืด) เหมือน Dashboard -->
+      <div class="inline-flex rounded-xl bg-slate-900/90 p-0.5 border border-slate-700/80 text-xs shrink-0 shadow-md backdrop-blur-md">
+        <button id="btnMapOsm" onclick="setBasemapStyle('osm')" class="px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all bg-sky-600 text-white shadow cursor-pointer flex items-center gap-1" title="แผนที่ถนน (OpenStreetMap)">
+          <i class="fa-solid fa-map"></i> <span>ถนน</span>
+        </button>
+        <button id="btnMapSat" onclick="setBasemapStyle('satellite')" class="px-2.5 py-1 rounded-lg text-[11px] font-medium text-slate-400 hover:text-white transition-all cursor-pointer flex items-center gap-1" title="ภาพถ่ายดาวเทียม (Esri World Imagery)">
+          <i class="fa-solid fa-satellite"></i> <span>ดาวเทียม</span>
+        </button>
+        <button id="btnMapDark" onclick="setBasemapStyle('dark')" class="px-2.5 py-1 rounded-lg text-[11px] font-medium text-slate-400 hover:text-white transition-all cursor-pointer flex items-center gap-1" title="แผนที่ยุทธวิธีโหมดมืด (Esri Dark Canvas)">
+          <i class="fa-solid fa-moon"></i> <span>มืด</span>
+        </button>
+      </div>
+
+      <!-- Toggle SOS Alert Filter (กะพริบเตือนเมื่อมีเหตุ SOS) -->
+      <button id="btnFilterSos" onclick="toggleSosLayer()" class="hidden px-2.5 py-1.5 rounded-xl bg-rose-600/30 border border-rose-500/80 text-rose-200 font-bold shadow-md flex items-center gap-1.5 shrink-0 transition-all cursor-pointer backdrop-blur-md animate-pulse" title="สัญญาณขอรับการสนับสนุนด่วน">
+        <span class="w-2 h-2 rounded-full bg-rose-400 animate-ping"></span>
+        <span>🚨 SOS</span>
+        <span id="badgeSosCount" class="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px] font-mono">0</span>
+      </button>
+
+      <!-- Fit Bounds -->
+      <button onclick="fitMapBounds()" class="px-2.5 py-1.5 rounded-xl bg-slate-900/80 border border-slate-700/80 hover:border-purple-500 text-slate-300 hover:text-purple-300 shadow-md flex items-center gap-1 shrink-0 transition-all cursor-pointer backdrop-blur-md" title="ซูมพอดีทุกพิกัด">
+        <i class="fa-solid fa-expand text-purple-400"></i>
+        <span>รวมทั้งหมด</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- =================================================================== -->
+  <!-- 📍 FLOATING BOTTOM BAR (STATUS & REFRESH) -->
+  <!-- =================================================================== -->
+  <div class="absolute bottom-4 inset-x-3 z-30 pb-safe pointer-events-none flex justify-center">
+    <div class="pointer-events-auto bg-[#0c1427]/90 backdrop-blur-md border border-slate-700/70 rounded-2xl px-3.5 py-2 shadow-2xl flex items-center justify-between gap-3 max-w-md w-full">
+      <div class="flex items-center gap-2 text-xs text-slate-300 truncate">
+        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+        <span id="statusBarSummary" class="truncate font-sans">กำลังซิงก์ข้อมูลสถานการณ์สด...</span>
+      </div>
+
+      <div class="flex items-center gap-2 shrink-0">
+        <span id="lastUpdatedClock" class="text-[11px] font-mono text-slate-400">--:--:--</span>
+        <button onclick="refreshData(true)" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sky-400 flex items-center justify-center transition-transform active:scale-90 shadow-sm" title="กดรีเฟรชข้อมูล">
+          <i id="btnRefreshIcon" class="fa-solid fa-rotate text-xs"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =================================================================== -->
+  <!-- 📱 MOBILE BOTTOM SHEET MODAL (DRAWER ON PIN CLICK) -->
+  <!-- =================================================================== -->
+  <div id="sheetBackdrop" onclick="closeBottomSheet()" class="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity opacity-0 pointer-events-none"></div>
+
+  <div id="bottomSheet" class="fixed inset-x-0 bottom-0 z-50 bg-[#0c1427] border-t border-slate-700/90 rounded-t-3xl shadow-2xl pb-safe sheet-transition sheet-hidden max-h-[85vh] flex flex-col">
+    <!-- Sheet Drag Handle -->
+    <div class="pt-3 pb-1 flex justify-center cursor-pointer" onclick="closeBottomSheet()">
+      <div class="w-12 h-1.5 rounded-full bg-slate-600/80"></div>
+    </div>
+
+    <!-- Sheet Header -->
+    <div class="px-5 pt-2 pb-3 border-b border-slate-800 flex items-start justify-between gap-3">
+      <div id="sheetHeaderContent" class="min-w-0 flex-1">
+        <!-- Injected via JS -->
+      </div>
+      <button onclick="closeBottomSheet()" class="w-8 h-8 rounded-full bg-slate-800/90 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center shrink-0 transition-colors">
+        <i class="fa-solid fa-xmark text-sm"></i>
+      </button>
+    </div>
+
+    <!-- Sheet Body (Scrollable) -->
+    <div id="sheetBodyContent" class="px-5 py-4 overflow-y-auto custom-scrollbar flex-1 space-y-3.5 text-sm">
+      <!-- Injected via JS -->
+    </div>
+
+    <!-- Sheet Actions (Bottom Buttons) -->
+    <div id="sheetActionButtons" class="px-5 py-3 border-t border-slate-800/80 bg-[#090f1d] flex gap-2">
+      <!-- Injected via JS -->
+    </div>
+  </div>
+
+  <!-- =================================================================== -->
+  <!-- 🖼️ FULLSCREEN IMAGE VIEWER MODAL -->
+  <!-- =================================================================== -->
+  <div id="photoModal" class="fixed inset-0 z-50 bg-black/90 hidden flex flex-col items-center justify-center p-4 backdrop-blur-md" onclick="closePhotoModal()">
+    <div class="relative max-w-full max-h-[90vh]">
+      <img id="photoModalImg" src="" alt="Photo" class="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl border border-slate-700">
+      <p id="photoModalCaption" class="text-center text-sm font-medium text-slate-300 mt-2 font-mono"></p>
+    </div>
+    <button onclick="closePhotoModal()" class="absolute top-5 right-5 w-10 h-10 rounded-full bg-slate-800/80 text-white flex items-center justify-center text-lg">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+  </div>
+
+  <!-- =================================================================== -->
+  <!-- 🧠 JAVASCRIPT LOGIC (MOBILE-FIRST SITUATIONAL MAP) -->
+  <!-- =================================================================== -->
+  <script>
+    // Configuration & Endpoints
+    const GOOGLE_SHEET_DATA_URL = "https://script.google.com/macros/s/AKfycbw5Gepu7a5s9j1vXtgE55403L0K3sKtOcpUNArNCm6RJO1ulNp735XyZgAbTlMBwxI/exec";
+    const API_BASE = window.location.origin;
+
+    // State Variables
+    let map;
+    let baseLayers = {};
+    let currentBasemap = 'osm'; // เหมือน Dashboard: ค่าเริ่มต้นเป็น OpenStreetMap คมชัด สวยงาม ไม่มี watermark
+    
+    let incidentsLayerGroup;
+    let unitsLayerGroup;
+    let sosLayerGroup;
+    let userLocationMarker = null;
+
+    let showIncidents = true;
+    let showUnits = true;
+    let showSos = true;
+
+    let activeTacticalUnits = [];
+    let incidentList = [];
+    let dispatchedMap = {}; // mapping incident_id -> dispatched info
+    let registeredUsers = [];
+    let sosReports = [];
+
+    let hasInitiallyFitted = false;
+    let pollInterval = null;
+
+    // Helper to create tile layer with fallback on network error (เหมือน Dashboard)
+    function createSafeTileLayer(primaryUrl, options, fallbackUrl) {
+      const layer = L.tileLayer(primaryUrl, options);
+      if (fallbackUrl) {
+        layer.on('tileerror', function(error) {
+          const tile = error.tile;
+          if (tile && !tile._hasFallbackApplied && error.coords) {
+            tile._hasFallbackApplied = true;
+            const coords = error.coords;
+            const sub = (options.subdomains && options.subdomains.length) ? options.subdomains[Math.abs(coords.x + coords.y) % options.subdomains.length] : 'a';
+            tile.src = fallbackUrl.replace('{s}', sub).replace('{z}', coords.z).replace('{x}', coords.x).replace('{y}', coords.y).replace('{r}', '');
+          }
+        });
+      }
+      return layer;
+    }
+
+    // -------------------------------------------------------------------
+    // 1. Initialize Map
+    // -------------------------------------------------------------------
+    function initMap() {
+      // Default center: Thailand (Bangkok / RTSD)
+      map = L.map('map', {
+        center: [7.0084, 100.4767],
+        zoom: 12,
+        zoomControl: false, // Cleaner mobile UX
+        attributionControl: false
+      });
+
+      // 1. OpenStreetMap Basemap (OSM France HOT CDN - genuine OpenStreetMap tiles with Esri Street fallback)
+      baseLayers.osm = createSafeTileLayer(
+        'https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
+        { maxZoom: 20, maxNativeZoom: 18, subdomains: ['a', 'b'], attribution: '&copy; OpenStreetMap' },
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'
+      );
+
+      // 2. Satellite Basemap (Esri World Imagery)
+      baseLayers.satellite = createSafeTileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        { maxZoom: 20, maxNativeZoom: 18, attribution: '&copy; Esri World Imagery' },
+        null
+      );
+
+      // 3. Dark Tactical Basemap (Esri World Dark Gray Canvas & Reference - 100% Free, No Watermark, No API Key Required)
+      const darkBase = createSafeTileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+        { maxZoom: 20, maxNativeZoom: 16, attribution: '&copy; Esri World Dark Gray' },
+        null
+      );
+      const darkRef = createSafeTileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+        { maxZoom: 20, maxNativeZoom: 16, attribution: '' },
+        null
+      );
+      baseLayers.dark = L.layerGroup([darkBase, darkRef]);
+
+      // ค่าเริ่มต้น: เปิดใช้งาน OpenStreetMap (ถนน) เหมือน Dashboard
+      baseLayers.osm.addTo(map);
+
+      // Layer Groups
+      incidentsLayerGroup = L.layerGroup().addTo(map);
+      unitsLayerGroup = L.layerGroup().addTo(map);
+      sosLayerGroup = L.layerGroup().addTo(map);
+
+      // Add Zoom Control to Bottom Right (Touch friendly)
+      L.control.zoom({ position: 'bottomright' }).addTo(map);
+    }
+
+    function setBasemapStyle(style) {
+      if (!map) return;
+      currentBasemap = style;
+
+      // ปลดเลเยอร์แผนที่เดิมออก
+      if (baseLayers.osm && map.hasLayer(baseLayers.osm)) map.removeLayer(baseLayers.osm);
+      if (baseLayers.satellite && map.hasLayer(baseLayers.satellite)) map.removeLayer(baseLayers.satellite);
+      if (baseLayers.dark && map.hasLayer(baseLayers.dark)) map.removeLayer(baseLayers.dark);
+
+      // สลับไปเลเยอร์ที่เลือก
+      if (style === 'satellite') {
+        if (baseLayers.satellite) baseLayers.satellite.addTo(map);
+      } else if (style === 'dark') {
+        if (baseLayers.dark) baseLayers.dark.addTo(map);
+      } else {
+        if (baseLayers.osm) baseLayers.osm.addTo(map);
+      }
+
+      // ปรับปรุงคลาสปุ่ม Segmented Switcher
+      const btnOsm = document.getElementById('btnMapOsm');
+      const btnSat = document.getElementById('btnMapSat');
+      const btnDark = document.getElementById('btnMapDark');
+      const activeClass = 'px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all bg-sky-600 text-white shadow cursor-pointer flex items-center gap-1';
+      const inactiveClass = 'px-2.5 py-1 rounded-lg text-[11px] font-medium text-slate-400 hover:text-white transition-all cursor-pointer flex items-center gap-1';
+
+      if (btnOsm) btnOsm.className = (style === 'osm') ? activeClass : inactiveClass;
+      if (btnSat) btnSat.className = (style === 'satellite') ? activeClass : inactiveClass;
+      if (btnDark) btnDark.className = (style === 'dark') ? activeClass : inactiveClass;
+
+      setTimeout(() => {
+        if (map) map.invalidateSize(false);
+      }, 50);
+    }
+
+    function toggleMapBasemap() {
+      if (currentBasemap === 'osm') setBasemapStyle('satellite');
+      else if (currentBasemap === 'satellite') setBasemapStyle('dark');
+      else setBasemapStyle('osm');
+    }
+
+    function toggleIncidentsLayer() {
+      const btn = document.getElementById('btnFilterIncidents');
+      showIncidents = !showIncidents;
+      if (showIncidents) {
+        incidentsLayerGroup.addTo(map);
+        btn.className = "px-3 py-1.5 rounded-xl bg-red-600/20 border border-red-500/70 text-red-300 font-semibold shadow-md flex items-center gap-1.5 shrink-0 transition-all cursor-pointer backdrop-blur-md";
+      } else {
+        map.removeLayer(incidentsLayerGroup);
+        btn.className = "px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-700/80 text-slate-500 font-medium shadow-md flex items-center gap-1.5 shrink-0 transition-all cursor-pointer backdrop-blur-md opacity-60";
+      }
+    }
+
+    function toggleUnitsLayer() {
+      const btn = document.getElementById('btnFilterUnits');
+      showUnits = !showUnits;
+      if (showUnits) {
+        unitsLayerGroup.addTo(map);
+        btn.className = "px-3 py-1.5 rounded-xl bg-emerald-600/20 border border-emerald-500/70 text-emerald-300 font-semibold shadow-md flex items-center gap-1.5 shrink-0 transition-all cursor-pointer backdrop-blur-md";
+      } else {
+        map.removeLayer(unitsLayerGroup);
+        btn.className = "px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-700/80 text-slate-500 font-medium shadow-md flex items-center gap-1.5 shrink-0 transition-all cursor-pointer backdrop-blur-md opacity-60";
+      }
+    }
+
+    function toggleSosLayer() {
+      const btn = document.getElementById('btnFilterSos');
+      showSos = !showSos;
+      if (showSos) {
+        sosLayerGroup.addTo(map);
+        if (btn) btn.className = "px-2.5 py-1.5 rounded-xl bg-rose-600/30 border border-rose-500/80 text-rose-200 font-bold shadow-md flex items-center gap-1.5 shrink-0 transition-all cursor-pointer backdrop-blur-md animate-pulse";
+      } else {
+        map.removeLayer(sosLayerGroup);
+        if (btn) btn.className = "px-2.5 py-1.5 rounded-xl bg-slate-900/80 border border-slate-700/80 text-slate-500 font-medium shadow-md flex items-center gap-1.5 shrink-0 transition-all cursor-pointer backdrop-blur-md opacity-60";
+      }
+    }
+
+    // -------------------------------------------------------------------
+    // 2. Fetch Data (Tactical Units + Incidents + Dispatched List + Field Reports/SOS)
+    // -------------------------------------------------------------------
+    async function refreshData(isManual = false) {
+      const icon = document.getElementById('btnRefreshIcon');
+      if (icon) icon.classList.add('fa-spin');
+
+      try {
+        await Promise.all([
+          fetchTacticalUnits(),
+          fetchDispatchedList(),
+          fetchIncidents(),
+          fetchFieldReports()
+        ]);
+        updateMapMarkers();
+        updateSummaryBar();
+      } catch (err) {
+        console.warn("Refresh error:", err);
+      } finally {
+        if (icon) {
+          setTimeout(() => icon.classList.remove('fa-spin'), 600);
+        }
+      }
+    }
+
+    async function fetchTacticalUnits() {
+      try {
+        const res = await fetch(API_BASE + '/api/tracker/units');
+        if (res.ok) {
+          const data = await res.json();
+          // Filter ONLY ACTIVE or EN ROUTE units as requested!
+          activeTacticalUnits = (Array.isArray(data) ? data : []).filter(u => {
+            const st = ((u.status || '') + ' ' + (u.calculated_state || '')).toUpperCase();
+            const isOffline = st.includes('OFFLINE') || st.includes('ออฟไลน์');
+            const isStandby = st.includes('STANDBY') || st.includes('สแตนด์บาย') || st.includes('พร้อมปฏิบัติ');
+            return !isOffline && (st.includes('ACTIVE') || st.includes('EN ROUTE') || st.includes('เข้าพื้นที่') || st.includes('กำลัง'));
+          });
+        }
+      } catch (e) {
+        console.warn("fetchTacticalUnits err:", e);
+      }
+    }
+
+    async function fetchDispatchedList() {
+      try {
+        const res = await fetch(API_BASE + '/api/incident/dispatched-list');
+        if (res.ok) {
+          const json = await res.json();
+          dispatchedMap = json.dispatched || {};
+        }
+      } catch (e) {
+        console.warn("fetchDispatchedList err:", e);
+      }
+    }
+
+    async function fetchIncidents() {
+      try {
+        // Try local backend proxy first, fallback to direct sheet URL
+        let rows = null;
+        try {
+          const res = await fetch(API_BASE + '/api/incidents');
+          if (res.ok) rows = await res.json();
+        } catch(e) {}
+
+        if (!rows || !Array.isArray(rows) || rows.length <= 1) {
+          const res = await fetch(GOOGLE_SHEET_DATA_URL);
+          rows = await res.json();
+        }
+
+        if (rows && Array.isArray(rows) && rows.length > 1) {
+          // Parse incident rows (Row 0 is header)
+          incidentList = [];
+          rows.slice(1).forEach((r, idx) => {
+            if (!r || r.length < 5) return;
+            const lat = parseFloat(r[3]);
+            const lon = parseFloat(r[4]);
+            if (isNaN(lat) || isNaN(lon) || lat === 0 || lon === 0) return;
+
+            const title = r[1] || 'แจ้งเหตุฉุกเฉิน';
+            const status = (r[8] || '⏳ รอดำเนินการ').trim();
+            const isResolved = status.includes('เสร็จ') || status.includes('เรียบร้อย') || status.includes('แล้วเสร็จ');
+
+            // Find matching dispatched unit
+            let dispatchedInfo = null;
+            Object.values(dispatchedMap).forEach(d => {
+              if (d && (d.incident_title === title || d.incident_id === `RTSD-${idx+1}` || (d.latitude == lat && d.longitude == lon))) {
+                dispatchedInfo = d;
+              }
+            });
+
+            incidentList.push({
+              id: `INC-${idx+1}`,
+              timestamp: r[0] || '',
+              title: title,
+              address: r[2] || 'ไม่ระบุสถานที่',
+              latitude: lat,
+              longitude: lon,
+              reporter: r[5] || 'ประชาชน / ศูนย์',
+              urgency: r[6] || '🟡 ปานกลาง',
+              incident_type: r[7] || 'อื่นๆ',
+              status: status,
+              isResolved: isResolved,
+              media_url: r[9] || '-',
+              dispatched: dispatchedInfo
+            });
+          });
+        }
+      } catch (e) {
+        console.warn("fetchIncidents err:", e);
+      }
+    }
+
+    async function fetchFieldReports() {
+      try {
+        const res = await fetch(API_BASE + '/api/incident/field-reports');
+        if (res.ok) {
+          const data = await res.json();
+          const list = Array.isArray(data) ? data : (data.reports || []);
+          sosReports = list.filter(r => 
+            r.urgency === 'SOS' || 
+            r.report_type === 'sos' || 
+            (r.title && r.title.includes('SOS')) ||
+            (r.message && r.message.includes('SOS'))
+          );
+        }
+      } catch (e) {
+        console.warn("fetchFieldReports err:", e);
+      }
+    }
+
+    function resolveReportCoordinates(report) {
+      if (!report) return { lat: 0, lon: 0 };
+      let lat = parseFloat(report.latitude !== undefined ? report.latitude : report.lat);
+      let lon = parseFloat(report.longitude !== undefined ? report.longitude : report.lon);
+      if (!isNaN(lat) && !isNaN(lon) && lat !== 0 && lon !== 0) {
+        return { lat, lon };
+      }
+      if (report.unit_id && activeTacticalUnits.length > 0) {
+        const u = activeTacticalUnits.find(unit => unit.unit_id === report.unit_id);
+        if (u) {
+          const uLat = parseFloat(u.latitude), uLon = parseFloat(u.longitude);
+          if (!isNaN(uLat) && !isNaN(uLon) && uLat !== 0 && uLon !== 0) {
+            return { lat: uLat, lon: uLon };
+          }
+        }
+      }
+      if (report.incident_id && incidentList.length > 0) {
+        const inc = incidentList.find(i => 
+          (i.id && i.id === report.incident_id) ||
+          (i.title && i.title.includes(report.incident_id))
+        );
+        if (inc) {
+          const iLat = parseFloat(inc.latitude), iLon = parseFloat(inc.longitude);
+          if (!isNaN(iLat) && !isNaN(iLon) && iLat !== 0 && iLon !== 0) {
+            return { lat: iLat, lon: iLon };
+          }
+        }
+      }
+      return { lat: 0, lon: 0 };
+    }
+
+    // -------------------------------------------------------------------
+    // 3. Render Map Markers
+    // -------------------------------------------------------------------
+    function updateMapMarkers() {
+      if (!map) return;
+
+      incidentsLayerGroup.clearLayers();
+      unitsLayerGroup.clearLayers();
+
+      const allBounds = [];
+
+      // A) RENDER INCIDENTS
+      const activeIncidents = incidentList.filter(inc => !inc.isResolved); // Focus on active incidents
+      const displayIncidents = activeIncidents.length > 0 ? activeIncidents : incidentList; // Fallback to all if all resolved
+
+      displayIncidents.forEach(inc => {
+        allBounds.push([inc.latitude, inc.longitude]);
+
+        // Category Icon & Urgency Color
+        const catIcon = getCategoryIcon(inc.incident_type, inc.title);
+        const isCritical = inc.urgency.includes('วิกฤต') || inc.urgency.includes('ด่วนที่สุด') || inc.urgency.includes('แดง');
+        const isMedium = inc.urgency.includes('ปานกลาง') || inc.urgency.includes('เหลือง');
+
+        let pinBg = 'from-red-600 to-rose-700';
+        let pinBorder = 'border-red-400';
+        let glowClass = 'pulse-incident';
+        if (!isCritical && isMedium) {
+          pinBg = 'from-amber-500 to-orange-600';
+          pinBorder = 'border-amber-300';
+        } else if (inc.isResolved) {
+          pinBg = 'from-emerald-600 to-teal-700';
+          pinBorder = 'border-emerald-300';
+          glowClass = '';
+        }
+
+        const iconHtml = `
+          <div class="relative flex flex-col items-center cursor-pointer group" style="transform: translate(-50%, -100%);">
+            <!-- Pulsing Halo for Critical Incidents -->
+            ${isCritical ? `<div class="absolute -top-1 w-12 h-12 rounded-full bg-red-500/40 pointer-events-none animate-ping"></div>` : ''}
+
+            <!-- Tactical Incident Pin -->
+            <div class="relative w-10 h-10 rounded-2xl bg-gradient-to-tr ${pinBg} border-2 ${pinBorder} shadow-2xl flex items-center justify-center text-white text-base ${glowClass}">
+              <i class="${catIcon} drop-shadow"></i>
+              
+              <!-- Dispatched Unit Indicator Dot -->
+              ${inc.dispatched ? `
+                <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-slate-900 flex items-center justify-center text-[8px] text-white" title="มีชุดกำลังเข้าไป">
+                  <i class="fa-solid fa-truck-fast"></i>
+                </span>
+              ` : ''}
+            </div>
+
+            <!-- Pin Pointer Triangle -->
+            <div class="w-0 h-0 border-x-6 border-x-transparent border-t-8 border-t-red-600 -mt-[1px]"></div>
+
+            <!-- Small Label Badge -->
+            <div class="mt-1 bg-slate-950/90 border border-slate-700/80 px-2 py-0.5 rounded-md shadow-lg pointer-events-none whitespace-nowrap">
+              <span class="text-[10px] font-sans font-bold text-white drop-shadow">${inc.title.slice(0, 20)}</span>
+            </div>
+          </div>
+        `;
+
+        const marker = L.marker([inc.latitude, inc.longitude], {
+          icon: L.divIcon({
+            className: 'custom-incident-pin',
+            html: iconHtml,
+            iconSize: [0, 0]
+          })
+        });
+
+        marker.on('click', () => {
+          openIncidentSheet(inc);
+        });
+
+        incidentsLayerGroup.addLayer(marker);
+      });
+
+      // B) RENDER ACTIVE TACTICAL UNITS (ONLY ACTIVE/EN ROUTE)
+      activeTacticalUnits.forEach(u => {
+        const lat = parseFloat(u.latitude);
+        const lon = parseFloat(u.longitude);
+        if (isNaN(lat) || isNaN(lon) || lat === 0 || lon === 0) return;
+
+        allBounds.push([lat, lon]);
+
+        const speed = Math.round(parseFloat(u.speed) || 0);
+        const heading = Math.round(parseFloat(u.heading) || 0);
+        const pic = u.picture_profile && u.picture_profile !== '-' ? u.picture_profile : 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=256&q=80';
+        const unitName = (u.unit_name || u.unit_id || 'TACTICAL UNIT').toUpperCase();
+        const commander = (u.commander || 'หัวหน้าชุด').toUpperCase();
+
+        const unitIconHtml = `
+          <div class="relative flex flex-col items-center cursor-pointer group" style="transform: translate(-50%, -50%);">
+            <!-- Pulsing Tactical Ring -->
+            <div class="absolute inset-0 w-12 h-12 -translate-x-1.5 -translate-y-1.5 rounded-full bg-emerald-500/30 pointer-events-none animate-ping"></div>
+
+            <!-- Circular Avatar with Emerald Glowing Border -->
+            <div class="relative w-11 h-11 rounded-full border-2 border-emerald-400 bg-slate-900 shadow-[0_0_15px_rgba(16,185,129,0.7)] overflow-hidden pulse-unit flex items-center justify-center">
+              <img src="${pic}" alt="${commander}" class="w-full h-full object-cover">
+            </div>
+
+            <!-- Direction of Travel (Heading Arrow) -->
+            <div class="absolute -top-2 w-5 h-5 flex items-center justify-center pointer-events-none" style="transform: rotate(${heading}deg);">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                <polygon points="8,1 14,14 8,11 2,14" fill="#10b981" />
+              </svg>
+            </div>
+
+            <!-- Unit Tag Label -->
+            <div class="mt-1 bg-slate-950/95 border border-emerald-500/80 px-2 py-0.5 rounded-md shadow-xl pointer-events-none whitespace-nowrap flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span class="text-[10px] font-mono font-bold text-emerald-300">${unitName.split(' ')[0]}</span>
+              ${speed > 0 ? `<span class="text-[9px] font-mono text-slate-400">${speed}K</span>` : ''}
+            </div>
+          </div>
+        `;
+
+        const marker = L.marker([lat, lon], {
+          icon: L.divIcon({
+            className: 'custom-unit-pin',
+            html: unitIconHtml,
+            iconSize: [0, 0]
+          })
+        });
+
+        marker.on('click', () => {
+          openUnitSheet(u, lat, lon);
+        });
+
+        unitsLayerGroup.addLayer(marker);
+      });
+
+      // C) RENDER SOS / EMERGENCY SUPPORT REQUESTS
+      sosLayerGroup.clearLayers();
+      const btnSos = document.getElementById('btnFilterSos');
+      const badgeSos = document.getElementById('badgeSosCount');
+      if (btnSos) {
+        if (sosReports.length > 0) {
+          btnSos.classList.remove('hidden');
+          if (badgeSos) badgeSos.innerText = sosReports.length;
+        } else {
+          btnSos.classList.add('hidden');
+        }
+      }
+
+      sosReports.forEach(item => {
+        const coords = resolveReportCoordinates(item);
+        if (coords.lat === 0 || coords.lon === 0) return;
+        allBounds.push([coords.lat, coords.lon]);
+
+        const sender = item.commander || item.sender_name || item.unit_id || 'ชุดปฏิบัติการ';
+        const sosIconHtml = `
+          <div class="relative flex flex-col items-center cursor-pointer group" style="transform: translate(-50%, -100%);">
+            <div class="absolute -top-3 w-16 h-16 rounded-full bg-red-600/50 pointer-events-none animate-ping"></div>
+            <div class="relative w-11 h-11 rounded-2xl bg-gradient-to-tr from-red-600 to-rose-700 border-2 border-white shadow-[0_0_20px_rgba(239,68,68,0.9)] flex items-center justify-center text-white text-lg">
+              <i class="fa-solid fa-triangle-exclamation animate-bounce"></i>
+            </div>
+            <div class="w-0 h-0 border-x-6 border-x-transparent border-t-8 border-t-red-600 -mt-[1px]"></div>
+            <div class="mt-1 bg-red-950/95 border border-red-500 px-2 py-0.5 rounded-md shadow-2xl pointer-events-none whitespace-nowrap flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-red-400 animate-ping"></span>
+              <span class="text-[10px] font-bold text-white drop-shadow">🚨 SOS: ${sender.slice(0, 15)}</span>
+            </div>
+          </div>
+        `;
+
+        const marker = L.marker([coords.lat, coords.lon], {
+          icon: L.divIcon({
+            className: 'custom-sos-pin',
+            html: sosIconHtml,
+            iconSize: [0, 0]
+          }),
+          zIndexOffset: 1000
+        });
+
+        marker.on('click', () => {
+          openSosSheet(item, coords.lat, coords.lon);
+        });
+
+        sosLayerGroup.addLayer(marker);
+      });
+
+      // Update Toolbar Counts
+      const bInc = document.getElementById('badgeIncidentCount');
+      const bUnit = document.getElementById('badgeUnitCount');
+      if (bInc) bInc.innerText = activeIncidents.length;
+      if (bUnit) bUnit.innerText = activeTacticalUnits.length;
+
+      // Auto-fit on first successful load
+      if (!hasInitiallyFitted && allBounds.length > 0) {
+        hasInitiallyFitted = true;
+        map.fitBounds(allBounds, { padding: [50, 50], maxZoom: 14 });
+      }
+    }
+
+    function fitMapBounds() {
+      const allBounds = [];
+      incidentList.forEach(i => {
+        if (!i.isResolved) allBounds.push([i.latitude, i.longitude]);
+      });
+      activeTacticalUnits.forEach(u => {
+        const lat = parseFloat(u.latitude), lon = parseFloat(u.longitude);
+        if (!isNaN(lat) && lat !== 0) allBounds.push([lat, lon]);
+      });
+      sosReports.forEach(item => {
+        const coords = resolveReportCoordinates(item);
+        if (coords.lat !== 0 && coords.lon !== 0) allBounds.push([coords.lat, coords.lon]);
+      });
+
+      if (allBounds.length > 0) {
+        map.fitBounds(allBounds, { padding: [40, 40], maxZoom: 14 });
+      } else {
+        map.setView([7.0084, 100.4767], 8);
+      }
+    }
+
+    // -------------------------------------------------------------------
+    // 4. Geolocation (Locate Me)
+    // -------------------------------------------------------------------
+    function locateUserPosition() {
+      if (!navigator.geolocation) {
+        alert("เบราว์เซอร์ไม่รองรับการระบุพิกัด GPS");
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+
+          if (userLocationMarker) {
+            map.removeLayer(userLocationMarker);
+          }
+
+          const userHtml = `
+            <div class="relative flex items-center justify-center">
+              <div class="absolute w-8 h-8 rounded-full bg-sky-500/40 animate-ping"></div>
+              <div class="w-5 h-5 rounded-full bg-sky-500 border-2 border-white shadow-xl pulse-me"></div>
+            </div>
+          `;
+
+          userLocationMarker = L.marker([lat, lon], {
+            icon: L.divIcon({
+              className: 'user-gps-pin',
+              html: userHtml,
+              iconSize: [20, 20],
+              iconAnchor: [10, 10]
+            })
+          }).addTo(map);
+
+          userLocationMarker.bindPopup('<b class="text-slate-900 text-xs">พิกัดปัจจุบันของคุณ</b>').openPopup();
+          map.setView([lat, lon], 14, { animate: true });
+        },
+        (err) => {
+          alert("ไม่สามารถเข้าถึงพิกัด GPS ได้ โปรดอนุญาตสิทธิ์ Location ในเบราว์เซอร์");
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    }
+
+    // -------------------------------------------------------------------
+    // 5. Mobile Bottom Sheet Details
+    // -------------------------------------------------------------------
+    function openSosSheet(item, lat, lon) {
+      const header = document.getElementById('sheetHeaderContent');
+      const body = document.getElementById('sheetBodyContent');
+      const actions = document.getElementById('sheetActionButtons');
+
+      const sender = item.commander || item.sender_name || item.unit_id || 'ชุดปฏิบัติการหน้างาน';
+      const unit = item.unit_id ? `[${item.unit_id}]` : '';
+      const msg = item.message || item.requested_resource || 'ขอรับการสนับสนุนด่วนจากหน้างาน';
+      const timeDisplay = item.timestamp ? (item.timestamp.slice(11, 19) || item.timestamp) : 'เมื่อสักครู่';
+
+      header.innerHTML = `
+        <div class="flex items-center gap-2 mb-1">
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/30 text-rose-300 border border-rose-500/50 flex items-center gap-1 animate-pulse">
+            <span class="w-1.5 h-1.5 rounded-full bg-rose-400 animate-ping"></span> สัญญาณฉุกเฉิน SOS
+          </span>
+          <span class="text-[10px] font-mono text-slate-400 ml-auto">${timeDisplay} น.</span>
+        </div>
+        <h3 class="font-bold text-base text-rose-200 tracking-wide leading-snug">🚨 ขอรับการสนับสนุนหน้างานด่วน!</h3>
+      `;
+
+      let mediaHtml = '';
+      const photoUrl = item.photo_url || item.image_url;
+      if (photoUrl && photoUrl.length > 5) {
+        mediaHtml = `
+          <div class="rounded-xl overflow-hidden border border-rose-500/40 bg-slate-900 cursor-pointer" onclick="openPhotoModal('${photoUrl}', 'ภาพจากจุดขอรับการสนับสนุน')">
+            <img src="${photoUrl}" alt="ภาพขอสนับสนุน" class="w-full max-h-48 object-cover hover:scale-105 transition-transform">
+            <div class="p-1.5 bg-slate-900/90 text-[10px] text-slate-400 text-center font-mono">แตะเพื่อดูภาพขยายเต็มจอ</div>
+          </div>
+        `;
+      }
+
+      body.innerHTML = `
+        <div class="p-3 rounded-xl bg-rose-950/40 border border-rose-500/40 text-rose-200 text-xs flex items-start gap-2.5">
+          <i class="fa-solid fa-triangle-exclamation text-rose-400 text-base mt-0.5 shrink-0"></i>
+          <div>
+            <div class="font-bold text-white text-sm mb-1">${sender} ${unit}</div>
+            <div class="text-rose-100 leading-relaxed font-sans">${msg}</div>
+          </div>
+        </div>
+
+        ${mediaHtml}
+
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div class="p-2.5 rounded-xl bg-slate-900/80 border border-slate-700/60 flex items-center gap-2">
+            <i class="fa-solid fa-location-crosshairs text-sky-400"></i>
+            <div>
+              <p class="text-[10px] text-slate-400">พิกัดขอความช่วยเหลือ</p>
+              <p class="font-mono text-white text-[11px]">${lat.toFixed(5)}, ${lon.toFixed(5)}</p>
+            </div>
+          </div>
+          <div class="p-2.5 rounded-xl bg-slate-900/80 border border-slate-700/60 flex items-center gap-2">
+            <i class="fa-solid fa-clock text-amber-400"></i>
+            <div>
+              <p class="text-[10px] text-slate-400">เวลาที่ส่ง</p>
+              <p class="font-mono text-white text-[11px]">${timeDisplay} น.</p>
+            </div>
+          </div>
+        </div>
+      `;
+
+      actions.innerHTML = `
+        <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}" target="_blank" class="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-rose-600/30 transition-transform active:scale-95">
+          <i class="fa-solid fa-location-arrow"></i>
+          <span>นำทาง GPS</span>
+        </a>
+        <button onclick="map.flyTo([${lat}, ${lon}], 17, {animate: true, duration: 1}); closeBottomSheet();" class="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-400 font-semibold text-xs border border-slate-700 flex items-center justify-center gap-1.5 transition-transform active:scale-95">
+          <i class="fa-solid fa-magnifying-glass-plus"></i>
+          <span>ซูมเข้าใกล้</span>
+        </button>
+      `;
+
+      showBottomSheet();
+      map.panTo([lat, lon], { animate: true, duration: 0.5 });
+    }
+
+    function openIncidentSheet(inc) {
+      const header = document.getElementById('sheetHeaderContent');
+      const body = document.getElementById('sheetBodyContent');
+      const actions = document.getElementById('sheetActionButtons');
+
+      const isCritical = inc.urgency.includes('วิกฤต') || inc.urgency.includes('ด่วนที่สุด') || inc.urgency.includes('แดง');
+      const catIcon = getCategoryIcon(inc.incident_type, inc.title);
+
+      header.innerHTML = `
+        <div class="flex items-center gap-2 mb-1">
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${isCritical ? 'bg-red-500/20 text-red-400 border border-red-500/40' : 'bg-amber-500/20 text-amber-400 border border-amber-500/40'}">
+            ${inc.urgency}
+          </span>
+          <span class="px-2 py-0.5 rounded-full text-[10px] bg-slate-800 text-slate-300 border border-slate-700">
+            ${inc.incident_type}
+          </span>
+          <span class="text-[10px] font-mono text-slate-400 ml-auto">${inc.timestamp.slice(11, 19) || inc.timestamp}</span>
+        </div>
+        <h3 class="font-bold text-base text-white tracking-wide leading-snug">${inc.title}</h3>
+      `;
+
+      let mediaHtml = '';
+      if (inc.media_url && inc.media_url !== '-' && inc.media_url.trim() !== '') {
+        mediaHtml = `
+          <div class="rounded-xl overflow-hidden border border-slate-700 bg-slate-900 cursor-pointer" onclick="openPhotoModal('${inc.media_url}', '${inc.title}')">
+            <img src="${inc.media_url}" alt="ภาพถ่ายที่เกิดเหตุ" class="w-full max-h-48 object-cover hover:scale-105 transition-transform">
+            <div class="p-1.5 bg-slate-900/90 text-[10px] text-slate-400 text-center font-mono">แตะเพื่อดูภาพขยายเต็มจอ</div>
+          </div>
+        `;
+      }
+
+      let dispatchBadge = `
+        <div class="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-2">
+          <i class="fa-solid fa-clock-rotate-left text-sm"></i>
+          <span>สถานะ: <strong>${inc.status}</strong></span>
+        </div>
+      `;
+
+      if (inc.dispatched) {
+        dispatchBadge = `
+          <div class="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs flex items-center justify-between gap-2 shadow-sm">
+            <div class="flex items-center gap-2">
+              <i class="fa-solid fa-truck-fast text-emerald-400 text-base"></i>
+              <div>
+                <p class="font-bold">ชุดปฏิบัติการเข้าพื้นที่แล้ว:</p>
+                <p class="text-[11px] text-emerald-200 font-mono">${inc.dispatched.unit_name || inc.dispatched.unit_id}</p>
+              </div>
+            </div>
+            <span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold">
+              ${inc.dispatched.status || 'กำลังระงับเหตุ'}
+            </span>
+          </div>
+        `;
+      }
+
+      body.innerHTML = `
+        ${dispatchBadge}
+
+        <div class="space-y-1.5 text-xs text-slate-300">
+          <p><i class="fa-solid fa-location-dot text-red-400 mr-2 w-4"></i> <strong>สถานที่:</strong> ${inc.address}</p>
+          <p><i class="fa-solid fa-crosshairs text-sky-400 mr-2 w-4"></i> <strong>พิกัด GPS:</strong> <span class="font-mono text-sky-300">${inc.latitude.toFixed(5)}, ${inc.longitude.toFixed(5)}</span></p>
+          <p><i class="fa-solid fa-user text-purple-400 mr-2 w-4"></i> <strong>ผู้แจ้ง:</strong> ${inc.reporter}</p>
+          <p><i class="fa-regular fa-clock text-slate-400 mr-2 w-4"></i> <strong>เวลาบันทึก:</strong> ${inc.timestamp}</p>
+        </div>
+
+        ${mediaHtml}
+      `;
+
+      actions.innerHTML = `
+        <a href="https://www.google.com/maps/dir/?api=1&destination=${inc.latitude},${inc.longitude}" target="_blank" class="flex-1 py-3 px-4 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-center text-xs shadow-lg shadow-sky-600/30 flex items-center justify-center gap-2 transition-transform active:scale-95">
+          <i class="fa-solid fa-diamond-turn-right text-sm"></i>
+          <span>🧭 นำทาง Google Maps</span>
+        </a>
+        <a href="tel:191" class="py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-red-400 hover:text-white font-bold text-center text-xs flex items-center justify-center gap-1.5 transition-transform active:scale-95">
+          <i class="fa-solid fa-phone"></i>
+          <span>191</span>
+        </a>
+      `;
+
+      showBottomSheet();
+      map.panTo([inc.latitude, inc.longitude], { animate: true, duration: 0.5 });
+    }
+
+    function openUnitSheet(u, lat, lon) {
+      const header = document.getElementById('sheetHeaderContent');
+      const body = document.getElementById('sheetBodyContent');
+      const actions = document.getElementById('sheetActionButtons');
+
+      const speed = Math.round(parseFloat(u.speed) || 0);
+      const heading = Math.round(parseFloat(u.heading) || 0);
+      const battery = parseInt(u.battery) || 85;
+      const pic = u.picture_profile && u.picture_profile !== '-' ? u.picture_profile : 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=256&q=80';
+      const unitName = (u.unit_name || u.unit_id || 'TACTICAL UNIT').toUpperCase();
+      const commander = (u.commander || 'หัวหน้าชุด').toUpperCase();
+
+      header.innerHTML = `
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-full overflow-hidden border-2 border-emerald-400 shrink-0 bg-slate-900 cursor-pointer" onclick="openPhotoModal('${pic}', '${commander}')">
+            <img src="${pic}" alt="${commander}" class="w-full h-full object-cover">
+          </div>
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+              <h3 class="font-bold text-base text-white tracking-wide truncate">${unitName}</h3>
+            </div>
+            <p class="text-xs text-slate-300 font-mono tracking-wider truncate">${commander}</p>
+          </div>
+        </div>
+      `;
+
+      body.innerHTML = `
+        <div class="grid grid-cols-3 gap-2">
+          <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-2.5 text-center">
+            <p class="text-[10px] text-slate-400 font-mono">ความเร็ว</p>
+            <p class="text-base font-bold font-mono text-sky-400 mt-0.5">${speed} <span class="text-[10px]">KM/H</span></p>
+          </div>
+          <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-2.5 text-center">
+            <p class="text-[10px] text-slate-400 font-mono">แบตเตอรี่</p>
+            <p class="text-base font-bold font-mono text-emerald-400 mt-0.5">${battery}%</p>
+          </div>
+          <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-2.5 text-center">
+            <p class="text-[10px] text-slate-400 font-mono">ทิศทาง</p>
+            <p class="text-base font-bold font-mono text-purple-400 mt-0.5">${heading}°</p>
+          </div>
+        </div>
+
+        <div class="space-y-1.5 text-xs text-slate-300">
+          <p><i class="fa-solid fa-truck-pickup text-sky-400 mr-2 w-4"></i> <strong>ยานพาหนะ:</strong> ${u.vehicle_type || 'รถตรวจการณ์ 4x4'}</p>
+          <p><i class="fa-solid fa-users text-purple-400 mr-2 w-4"></i> <strong>กำลังพล:</strong> ${u.unit_size || '3 นาย'}</p>
+          <p><i class="fa-solid fa-crosshairs text-emerald-400 mr-2 w-4"></i> <strong>พิกัดปัจจุบัน:</strong> <span class="font-mono text-emerald-300">${lat.toFixed(5)}, ${lon.toFixed(5)}</span></p>
+          <p><i class="fa-regular fa-clock text-slate-400 mr-2 w-4"></i> <strong>สัญญาณล่าสุด:</strong> ${u.last_update || 'เรียลไทม์'}</p>
+        </div>
+      `;
+
+      actions.innerHTML = `
+        <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}" target="_blank" class="flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-center text-xs shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 transition-transform active:scale-95">
+          <i class="fa-solid fa-location-crosshairs text-sm"></i>
+          <span>🧭 นำทาง Google Maps ไปยังจุดชุด</span>
+        </a>
+      `;
+
+      showBottomSheet();
+      map.panTo([lat, lon], { animate: true, duration: 0.5 });
+    }
+
+    function showBottomSheet() {
+      const sheet = document.getElementById('bottomSheet');
+      const backdrop = document.getElementById('sheetBackdrop');
+      if (sheet && backdrop) {
+        sheet.classList.remove('sheet-hidden');
+        sheet.classList.add('sheet-visible');
+        backdrop.classList.remove('opacity-0', 'pointer-events-none');
+        backdrop.classList.add('opacity-100', 'pointer-events-auto');
+      }
+    }
+
+    function closeBottomSheet() {
+      const sheet = document.getElementById('bottomSheet');
+      const backdrop = document.getElementById('sheetBackdrop');
+      if (sheet && backdrop) {
+        sheet.classList.remove('sheet-visible');
+        sheet.classList.add('sheet-hidden');
+        backdrop.classList.remove('opacity-100', 'pointer-events-auto');
+        backdrop.classList.add('opacity-0', 'pointer-events-none');
+      }
+    }
+
+    // -------------------------------------------------------------------
+    // 6. Photo Modal
+    // -------------------------------------------------------------------
+    function openPhotoModal(url, caption) {
+      const modal = document.getElementById('photoModal');
+      const img = document.getElementById('photoModalImg');
+      const cap = document.getElementById('photoModalCaption');
+      if (modal && img) {
+        img.src = url;
+        if (cap) cap.innerText = caption || '';
+        modal.classList.remove('hidden');
+      }
+    }
+
+    function closePhotoModal() {
+      const modal = document.getElementById('photoModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    // -------------------------------------------------------------------
+    // 7. Helpers
+    // -------------------------------------------------------------------
+    function getCategoryIcon(type, title) {
+      const str = ((type || '') + ' ' + (title || '')).toLowerCase();
+      if (str.includes('น้ำ') || str.includes('ท่วม') || str.includes('flood')) return 'fa-solid fa-water';
+      if (str.includes('ไฟ') || str.includes('เพลิง') || str.includes('fire')) return 'fa-solid fa-fire';
+      if (str.includes('รถ') || str.includes('ชน') || str.includes('อุบัติเหตุ') || str.includes('accident')) return 'fa-solid fa-car-burst';
+      if (str.includes('ป่วย') || str.includes('พยาบาล') || str.includes('กู้ชีพ') || str.includes('medical')) return 'fa-solid fa-truck-medical';
+      if (str.includes('ลม') || str.includes('พายุ') || str.includes('storm')) return 'fa-solid fa-wind';
+      if (str.includes('ดิน') || str.includes('ถล่ม') || str.includes('slide')) return 'fa-solid fa-mountain';
+      return 'fa-solid fa-triangle-exclamation';
+    }
+
+    function updateSummaryBar() {
+      const summary = document.getElementById('statusBarSummary');
+      const clock = document.getElementById('lastUpdatedClock');
+      const now = new Date();
+
+      const actInc = incidentList.filter(i => !i.isResolved).length;
+      const actUnit = activeTacticalUnits.length;
+
+      if (summary) {
+        summary.innerText = `เหตุเกิด ${actInc} จุด • ชุดปฏิบัติการ ${actUnit} ชุด`;
+      }
+      if (clock) {
+        clock.innerText = now.toLocaleTimeString('th-TH');
+      }
+    }
+
+    // -------------------------------------------------------------------
+    // 8. Bootstrap on Window Load
+    // -------------------------------------------------------------------
+    window.onload = () => {
+      initMap();
+      refreshData();
+      // Auto-poll live units & incidents every 5 seconds
+      pollInterval = setInterval(refreshData, 5000);
+    };
+  </script>
+</body>
+</html>

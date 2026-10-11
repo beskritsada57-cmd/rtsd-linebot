@@ -1,0 +1,25 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [100.4767, 7.0084]
+      },
+      "properties": {
+        "unit_id": "SOUTH-UNIT-01",
+        "unit_name": "ชุดปฏิบัติการเคลื่อนที่เร็ว ทภ.4 (ฉก.สงขลา)",
+        "commander": "ร.อ. ชาตรี (หน.ชุด)",
+        "speed": 0.0,
+        "heading": 0.0,
+        "battery": 95,
+        "status": "🟢 พร้อมปฏิบัติภารกิจ",
+        "last_update": "2026-10-11 20:00:00",
+        "picture_profile": "-",
+        "is_latest": "yes",
+        "mgrs": "47N PH 6271 7481"
+      }
+    }
+  ]
+}
