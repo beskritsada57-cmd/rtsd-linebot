@@ -197,6 +197,59 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.6);
       letter-spacing: 0.5px;
     }
+    /* ========================================================================= */
+    /* 🖨️ EXECUTIVE PRINT & PDF EXPORT STYLES */
+    /* ========================================================================= */
+    @media print {
+      body * {
+        visibility: hidden !important;
+      }
+      #executiveReportModal,
+      #executiveReportModal * {
+        visibility: visible !important;
+      }
+      #executiveReportModal {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+        min-height: 100% !important;
+        background: #ffffff !important;
+        color: #0f172a !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        z-index: 999999 !important;
+        overflow: visible !important;
+        display: block !important;
+      }
+      #executiveReportModal .report-modal-dialog {
+        max-width: 100% !important;
+        width: 100% !important;
+        box-shadow: none !important;
+        border: none !important;
+        background: #ffffff !important;
+        color: #0f172a !important;
+        padding: 10mm 15mm !important;
+        margin: 0 !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .print-break-inside-avoid {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+      .print-color-exact {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      @page {
+        size: A4 portrait;
+        margin: 10mm 10mm 10mm 10mm;
+      }
+    }
+
     /* Leaflet Dark Custom Overrides */
     .leaflet-container {
       background: #0f172a !important;
@@ -367,10 +420,39 @@
           <span>รีเฟรช</span>
         </button>
 
-        <button onclick="exportCSV()" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all flex items-center gap-1.5 cursor-pointer">
-          <i class="fa-solid fa-file-arrow-down text-emerald-400"></i>
-          <span class="hidden sm:inline">ส่งออก CSV</span>
-        </button>
+        <!-- 📑 EXPORT REPORT BUTTON & DROPDOWN -->
+        <div class="relative inline-block text-left" id="exportDropdownContainer">
+          <button id="exportMenuBtn" onclick="toggleExportDropdown(event)" class="px-3 py-1 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-medium border border-emerald-500/40 shadow-md shadow-emerald-900/30 transition-all flex items-center gap-1.5 cursor-pointer">
+            <i class="fa-solid fa-file-invoice text-emerald-100"></i>
+            <span class="hidden sm:inline">ออกรายงาน (Report)</span>
+            <span class="sm:hidden">รายงาน</span>
+            <i class="fa-solid fa-chevron-down text-[10px] ml-0.5 opacity-80"></i>
+          </button>
+          <div id="exportDropdownMenu" class="hidden absolute right-0 mt-1.5 w-64 rounded-xl bg-slate-900 border border-slate-700 shadow-2xl z-[90] py-1.5 backdrop-blur-md">
+            <div class="px-3 py-1.5 border-b border-slate-800 text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+              <span>รูปแบบเอกสารรายงาน</span>
+              <span class="text-emerald-400 font-mono text-[10px]">RTSD AAR</span>
+            </div>
+            <button onclick="openExecutiveReportModal(); closeExportDropdown();" class="w-full text-left px-3.5 py-2 text-xs text-slate-200 hover:bg-slate-800 hover:text-white flex items-center gap-2.5 transition-colors cursor-pointer">
+              <div class="w-7 h-7 rounded-lg bg-sky-500/20 text-sky-400 border border-sky-500/30 flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-file-pdf"></i>
+              </div>
+              <div>
+                <p class="font-bold text-slate-100">รายงานสรุปภาพรวม (AAR PDF)</p>
+                <p class="text-[10px] text-slate-400">แบบทางการ พิมพ์ A4 สรุปสถิติ & กราฟ</p>
+              </div>
+            </button>
+            <button onclick="exportCSV(); closeExportDropdown();" class="w-full text-left px-3.5 py-2 text-xs text-slate-200 hover:bg-slate-800 hover:text-white flex items-center gap-2.5 transition-colors cursor-pointer">
+              <div class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-file-excel"></i>
+              </div>
+              <div>
+                <p class="font-bold text-slate-100">ส่งออกข้อมูลดิบ (Excel / CSV)</p>
+                <p class="text-[10px] text-slate-400">สำหรับนำไปวิเคราะห์คำนวณสถิติต่อ</p>
+              </div>
+            </button>
+          </div>
+        </div>
 
         <a href="https://line.me/R/ti/p/@411vtica" target="_blank" class="px-3 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 transition-all flex items-center gap-1.5">
           <i class="fa-brands fa-line text-base"></i>
@@ -1094,6 +1176,7 @@
               <th class="px-4 py-3">ผู้แจ้ง</th>
               <th class="px-4 py-3">สถานะ</th>
               <th class="px-4 py-3 text-center">รูปถ่าย/คลิป</th>
+              <th class="px-4 py-3 text-center">เอกสาร</th>
             </tr>
           </thead>
           <tbody id="incidentsTableBody" class="divide-y divide-slate-800/60 font-light">
@@ -1773,6 +1856,279 @@
   </div>
 
   <!-- ========================================================================= -->
+  <!-- 📑 1. EXECUTIVE SITUATION & AFTER-ACTION REPORT (AAR) MODAL (A4 PRINT READY) -->
+  <!-- ========================================================================= -->
+  <div id="executiveReportModal" class="hidden fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[130] items-center justify-center p-2 sm:p-4 overflow-y-auto custom-scrollbar" style="display: none;">
+    <div class="report-modal-dialog bg-white text-slate-900 border border-slate-300 rounded-2xl max-w-4xl w-full p-4 sm:p-8 relative shadow-2xl space-y-6 my-auto print-break-inside-avoid print-color-exact">
+      
+      <!-- Top Action Bar (Hide in Print) -->
+      <div class="no-print flex items-center justify-between pb-4 border-b border-slate-200">
+        <div class="flex items-center gap-2">
+          <span class="px-2.5 py-1 rounded-md bg-sky-100 text-sky-800 font-bold text-xs">A4 EXECUTIVE REPORT</span>
+          <span class="text-xs text-slate-500">พร้อมสั่งพิมพ์หรือบันทึกเป็น PDF</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="window.print()" class="px-4 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-medium text-xs shadow transition flex items-center gap-1.5 cursor-pointer">
+            <i class="fa-solid fa-print"></i>
+            <span>พิมพ์รายงาน / บันทึก PDF</span>
+          </button>
+          <button onclick="closeExecutiveReportModal()" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition cursor-pointer">
+            <i class="fa-solid fa-xmark"></i> ปิด
+          </button>
+        </div>
+      </div>
+
+      <!-- Report Header with RTSD Crest / Seal -->
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4 border-b-2 border-slate-800 pb-4">
+        <div class="flex items-center gap-3.5">
+          <div class="w-14 h-14 rounded-xl bg-gradient-to-tr from-sky-800 to-indigo-900 text-amber-300 flex items-center justify-center text-2xl shadow border border-sky-950 shrink-0">
+            <i class="fa-solid fa-shield-halved"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-amber-300 tracking-wider">ชั้นความลับ: ทั่วไป</span>
+              <span class="text-xs font-mono text-slate-500" id="aarDocNumber">DOC-RTSD-20261011</span>
+            </div>
+            <h1 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight mt-0.5">
+              ศูนย์ปฏิบัติการและสารสนเทศภูมิศาสตร์ กรมแผนที่ทหาร (RTSD TOC)
+            </h1>
+            <p class="text-xs text-slate-600 font-medium">
+              รายงานสรุปสถานการณ์และผลการปฏิบัติการฉุกเฉิน (Situation & After-Action Report)
+            </p>
+          </div>
+        </div>
+        <div class="text-right text-xs text-slate-600 shrink-0 border-l sm:border-slate-300 pl-4">
+          <p><span class="font-semibold text-slate-800">วันที่พิมพ์รายงาน:</span> <span id="aarPrintDate">11 ต.ค. 2569</span></p>
+          <p><span class="font-semibold text-slate-800">ช่วงเวลาข้อมูล:</span> ทั้งหมดในระบบ</p>
+          <p><span class="font-semibold text-slate-800">ผู้จัดทำ:</span> ศูนย์บัญชาการ TOC</p>
+        </div>
+      </div>
+
+      <!-- 1. Executive Summary KPI Cards -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 print-break-inside-avoid">
+        <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50 text-center">
+          <p class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">เหตุการณ์ทั้งหมด</p>
+          <p class="text-2xl font-black text-slate-900 mt-0.5" id="aarTotal">0</p>
+          <span class="text-[10px] text-slate-500">100% ของเรื่องที่รับ</span>
+        </div>
+        <div class="p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/60 text-center">
+          <p class="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider">แก้ไขแล้วเสร็จ</p>
+          <p class="text-2xl font-black text-emerald-600 mt-0.5" id="aarResolved">0</p>
+          <span class="text-[10px] text-emerald-700 font-bold" id="aarResolvedRate">0%</span>
+        </div>
+        <div class="p-3.5 rounded-xl border border-amber-200 bg-amber-50/60 text-center">
+          <p class="text-[11px] font-semibold text-amber-700 uppercase tracking-wider">กำลังดำเนินการ</p>
+          <p class="text-2xl font-black text-amber-600 mt-0.5" id="aarInProgress">0</p>
+          <span class="text-[10px] text-amber-600">ชุดปฏิบัติการเข้าพื้นที่</span>
+        </div>
+        <div class="p-3.5 rounded-xl border border-rose-200 bg-rose-50/60 text-center">
+          <p class="text-[11px] font-semibold text-rose-700 uppercase tracking-wider">ระดับวิกฤต/เร่งด่วน</p>
+          <p class="text-2xl font-black text-rose-600 mt-0.5" id="aarCritical">0</p>
+          <span class="text-[10px] text-rose-600">ความปลอดภัยสูงสุด</span>
+        </div>
+      </div>
+
+      <!-- 2. Breakdown Summary Tables (Types & Operational Units) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs print-break-inside-avoid">
+        <div class="border border-slate-200 rounded-xl p-3 bg-slate-50/50">
+          <p class="font-bold text-slate-800 mb-2 flex items-center gap-1.5">
+            <i class="fa-solid fa-chart-pie text-sky-600"></i> สรุปจำแนกตามประเภทเหตุการณ์
+          </p>
+          <div id="aarTypeBreakdown" class="space-y-1.5">
+            <!-- Dynamic rows -->
+          </div>
+        </div>
+        <div class="border border-slate-200 rounded-xl p-3 bg-slate-50/50">
+          <p class="font-bold text-slate-800 mb-2 flex items-center gap-1.5">
+            <i class="fa-solid fa-truck-fast text-emerald-600"></i> กำลังพลและชุดปฏิบัติการที่ระดมพล
+          </p>
+          <div id="aarUnitsBreakdown" class="space-y-1.5">
+            <!-- Dynamic rows -->
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Incidents Log Table -->
+      <div class="space-y-2 print-break-inside-avoid">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+            <i class="fa-solid fa-list-check text-slate-700"></i> บันทึกรายการเหตุการณ์ (Incident Record Log)
+          </h3>
+          <span class="text-[11px] text-slate-500" id="aarTableCount">รายการล่าสุด</span>
+        </div>
+        <div class="border border-slate-300 rounded-lg overflow-hidden">
+          <table class="w-full text-left text-[11px] text-slate-700">
+            <thead class="bg-slate-100 text-slate-800 font-bold border-b border-slate-300">
+              <tr>
+                <th class="p-2 w-16">เวลา</th>
+                <th class="p-2">รหัส / หัวข้อเหตุการณ์</th>
+                <th class="p-2">ประเภท</th>
+                <th class="p-2">ความเร่งด่วน</th>
+                <th class="p-2">สถานที่เกิดเหตุ</th>
+                <th class="p-2">ผู้แจ้ง</th>
+                <th class="p-2">สถานะ</th>
+              </tr>
+            </thead>
+            <tbody id="aarTableBody" class="divide-y divide-slate-200">
+              <!-- Dynamic Rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 4. Photo Proofs & After-Action Gallery -->
+      <div class="space-y-2 print-break-inside-avoid">
+        <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+          <i class="fa-solid fa-camera text-sky-600"></i> ภาพถ่ายรายงานผลหน้างานและหลักฐาน (After-Action Photos)
+        </h3>
+        <div id="aarPhotoGallery" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <!-- Dynamic Photos -->
+        </div>
+      </div>
+
+      <!-- 5. Sign-off & Authority Block (Executive Signatures) -->
+      <div class="pt-6 border-t-2 border-slate-300 grid grid-cols-2 sm:grid-cols-3 gap-6 text-center text-xs print-break-inside-avoid">
+        <div class="space-y-8">
+          <p class="font-medium text-slate-700">เจ้าหน้าที่บันทึกข้อมูล</p>
+          <div>
+            <p class="border-b border-slate-400 w-36 mx-auto mb-1"></p>
+            <p class="text-[11px] text-slate-500">(เจ้าหน้าที่ศูนย์สั่งการ TOC)</p>
+          </div>
+        </div>
+        <div class="space-y-8">
+          <p class="font-medium text-slate-700">นายทหารเวรปฏิบัติการ</p>
+          <div>
+            <p class="border-b border-slate-400 w-36 mx-auto mb-1"></p>
+            <p class="text-[11px] text-slate-500">(...................................................)</p>
+          </div>
+        </div>
+        <div class="space-y-8 col-span-2 sm:col-span-1">
+          <p class="font-medium text-slate-700">ผู้บังคับบัญชา / ผู้อนุมัติรายงาน</p>
+          <div>
+            <p class="border-b border-slate-400 w-36 mx-auto mb-1"></p>
+            <p class="text-[11px] text-slate-500">(...................................................)</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Stamp -->
+      <div class="text-center text-[10px] text-slate-400 pt-2 border-t border-slate-100">
+        เอกสารสารสนเทศทางยุทธวิธี กรมแผนที่ทหาร • ออกรายงานจากระบบอัตโนมัติ RTSD Incident Management Platform
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 📑 2. SINGLE INCIDENT DOSSIER MODAL (ใบรายงานสรุปเฉพาะกรณี รายบุคคล/A4) -->
+  <!-- ========================================================================= -->
+  <div id="incidentDossierModal" class="hidden fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[130] items-center justify-center p-2 sm:p-4 overflow-y-auto custom-scrollbar" style="display: none;">
+    <div class="report-modal-dialog bg-white text-slate-900 border border-slate-300 rounded-2xl max-w-2xl w-full p-4 sm:p-7 relative shadow-2xl space-y-5 my-auto print-break-inside-avoid print-color-exact">
+      
+      <!-- Top Action Bar (Hide in Print) -->
+      <div class="no-print flex items-center justify-between pb-3 border-b border-slate-200">
+        <span class="px-2.5 py-1 rounded-md bg-emerald-100 text-emerald-800 font-bold text-xs">ใบรายงานเหตุการณ์เฉพาะกรณี (INCIDENT DOSSIER)</span>
+        <div class="flex items-center gap-2">
+          <button onclick="window.print()" class="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs shadow transition flex items-center gap-1.5 cursor-pointer">
+            <i class="fa-solid fa-print"></i> พิมพ์ / PDF
+          </button>
+          <button onclick="closeIncidentDossierModal()" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition cursor-pointer">
+            <i class="fa-solid fa-xmark"></i> ปิด
+          </button>
+        </div>
+      </div>
+
+      <!-- Dossier Header -->
+      <div class="flex items-center justify-between border-b-2 border-slate-800 pb-3">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-xl bg-slate-900 text-amber-300 flex items-center justify-center text-xl shrink-0">
+            <i class="fa-solid fa-file-shield"></i>
+          </div>
+          <div>
+            <h2 class="text-sm sm:text-base font-bold text-slate-900">
+              กรมแผนที่ทหาร • ใบรายงานการเผชิญเหตุฉุกเฉิน
+            </h2>
+            <p class="text-xs text-slate-600" id="dossierSubtitle">รหัสติดตามเหตุการณ์ RTSD</p>
+          </div>
+        </div>
+        <div class="text-right text-xs">
+          <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-800 border border-slate-300" id="dossierStatusBadge">🟢 แก้ไขแล้วเสร็จ</span>
+        </div>
+      </div>
+
+      <!-- Incident Main Details Grid -->
+      <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2.5 text-xs">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <span class="text-slate-500 font-semibold block text-[10px] uppercase">วัน-เวลาที่ได้รับแจ้ง:</span>
+            <span class="font-bold text-slate-800" id="dossierTimestamp">-</span>
+          </div>
+          <div>
+            <span class="text-slate-500 font-semibold block text-[10px] uppercase">ประเภทเหตุการณ์:</span>
+            <span class="font-bold text-slate-800" id="dossierType">-</span>
+          </div>
+        </div>
+        <div>
+          <span class="text-slate-500 font-semibold block text-[10px] uppercase">หัวข้อ / รหัสเหตุการณ์:</span>
+          <span class="font-bold text-slate-900 text-sm" id="dossierTitle">-</span>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <span class="text-slate-500 font-semibold block text-[10px] uppercase">ระดับความเร่งด่วน:</span>
+            <span id="dossierUrgency" class="font-bold">-</span>
+          </div>
+          <div>
+            <span class="text-slate-500 font-semibold block text-[10px] uppercase">ผู้แจ้งเหตุ:</span>
+            <span class="font-bold text-slate-800" id="dossierReporter">-</span>
+          </div>
+        </div>
+        <div>
+          <span class="text-slate-500 font-semibold block text-[10px] uppercase">สถานที่ / พิกัดที่เกิดเหตุ:</span>
+          <span class="font-medium text-slate-800" id="dossierAddress">-</span>
+          <p class="text-[11px] text-sky-600 font-mono mt-0.5" id="dossierCoords"></p>
+        </div>
+      </div>
+
+      <!-- Tactical Response / Unit Details -->
+      <div class="border border-slate-200 rounded-xl p-3 bg-white space-y-1.5 text-xs">
+        <p class="font-bold text-slate-800 flex items-center gap-1.5">
+          <i class="fa-solid fa-truck-medical text-sky-600"></i> หน่วยเผชิญเหตุและผลการปฏิบัติการ (Tactical Actions)
+        </p>
+        <div class="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 leading-relaxed" id="dossierActionNotes">
+          กำลังพลเข้าควบคุมสถานการณ์ ตรวจสอบความปลอดภัยและช่วยเหลือประชาชนเรียบร้อยแล้ว
+        </div>
+      </div>
+
+      <!-- Before / After Photos -->
+      <div class="space-y-1.5 text-xs">
+        <p class="font-bold text-slate-800 flex items-center gap-1.5">
+          <i class="fa-solid fa-images text-indigo-600"></i> รูปถ่ายบันทึกหลักฐานจุดเกิดเหตุ
+        </p>
+        <div id="dossierPhotoContainer" class="flex gap-3 justify-center bg-slate-50 border border-slate-200 rounded-xl p-3 min-h-[160px] items-center">
+          <!-- Dynamic Photo -->
+        </div>
+      </div>
+
+      <!-- Sign-off Block -->
+      <div class="pt-4 border-t border-slate-300 grid grid-cols-2 gap-4 text-center text-xs">
+        <div class="space-y-6">
+          <p class="text-slate-600">หัวหน้าชุดปฏิบัติการระงับเหตุ</p>
+          <div>
+            <p class="border-b border-slate-400 w-32 mx-auto mb-1"></p>
+            <p class="text-[10px] text-slate-500">(ลงนามหน้างาน)</p>
+          </div>
+        </div>
+        <div class="space-y-6">
+          <p class="text-slate-600">นายทหารเวรศูนย์ปฏิบัติการ TOC</p>
+          <div>
+            <p class="border-b border-slate-400 w-32 mx-auto mb-1"></p>
+            <p class="text-[10px] text-slate-500">(ผู้รับรองรายงาน)</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
   <!-- 📍 TACTICAL PIN CREATION MODAL -->
   <!-- ========================================================================= -->
   <div id="tacticalPinModal" class="hidden fixed inset-0 z-[120] bg-black/85 backdrop-blur-md items-center justify-center p-4" style="display: none;">
@@ -2425,6 +2781,12 @@
           <td class="px-4 py-3 text-slate-300">${item.reporter}</td>
           <td class="px-4 py-3 whitespace-nowrap">${statusSelectHtml}</td>
           <td class="px-4 py-3 text-center">${mediaHtml}</td>
+          <td class="px-4 py-3 text-center whitespace-nowrap">
+            <button onclick="openIncidentDossierModal('${safeTime}', '${safeTitle}')" class="px-2.5 py-1 rounded-lg bg-sky-600/20 hover:bg-sky-600 text-sky-400 hover:text-white border border-sky-500/30 transition-all text-xs font-medium cursor-pointer shadow-sm inline-flex items-center gap-1.5" title="เปิด/พิมพ์ใบรายงานสรุปเหตุการณ์นี้ (A4 Dossier)">
+              <i class="fa-solid fa-file-lines"></i>
+              <span>ใบรายงาน</span>
+            </button>
+          </td>
         `;
         tbody.appendChild(tr);
       });
@@ -2557,6 +2919,309 @@
       setTimeout(() => {
         toast.classList.add('translate-y-10', 'opacity-0');
       }, 3000);
+    }
+
+    // =========================================================================
+    // 📑 EXPORT & REPORT TEMPLATES ENGINE (EXECUTIVE AAR & DOSSIER)
+    // =========================================================================
+
+    // Dropdown toggle
+    function toggleExportDropdown(e) {
+      if (e) e.stopPropagation();
+      const menu = document.getElementById('exportDropdownMenu');
+      if (menu) menu.classList.toggle('hidden');
+    }
+    function closeExportDropdown() {
+      const menu = document.getElementById('exportDropdownMenu');
+      if (menu) menu.classList.add('hidden');
+    }
+    // Close dropdown on outside click
+    document.addEventListener('click', function(e) {
+      const container = document.getElementById('exportDropdownContainer');
+      if (container && !container.contains(e.target)) {
+        closeExportDropdown();
+      }
+    });
+
+    // 1. Open Executive Situation & After-Action Report (AAR) Modal
+    function openExecutiveReportModal() {
+      const now = new Date();
+      const docDateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+      const printDateStr = now.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' น.';
+      
+      const docNumEl = document.getElementById('aarDocNumber');
+      if (docNumEl) docNumEl.innerText = `DOC-RTSD-${docDateStr}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const printDateEl = document.getElementById('aarPrintDate');
+      if (printDateEl) printDateEl.innerText = printDateStr;
+
+      // Calculate statistics from rawIncidents
+      const total = rawIncidents.length;
+      let resolved = 0, inProgress = 0, critical = 0;
+      const typeCounts = {};
+      const unitCounts = {};
+
+      rawIncidents.forEach(item => {
+        const s = item.status || '';
+        const u = item.urgency || '';
+        if (s.includes('เสร็จ') || s.includes('เรียบร้อย')) resolved++;
+        else if (s.includes('ดำเนิน')) inProgress++;
+        if (u.includes('วิกฤต')) critical++;
+
+        const t = item.incident_type || item.raw_type || 'อื่นๆ';
+        typeCounts[t] = (typeCounts[t] || 0) + 1;
+
+        // Try extracting unit name if assigned
+        if (s.includes('ชุด:') || s.includes('ชุด ')) {
+          const match = s.match(/ชุด:?\s*([^)]+)/);
+          const unit = match ? match[1].trim() : 'ชุดปฏิบัติการเฉพาะกิจ';
+          unitCounts[unit] = (unitCounts[unit] || 0) + 1;
+        }
+      });
+
+      const rate = total > 0 ? Math.round((resolved / total) * 100) : 0;
+      document.getElementById('aarTotal').innerText = total;
+      document.getElementById('aarResolved').innerText = resolved;
+      document.getElementById('aarResolvedRate').innerText = `${rate}% อัตราสำเร็จ`;
+      document.getElementById('aarInProgress').innerText = inProgress;
+      document.getElementById('aarCritical').innerText = critical;
+
+      // Populate Type Breakdown
+      const typeContainer = document.getElementById('aarTypeBreakdown');
+      if (typeContainer) {
+        typeContainer.innerHTML = '';
+        const types = Object.keys(typeCounts);
+        if (types.length === 0) {
+          typeContainer.innerHTML = '<p class="text-slate-400 italic">ไม่มีข้อมูลประเภทเหตุ</p>';
+        } else {
+          types.forEach(t => {
+            const count = typeCounts[t];
+            const pct = Math.round((count / (total || 1)) * 100);
+            typeContainer.innerHTML += `
+              <div class="flex items-center justify-between py-0.5 border-b border-slate-100">
+                <span class="text-slate-700 font-medium">${t}</span>
+                <span class="font-bold text-slate-900">${count} เรื่อง <span class="text-slate-400 font-normal">(${pct}%)</span></span>
+              </div>
+            `;
+          });
+        }
+      }
+
+      // Populate Tactical Units Breakdown
+      const unitContainer = document.getElementById('aarUnitsBreakdown');
+      if (unitContainer) {
+        unitContainer.innerHTML = '';
+        const units = Object.keys(unitCounts);
+        if (units.length === 0) {
+          unitContainer.innerHTML = `
+            <div class="text-slate-600 text-[11px] leading-relaxed">
+              <p>• กำลังพลลาดตระเวนและชุดเคลื่อนที่เร็ว พร้อมปฏิบัติการตามแผนเผชิญเหตุ</p>
+              <p>• ศูนย์ TOC ควบคุมการประสานงานแบบ Real-time</p>
+            </div>
+          `;
+        } else {
+          units.forEach(u => {
+            unitContainer.innerHTML += `
+              <div class="flex items-center justify-between py-0.5 border-b border-slate-100">
+                <span class="text-slate-700 font-medium">🛡️ ${u}</span>
+                <span class="font-bold text-emerald-700">${unitCounts[u]} ภารกิจ</span>
+              </div>
+            `;
+          });
+        }
+      }
+
+      // Populate Incidents Table
+      const tableBody = document.getElementById('aarTableBody');
+      const tableCount = document.getElementById('aarTableCount');
+      if (tableBody) {
+        tableBody.innerHTML = '';
+        if (tableCount) tableCount.innerText = `แสดงทั้งหมด ${rawIncidents.length} รายการ`;
+        rawIncidents.slice().reverse().forEach((item, idx) => {
+          const time = item.timestamp ? item.timestamp.replace('T', ' ').slice(0, 16) : '-';
+          let statusBadge = '<span class="text-slate-600">รอดำเนินการ</span>';
+          if (item.status.includes('เสร็จ') || item.status.includes('เรียบร้อย')) {
+            statusBadge = '<span class="text-emerald-700 font-bold">🟢 แก้ไขแล้วเสร็จ</span>';
+          } else if (item.status.includes('ดำเนิน')) {
+            statusBadge = '<span class="text-amber-700 font-bold">🟡 กำลังดำเนินการ</span>';
+          } else if (item.status.includes('ยกเลิก')) {
+            statusBadge = '<span class="text-rose-600">❌ ยกเลิก</span>';
+          }
+
+          let urgencyColor = 'text-amber-700';
+          if (item.urgency.includes('วิกฤต')) urgencyColor = 'text-rose-700 font-bold';
+          else if (item.urgency.includes('เฝ้าระวัง')) urgencyColor = 'text-emerald-700';
+
+          const tr = document.createElement('tr');
+          tr.className = idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50';
+          tr.innerHTML = `
+            <td class="p-2 whitespace-nowrap text-slate-500 font-mono text-[10px]">${time}</td>
+            <td class="p-2 font-medium text-slate-900">${item.title}</td>
+            <td class="p-2 text-slate-700">${item.raw_type}</td>
+            <td class="p-2 whitespace-nowrap ${urgencyColor}">${item.urgency}</td>
+            <td class="p-2 max-w-[160px] truncate text-slate-600" title="${item.address}">${item.address}</td>
+            <td class="p-2 text-slate-700 whitespace-nowrap">${item.reporter}</td>
+            <td class="p-2 whitespace-nowrap">${statusBadge}</td>
+          `;
+          tableBody.appendChild(tr);
+        });
+      }
+
+      // Populate Photo Gallery from FIELD_REPORTS and Incidents
+      const gallery = document.getElementById('aarPhotoGallery');
+      if (gallery) {
+        gallery.innerHTML = '';
+        const photos = [];
+        
+        // 1. From liveFieldReports
+        if (Array.isArray(liveFieldReports)) {
+          liveFieldReports.forEach(r => {
+            const url = r.photo_url || r.image_url;
+            if (url && url.length > 5 && !url.includes('-')) {
+              photos.push({
+                url: url,
+                caption: r.message || 'รายงานผลหน้างาน',
+                tag: r.unit_id ? `ชุด ${r.unit_id}` : 'ชุดปฏิบัติการ'
+              });
+            }
+          });
+        }
+
+        // 2. From rawIncidents
+        rawIncidents.forEach(inc => {
+          const direct = getDirectImageUrl(inc.media_url);
+          if (direct && photos.length < 8) {
+            photos.push({
+              url: direct,
+              caption: inc.title,
+              tag: 'ภาพแจ้งเหตุแรกรับ'
+            });
+          }
+        });
+
+        if (photos.length === 0) {
+          gallery.innerHTML = '<p class="col-span-4 text-center py-4 text-slate-400 italic text-xs">ยังไม่มีรูปภาพบันทึกในระบบ</p>';
+        } else {
+          photos.slice(0, 8).forEach(p => {
+            gallery.innerHTML += `
+              <div class="border border-slate-200 rounded-lg overflow-hidden bg-slate-50 p-1">
+                <img src="${p.url}" alt="${p.caption}" class="w-full h-24 object-cover rounded mb-1">
+                <p class="text-[9px] font-bold text-sky-800 uppercase tracking-tight truncate">${p.tag}</p>
+                <p class="text-[10px] text-slate-600 truncate" title="${p.caption}">${p.caption}</p>
+              </div>
+            `;
+          });
+        }
+      }
+
+      showModal('executiveReportModal');
+    }
+
+    function closeExecutiveReportModal() {
+      hideModal('executiveReportModal');
+    }
+
+    // 2. Open Single Incident Dossier Modal
+    function openIncidentDossierModal(encodedTime, encodedTitle) {
+      const decodedTime = decodeURIComponent(encodedTime || '');
+      const decodedTitle = decodeURIComponent(encodedTitle || '');
+
+      const incident = rawIncidents.find(item => 
+        (decodedTime && item.timestamp === decodedTime) || 
+        (decodedTitle && (item.title || '').trim() === decodedTitle.trim())
+      );
+
+      if (!incident) {
+        alert("ไม่พบข้อมูลเหตุการณ์ที่เลือก");
+        return;
+      }
+
+      const repId = incident.report_id || (incident.title.match(/\[(RTSD-\d+)\]/) ? incident.title.match(/\[(RTSD-\d+)\]/)[1] : 'RTSD-INCIDENT');
+      document.getElementById('dossierSubtitle').innerText = `รหัสติดตามเหตุการณ์: #${repId}`;
+      document.getElementById('dossierTimestamp').innerText = incident.timestamp ? incident.timestamp.replace('T', ' ').slice(0, 19) + ' น.' : '-';
+      document.getElementById('dossierType').innerText = incident.raw_type || incident.incident_type || '-';
+      document.getElementById('dossierTitle').innerText = incident.title || '-';
+      document.getElementById('dossierUrgency').innerText = incident.urgency || '-';
+      document.getElementById('dossierReporter').innerText = incident.reporter || '-';
+      document.getElementById('dossierAddress').innerText = incident.address || '-';
+      
+      const coordsEl = document.getElementById('dossierCoords');
+      if (incident.lat && incident.lon && incident.lat !== 0) {
+        coordsEl.innerText = `พิกัด GPS: ${incident.lat.toFixed(6)}, ${incident.lon.toFixed(6)}`;
+      } else {
+        coordsEl.innerText = '';
+      }
+
+      // Status Badge
+      const statusBadge = document.getElementById('dossierStatusBadge');
+      if (incident.status.includes('เสร็จ') || incident.status.includes('เรียบร้อย')) {
+        statusBadge.className = 'px-2.5 py-1 rounded text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300';
+        statusBadge.innerText = '🟢 แก้ไขแล้วเสร็จ (RESOLVED)';
+      } else if (incident.status.includes('ดำเนิน')) {
+        statusBadge.className = 'px-2.5 py-1 rounded text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300';
+        statusBadge.innerText = '🟡 กำลังดำเนินการ (IN PROGRESS)';
+      } else {
+        statusBadge.className = 'px-2.5 py-1 rounded text-xs font-bold bg-slate-100 text-slate-800 border border-slate-300';
+        statusBadge.innerText = '⏳ รอดำเนินการ (PENDING)';
+      }
+
+      // Find tactical action notes from FIELD_REPORTS matching this incident
+      const notesEl = document.getElementById('dossierActionNotes');
+      const relatedReports = (Array.isArray(liveFieldReports) ? liveFieldReports : []).filter(r => 
+        (r.incident_id && (r.incident_id.includes(repId) || incident.title.includes(r.incident_id))) ||
+        (r.message && r.message.includes(repId))
+      );
+
+      if (relatedReports.length > 0) {
+        notesEl.innerHTML = relatedReports.map(r => `
+          <div class="mb-1.5 pb-1.5 border-b border-slate-200 last:border-0 last:pb-0 last:mb-0">
+            <span class="font-bold text-slate-900">${r.commander || r.unit_id || 'ชุดปฏิบัติการ'}:</span>
+            <span>${r.message}</span>
+            <span class="text-[10px] text-slate-500 block font-mono">${r.timestamp || ''}</span>
+          </div>
+        `).join('');
+      } else {
+        notesEl.innerText = incident.status.includes('เสร็จ') 
+          ? 'ชุดปฏิบัติการเข้าไประงับเหตุและดูแลความปลอดภัยเรียบร้อย ปลอดภัยทุกฝ่าย' 
+          : 'ศูนย์ TOC บันทึกข้อมูลและประสานงานชุดเคลื่อนที่เร็วเข้าตรวจสอบพื้นที่';
+      }
+
+      // Photos Container
+      const photoContainer = document.getElementById('dossierPhotoContainer');
+      const directImg = getDirectImageUrl(incident.media_url);
+      
+      let afterActionImg = null;
+      if (relatedReports.length > 0) {
+        const withPhoto = relatedReports.find(r => r.photo_url || r.image_url);
+        if (withPhoto) afterActionImg = withPhoto.photo_url || withPhoto.image_url;
+      }
+
+      if (directImg || afterActionImg) {
+        photoContainer.innerHTML = '';
+        if (directImg) {
+          photoContainer.innerHTML += `
+            <div class="text-center">
+              <span class="text-[10px] font-bold text-slate-500 block mb-1">ภาพที่ 1: ขณะได้รับแจ้งเหตุ (Before)</span>
+              <img src="${directImg}" class="max-h-48 max-w-[240px] rounded-lg border border-slate-300 shadow object-cover">
+            </div>
+          `;
+        }
+        if (afterActionImg && afterActionImg !== directImg) {
+          photoContainer.innerHTML += `
+            <div class="text-center">
+              <span class="text-[10px] font-bold text-emerald-700 block mb-1">ภาพที่ 2: ผลการระงับเหตุ (After)</span>
+              <img src="${afterActionImg}" class="max-h-48 max-w-[240px] rounded-lg border border-emerald-300 shadow object-cover">
+            </div>
+          `;
+        }
+      } else {
+        photoContainer.innerHTML = '<span class="text-slate-400 italic text-xs">ไม่มีรูปภาพประกอบในรายงานนี้</span>';
+      }
+
+      showModal('incidentDossierModal');
+    }
+
+    function closeIncidentDossierModal() {
+      hideModal('incidentDossierModal');
     }
 
     // 8. Export CSV
