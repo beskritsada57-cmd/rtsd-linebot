@@ -1,19 +1,35 @@
 /**
- * Google Apps Script สำหรับ RTSD Incident & Disaster Command System
- * ความสามารถ:
- * 1. doGet: ส่งข้อมูลเหตุการณ์ หรือผู้ใช้งาน (เมื่อใส่ ?sheet=users)
- * 2. doPost (action: "register_user"): บันทึกข้อมูลผู้ใช้ใหม่ (LINE ID, ชื่อ, เบอร์โทร, บทบาท) ลงแท็บ "Users"
- * 3. doPost (action: "get_users"): ดึงรายชื่อผู้ใช้งานทั้งหมดเพื่อตรวจสอบ OTP และสิทธิ์
- * 4. doPost (action: "update_status"): ค้นหาแถวเหตุการณ์เดิม แล้วแก้ไขช่องสถานะ (Column I)
- * 5. doPost (ใหม่): รับข้อมูลเหตุการณ์ + ภาพถ่าย/คลิป บันทึกลง Google Drive และเพิ่มแถวใหม่ใน Sheets
+ * Google Apps Script สำหรับ RTSD Incident & Disaster Command System (กองทัพภาคที่ 4)
+ * รูปแบบ: แยก 2 ไฟล์อิสระ (ไฟล์รายงานเหตุการณ์ + ไฟล์ข้อมูลผู้ใช้งาน)
+ * 
+ * 1. ไฟล์เหตุการณ์: ทำงานบน Active Spreadsheet ปัจจุบัน
+ * 2. ไฟล์ผู้ใช้งาน (Users): เชื่อมโยงข้ามไฟล์ไปยัง Spreadsheet ID: 1uURhcVdg4WqvIbVICuvYnt44u4oPD2_9phxmwTmvjK8
  */
+
+// 🔴 ระบุ ID ของ Google Sheet ที่เก็บข้อมูล User
+var USER_SPREADSHEET_ID = "1uURhcVdg4WqvIbVICuvYnt44u4oPD2_9phxmwTmvjK8";
+
+function getUserSheet() {
+  try {
+    var userSS = SpreadsheetApp.openById(USER_SPREADSHEET_ID);
+    var sheet = userSS.getSheetByName("Users");
+    if (!sheet) {
+      sheet = userSS.getActiveSheet();
+    }
+    return sheet;
+  } catch (err) {
+    // กรณีเปิดข้ามไฟล์ไม่สำเร็จ ให้ Fallback หาในชีตปัจจุบัน
+    var activeSS = SpreadsheetApp.getActiveSpreadsheet();
+    return activeSS.getSheetByName("Users") || activeSS.getActiveSheet();
+  }
+}
 
 function doGet(e) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheetParam = (e && e.parameter && e.parameter.sheet) ? e.parameter.sheet.toLowerCase() : "";
   
   if (sheetParam === "users") {
-    var userSheet = ss.getSheetByName("Users");
+    var userSheet = getUserSheet();
     if (!userSheet) {
       return ContentService.createTextOutput(JSON.stringify([])).setMimeType(ContentService.MimeType.JSON);
     }
@@ -34,12 +50,13 @@ function doPost(e) {
     var data = JSON.parse(e.postData.contents);
     
     // =========================================================================
-    // 1. ลงทะเบียนผู้ใช้งาน (action: "register_user")
+    // 1. ลงทะเบียนผู้ใช้งาน (action: "register_user") -> บันทึกลงไฟล์ Users แยก
     // =========================================================================
     if (data.action === "register_user") {
-      var userSheet = ss.getSheetByName("Users");
-      if (!userSheet) {
-        userSheet = ss.insertSheet("Users");
+      var userSheet = getUserSheet();
+      
+      // ตรวจสอบหัวตาราง หากยังไม่มีให้สร้างแถวแรก
+      if (userSheet.getLastRow() === 0) {
         userSheet.appendRow([
           "registered_at", "line_user_id", "full_name", "phone_number", "role", 
           "unit", "position", "approval_status", "purpose", "picture_profile"
@@ -124,7 +141,7 @@ function doPost(e) {
     // 2. ดึงรายชื่อผู้ใช้ที่ลงทะเบียนแล้ว (action: "get_users")
     // =========================================================================
     if (data.action === "get_users") {
-      var userSheet = ss.getSheetByName("Users");
+      var userSheet = getUserSheet();
       if (!userSheet) {
         return ContentService.createTextOutput(JSON.stringify([])).setMimeType(ContentService.MimeType.JSON);
       }
@@ -193,9 +210,8 @@ function doPost(e) {
     }
     
     // =========================================================================
-    // 4. กรณีบันทึกการแจ้งเหตุใหม่ (เพิ่มแถวใหม่ต่อท้าย)
+    // 4. กรณีบันทึกการแจ้งเหตุใหม่ (เพิ่มแถวใหม่ต่อท้ายในชีตรายงาน)
     // =========================================================================
-    // ป้องกัน Ghost Record: ต้องมีข้อมูลพิกัดจริง หรือหัวข้อเหตุการณ์ หรือไฟล์แนบ หรือ action: "add_incident" เท่านั้น
     var hasIncidentData = data.action === "add_incident" || 
                           (data.latitude && data.latitude !== 0) || 
                           (data.title && data.title !== "จุดแจ้งเหตุ") ||
