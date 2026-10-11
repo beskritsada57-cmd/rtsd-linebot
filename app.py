@@ -1453,85 +1453,93 @@ def api_incident_field_report():
     - นำภาพเข้าเก็บในระบบและส่งต่อไป Google Sheets/Drive
     """
     global FIELD_REPORTS, active_trackers
-    data = request.get_json(silent=True) or {}
+    try:
+        data = request.get_json(force=True, silent=True) or {}
 
-    unit_id = str(data.get("unit_id") or "FIELD-UNIT").strip()
-    commander = str(data.get("commander") or "").strip()
-    phone = str(data.get("phone") or "").strip()
-    incident_id = str(data.get("incident_id") or "").strip()
-    report_type = str(data.get("report_type") or "support_request").strip()
-    message = str(data.get("message") or data.get("note") or "").strip()
-    lat = data.get("latitude")
-    lon = data.get("longitude")
-    file_base64 = data.get("image_base64") or data.get("picture_base64")
-    image_url = data.get("image_url") or data.get("picture_url") or "-"
+        unit_id = str(data.get("unit_id") or "FIELD-UNIT").strip()
+        commander = str(data.get("commander") or "").strip()
+        phone = str(data.get("phone") or "").strip()
+        incident_id = str(data.get("incident_id") or "").strip()
+        report_type = str(data.get("report_type") or "support_request").strip()
+        message = str(data.get("message") or data.get("note") or "").strip()
+        lat = data.get("latitude")
+        lon = data.get("longitude")
+        file_base64 = data.get("image_base64") or data.get("picture_base64")
+        image_url = data.get("image_url") or data.get("picture_url") or "-"
 
-    # หากไม่ได้ระบุพิกัดมา ให้ค้นหาจากพิกัดล่าสุดของ tracker
-    if (lat is None or lon is None or lat == 0 or lon == 0) and unit_id in active_trackers:
-        lat = active_trackers[unit_id].get("latitude", 0)
-        lon = active_trackers[unit_id].get("longitude", 0)
+        # หากไม่ได้ระบุพิกัดมา ให้ค้นหาจากพิกัดล่าสุดของ tracker
+        if (lat is None or lon is None or lat == 0 or lon == 0) and unit_id in active_trackers:
+            lat = active_trackers[unit_id].get("latitude", 0)
+            lon = active_trackers[unit_id].get("longitude", 0)
 
-    if not commander and unit_id in active_trackers:
-        commander = active_trackers[unit_id].get("commander", unit_id)
+        if not commander and unit_id in active_trackers:
+            commander = active_trackers[unit_id].get("commander", unit_id)
 
-    # หากมีรูปภาพ Base64 แนบมา ให้บันทึกเข้า Google Sheets/Drive ใน Background Thread เพื่อให้มือถือตอบสนองทันที
-    if file_base64:
-        image_url = f"data:image/jpeg;base64,{file_base64}"
-        try:
-            file_name = f"FIELD_{unit_id}_{int(time.time())}.jpg"
-            title = f"[{incident_id or 'หน้างาน'}] ภาพรายงานจาก {commander or unit_id}"
-            
-            def _async_save():
-                try:
-                    save_to_google_sheet(
-                        lat=lat or 0,
-                        lon=lon or 0,
-                        title=title,
-                        address=f"จุดปฏิบัติการ {unit_id}",
-                        reporter=commander or unit_id,
-                        urgency="🔴 วิกฤต" if report_type == "support_request" else "🟡 ปานกลาง",
-                        incident_type="📸 ภาพรายงานหน้างาน",
-                        file_base64=file_base64,
-                        file_name=file_name,
-                        mime_type="image/jpeg"
-                    )
-                except Exception as _e:
-                    print(f"[FieldReport] Async save error: {_e}")
+        # หากมีรูปภาพ Base64 แนบมา ให้บันทึกเข้า Google Sheets/Drive ใน Background Thread เพื่อให้มือถือตอบสนองทันที
+        if file_base64:
+            image_url = f"data:image/jpeg;base64,{file_base64}"
+            try:
+                file_name = f"FIELD_{unit_id}_{int(time.time())}.jpg"
+                title = f"[{incident_id or 'หน้างาน'}] ภาพรายงานจาก {commander or unit_id}"
+                
+                def _async_save():
+                    try:
+                        save_to_google_sheet(
+                            lat=lat or 0,
+                            lon=lon or 0,
+                            title=title,
+                            address=f"จุดปฏิบัติการ {unit_id}",
+                            reporter=commander or unit_id,
+                            urgency="🔴 วิกฤต" if report_type == "support_request" else "🟡 ปานกลาง",
+                            incident_type="📸 ภาพรายงานหน้างาน",
+                            file_base64=file_base64,
+                            file_name=file_name,
+                            mime_type="image/jpeg"
+                        )
+                    except Exception as _e:
+                        print(f"[FieldReport] Async save error: {_e}")
 
-            threading.Thread(target=_async_save, daemon=True).start()
-        except Exception as err:
-            print(f"[FieldReport] Error queuing photo: {err}")
+                threading.Thread(target=_async_save, daemon=True).start()
+            except Exception as err:
+                print(f"[FieldReport] Error queuing photo: {err}")
 
-    rep_id = f"REP-{int(time.time() * 1000) % 1000000:06d}"
-    report_entry = {
-        "id": rep_id,
-        "incident_id": incident_id,
-        "unit_id": unit_id,
-        "commander": commander or unit_id,
-        "phone": phone,
-        "report_type": report_type,
-        "message": message,
-        "image_url": image_url,
-        "latitude": float(lat) if lat is not None else 0.0,
-        "longitude": float(lon) if lon is not None else 0.0,
-        "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    }
-    FIELD_REPORTS.append(report_entry)
-    if len(FIELD_REPORTS) > 100:
-        FIELD_REPORTS = FIELD_REPORTS[-100:]
+        rep_id = f"REP-{int(time.time() * 1000) % 1000000:06d}"
+        now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") if 'datetime' in globals() else time.strftime("%Y-%m-%d %H:%M:%S")
+        report_entry = {
+            "id": rep_id,
+            "incident_id": incident_id,
+            "unit_id": unit_id,
+            "commander": commander or unit_id,
+            "phone": phone,
+            "report_type": report_type,
+            "message": message,
+            "image_url": image_url,
+            "latitude": float(lat) if lat is not None else 0.0,
+            "longitude": float(lon) if lon is not None else 0.0,
+            "timestamp": now_str
+        }
+        FIELD_REPORTS.append(report_entry)
+        if len(FIELD_REPORTS) > 100:
+            FIELD_REPORTS = FIELD_REPORTS[-100:]
 
-    # อัปเดตสถานะของ unit ใน active_trackers
-    if unit_id in active_trackers:
-        if report_type == "support_request":
-            active_trackers[unit_id]["status"] = f"⚠️ ขอสนับสนุน: {message[:30]}"
-        elif report_type == "photo_report":
-            active_trackers[unit_id]["status"] = "📸 ส่งภาพรายงานหน้างานแล้ว"
+        # อัปเดตสถานะของ unit ใน active_trackers
+        if unit_id in active_trackers:
+            if report_type == "support_request":
+                active_trackers[unit_id]["status"] = f"⚠️ ขอสนับสนุน: {message[:30]}"
+            elif report_type == "photo_report":
+                active_trackers[unit_id]["status"] = "📸 ส่งภาพรายงานหน้างานแล้ว"
 
-    return jsonify({
-        "status": "success",
-        "message": "บันทึกรายงานหน้างานเรียบร้อย ส่งสัญญาณเข้าศูนย์บัญชาการแล้ว",
-        "report": report_entry
-    }), 200
+        return jsonify({
+            "status": "success",
+            "message": "บันทึกรายงานหน้างานเรียบร้อย ส่งสัญญาณเข้าศูนย์บัญชาการแล้ว",
+            "report": report_entry
+        }), 200
+    except Exception as e:
+        print(f"[api_incident_field_report] Error: {e}")
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
 
 
 @app.route("/api/incident/field-reports", methods=['GET'])
