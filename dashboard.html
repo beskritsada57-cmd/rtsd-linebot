@@ -204,11 +204,14 @@
       body * {
         visibility: hidden !important;
       }
-      #executiveReportModal,
-      #executiveReportModal * {
+      #executiveReportModal:not(.hidden),
+      #executiveReportModal:not(.hidden) *,
+      #incidentDossierModal:not(.hidden),
+      #incidentDossierModal:not(.hidden) * {
         visibility: visible !important;
       }
-      #executiveReportModal {
+      #executiveReportModal:not(.hidden),
+      #incidentDossierModal:not(.hidden) {
         position: absolute !important;
         left: 0 !important;
         top: 0 !important;
@@ -223,7 +226,8 @@
         overflow: visible !important;
         display: block !important;
       }
-      #executiveReportModal .report-modal-dialog {
+      #executiveReportModal .report-modal-dialog,
+      #incidentDossierModal .report-modal-dialog {
         max-width: 100% !important;
         width: 100% !important;
         box-shadow: none !important;
@@ -1976,17 +1980,7 @@
         </div>
       </div>
 
-      <!-- 4. Photo Proofs & After-Action Gallery -->
-      <div class="space-y-2 print-break-inside-avoid">
-        <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-          <i class="fa-solid fa-camera text-sky-600"></i> ภาพถ่ายรายงานผลหน้างานและหลักฐาน (After-Action Photos)
-        </h3>
-        <div id="aarPhotoGallery" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-          <!-- Dynamic Photos -->
-        </div>
-      </div>
-
-      <!-- 5. Sign-off & Authority Block (Executive Signatures) -->
+      <!-- 4. Sign-off & Authority Block (Executive Signatures) -->
       <div class="pt-6 border-t-2 border-slate-300 grid grid-cols-2 sm:grid-cols-3 gap-6 text-center text-xs print-break-inside-avoid">
         <div class="space-y-8">
           <p class="font-medium text-slate-700">เจ้าหน้าที่บันทึกข้อมูล</p>
@@ -3064,53 +3058,6 @@
           `;
           tableBody.appendChild(tr);
         });
-      }
-
-      // Populate Photo Gallery from FIELD_REPORTS and Incidents
-      const gallery = document.getElementById('aarPhotoGallery');
-      if (gallery) {
-        gallery.innerHTML = '';
-        const photos = [];
-        
-        // 1. From liveFieldReports
-        if (Array.isArray(liveFieldReports)) {
-          liveFieldReports.forEach(r => {
-            const url = r.photo_url || r.image_url;
-            if (url && url.length > 5 && !url.includes('-')) {
-              photos.push({
-                url: url,
-                caption: r.message || 'รายงานผลหน้างาน',
-                tag: r.unit_id ? `ชุด ${r.unit_id}` : 'ชุดปฏิบัติการ'
-              });
-            }
-          });
-        }
-
-        // 2. From rawIncidents
-        rawIncidents.forEach(inc => {
-          const direct = getDirectImageUrl(inc.media_url);
-          if (direct && photos.length < 8) {
-            photos.push({
-              url: direct,
-              caption: inc.title,
-              tag: 'ภาพแจ้งเหตุแรกรับ'
-            });
-          }
-        });
-
-        if (photos.length === 0) {
-          gallery.innerHTML = '<p class="col-span-4 text-center py-4 text-slate-400 italic text-xs">ยังไม่มีรูปภาพบันทึกในระบบ</p>';
-        } else {
-          photos.slice(0, 8).forEach(p => {
-            gallery.innerHTML += `
-              <div class="border border-slate-200 rounded-lg overflow-hidden bg-slate-50 p-1">
-                <img src="${p.url}" alt="${p.caption}" class="w-full h-24 object-cover rounded mb-1">
-                <p class="text-[9px] font-bold text-sky-800 uppercase tracking-tight truncate">${p.tag}</p>
-                <p class="text-[10px] text-slate-600 truncate" title="${p.caption}">${p.caption}</p>
-              </div>
-            `;
-          });
-        }
       }
 
       showModal('executiveReportModal');
