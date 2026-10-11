@@ -880,9 +880,9 @@
               <button id="pillIncAll" onclick="setTacticalIncidentFilter('ALL')" class="px-2.5 py-0.5 rounded-md bg-sky-600 text-white font-bold cursor-pointer transition-colors shadow-sm shrink-0">
                 ทั้งหมด
               </button>
-              <button id="pillIncField" onclick="setTacticalIncidentFilter('FIELD')" class="px-2 py-0.5 rounded-md bg-slate-800/80 text-cyan-400 hover:bg-slate-800 border border-slate-700/60 cursor-pointer transition-colors shrink-0 flex items-center gap-1" title="แสดงเฉพาะรายงานหรือเหตุการณ์ที่แจ้งมาจากหน้างาน">
+              <button id="pillIncField" onclick="setTacticalIncidentFilter('FIELD')" class="px-2 py-0.5 rounded-md bg-slate-800/80 text-cyan-400 hover:bg-slate-800 border border-slate-700/60 cursor-pointer transition-colors shrink-0 flex items-center gap-1" title="แสดงเฉพาะรายงานหรือเหตุการณ์ที่ส่งมาจากภาคสนาม">
                 <i class="fa-solid fa-satellite-dish text-cyan-400 text-[10px]"></i>
-                <span>แจ้งจากหน้างาน</span>
+                <span>รายงานจากภาคสนาม</span>
                 <span id="pillIncFieldCount" class="hidden px-1.5 py-0.2 rounded-full bg-cyan-500/20 text-cyan-300 text-[9px] font-mono font-bold">0</span>
               </button>
               <button id="pillIncCritical" onclick="setTacticalIncidentFilter('CRITICAL')" class="px-2 py-0.5 rounded-md bg-slate-800/80 text-rose-400 hover:bg-slate-800 border border-slate-700/60 cursor-pointer transition-colors shrink-0">
@@ -3637,7 +3637,7 @@
 
       if (filtered.length === 0) {
         const emptyMsg = tacticalIncidentFilter === 'FIELD' 
-          ? 'ไม่พบรายงานที่แจ้งมาจากหน้างานในขณะนี้' 
+          ? 'ไม่พบรายงานจากภาคสนามในขณะนี้' 
           : 'ไม่พบรายการเหตุการณ์ตามเงื่อนไขที่เลือก';
         container.innerHTML = `
           <div class="text-center py-12 text-slate-500 space-y-2">
@@ -3727,7 +3727,7 @@
         const isFieldItem = item.is_live_field || isFieldReportItem(item);
         let fieldBadge = '';
         if (isFieldItem) {
-          fieldBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center gap-1 shadow-sm"><i class="fa-solid fa-satellite-dish text-[9px]"></i> หน้างาน</span>`;
+          fieldBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center gap-1 shadow-sm"><i class="fa-solid fa-satellite-dish text-[9px]"></i> ภาคสนาม</span>`;
         }
 
         const card = document.createElement('div');
