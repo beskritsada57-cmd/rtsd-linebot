@@ -1,6 +1,8 @@
 import os
 import re
 import time
+import datetime
+import threading
 import base64
 import math
 import requests
@@ -1472,26 +1474,33 @@ def api_incident_field_report():
     if not commander and unit_id in active_trackers:
         commander = active_trackers[unit_id].get("commander", unit_id)
 
-    # หากมีรูปภาพ Base64 แนบมา ให้บันทึกเข้า Google Sheets/Drive
+    # หากมีรูปภาพ Base64 แนบมา ให้บันทึกเข้า Google Sheets/Drive ใน Background Thread เพื่อให้มือถือตอบสนองทันที
     if file_base64:
+        image_url = f"data:image/jpeg;base64,{file_base64}"
         try:
             file_name = f"FIELD_{unit_id}_{int(time.time())}.jpg"
             title = f"[{incident_id or 'หน้างาน'}] ภาพรายงานจาก {commander or unit_id}"
-            save_to_google_sheet(
-                lat=lat or 0,
-                lon=lon or 0,
-                title=title,
-                address=f"จุดปฏิบัติการ {unit_id}",
-                reporter=commander or unit_id,
-                urgency="🔴 วิกฤต" if report_type == "support_request" else "🟡 ปานกลาง",
-                incident_type="📸 ภาพรายงานหน้างาน",
-                file_base64=file_base64,
-                file_name=file_name,
-                mime_type="image/jpeg"
-            )
-            image_url = f"data:image/jpeg;base64,{file_base64}"
+            
+            def _async_save():
+                try:
+                    save_to_google_sheet(
+                        lat=lat or 0,
+                        lon=lon or 0,
+                        title=title,
+                        address=f"จุดปฏิบัติการ {unit_id}",
+                        reporter=commander or unit_id,
+                        urgency="🔴 วิกฤต" if report_type == "support_request" else "🟡 ปานกลาง",
+                        incident_type="📸 ภาพรายงานหน้างาน",
+                        file_base64=file_base64,
+                        file_name=file_name,
+                        mime_type="image/jpeg"
+                    )
+                except Exception as _e:
+                    print(f"[FieldReport] Async save error: {_e}")
+
+            threading.Thread(target=_async_save, daemon=True).start()
         except Exception as err:
-            print(f"[FieldReport] Error saving photo: {err}")
+            print(f"[FieldReport] Error queuing photo: {err}")
 
     rep_id = f"REP-{int(time.time() * 1000) % 1000000:06d}"
     report_entry = {
