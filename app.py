@@ -873,8 +873,8 @@ def api_update_incident_status():
             if "ชุด:" not in new_status:
                 new_status = f"{new_status} (ชุด: {unit_label})"
 
-    # อัปเดต DISPATCHED_INCIDENTS ในหน่วยความจำเพื่อให้ Dashboard แสดงผลทันที
-    now_th = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+    # อัปเดต DISPATCHED_INCIDENTS ในหน่วยความจำเพื่อให้ Dashboard แสดงผลทันที (เวลาประเทศไทย UTC+7)
+    now_th = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(time.time() + 7 * 3600))
     assigned_info = {
         "incident_id": report_id,
         "title": title,
@@ -911,23 +911,32 @@ def api_update_incident_status():
     if unit_id and unit_id in active_trackers:
         if is_completed:
             active_trackers[unit_id]["status"] = "🟢 พร้อมปฏิบัติการ (STANDBY)"
+        elif any(k in new_status for k in ["ขอสนับสนุน", "ขอกำลัง", "SOS"]):
+            active_trackers[unit_id]["status"] = f"⚠️ ขอสนับสนุน: {note[:25]}"
         else:
             active_trackers[unit_id]["status"] = f"🚗 กำลังไประงับเหตุ: {title[:20]}"
         active_trackers[unit_id]["last_seen"] = time.time()
 
-    # ถ้ามีภาพถ่ายหรือเป็นการปิดภารกิจ ให้บันทึกลง FIELD_REPORTS เพื่อโชว์ใน Dashboard ทันที
-    if is_completed or photo_url != "-":
+    # ถ้ามีภาพถ่าย, ปิดภารกิจ, หรือเป็นการขอสนับสนุนด่วน (SOS) ให้บันทึกลง FIELD_REPORTS เพื่อโชว์ใน Dashboard ทันที
+    is_support_req = any(k in new_status for k in ["ขอสนับสนุน", "ขอกำลัง", "SOS"]) or any(k in note for k in ["ขอสนับสนุน", "ขอกำลัง", "SOS"])
+    if is_completed or photo_url != "-" or is_support_req:
+        rep_lat = data.get("latitude")
+        rep_lon = data.get("longitude")
+        if (rep_lat is None or rep_lon is None or rep_lat == 0 or rep_lon == 0) and unit_id in active_trackers:
+            rep_lat = active_trackers[unit_id].get("latitude", 0.0)
+            rep_lon = active_trackers[unit_id].get("longitude", 0.0)
+
         FIELD_REPORTS.append({
             "id": f"REP-{int(time.time())}",
             "incident_id": report_id or title,
             "unit_id": unit_id or "RTSD-UNIT",
             "commander": commander or "เจ้าหน้าที่หน้างาน",
             "phone": "",
-            "report_type": "completion_report" if is_completed else "photo_report",
-            "message": note or ("ภารกิจเสร็จสิ้นเรียบร้อย ปลอดภัยทุกฝ่าย" if is_completed else "ภาพถ่ายรายงานผลหน้างาน"),
+            "report_type": "support_request" if is_support_req else ("completion_report" if is_completed else "photo_report"),
+            "message": note or ("ภารกิจเสร็จสิ้นเรียบร้อย ปลอดภัยทุกฝ่าย" if is_completed else ("ขอรับการสนับสนุนด่วน" if is_support_req else "ภาพถ่ายรายงานผลหน้างาน")),
             "image_url": photo_url,
-            "latitude": 0.0,
-            "longitude": 0.0,
+            "latitude": float(rep_lat) if rep_lat is not None else 0.0,
+            "longitude": float(rep_lon) if rep_lon is not None else 0.0,
             "timestamp": now_th
         })
         if len(FIELD_REPORTS) > 100:
@@ -1514,7 +1523,7 @@ def api_incident_field_report():
                 print(f"[FieldReport] Error queuing photo: {err}")
 
         rep_id = f"REP-{int(time.time() * 1000) % 1000000:06d}"
-        now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") if 'datetime' in globals() else time.strftime("%Y-%m-%d %H:%M:%S")
+        now_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(time.time() + 7 * 3600))
         report_entry = {
             "id": rep_id,
             "incident_id": incident_id,

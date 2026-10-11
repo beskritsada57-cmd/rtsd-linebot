@@ -4168,6 +4168,41 @@
     // =========================================================================
     let liveFieldReports = [];
 
+    let liveSosMapMarkers = {};
+
+    function resolveReportCoordinates(report) {
+      if (!report) return { lat: 0, lon: 0, source: 'none' };
+      let lat = parseFloat(report.latitude !== undefined ? report.latitude : report.lat);
+      let lon = parseFloat(report.longitude !== undefined ? report.longitude : report.lon);
+      if (!isNaN(lat) && !isNaN(lon) && lat !== 0 && lon !== 0) {
+        return { lat, lon, source: 'report' };
+      }
+      // ค้นหาพิกัดสดจากตำแหน่ง Real-time ของชุดปฏิบัติการในระบบ (activeTacticalUnits)
+      if (report.unit_id && typeof activeTacticalUnits !== 'undefined' && activeTacticalUnits[report.unit_id]) {
+        const u = activeTacticalUnits[report.unit_id];
+        const uLat = parseFloat(u.latitude);
+        const uLon = parseFloat(u.longitude);
+        if (!isNaN(uLat) && !isNaN(uLon) && uLat !== 0 && uLon !== 0) {
+          return { lat: uLat, lon: uLon, source: 'unit' };
+        }
+      }
+      // ค้นหาพิกัดจากใบแจ้งเหตุการณ์ (rawIncidents)
+      if (report.incident_id && typeof rawIncidents !== 'undefined') {
+        const inc = rawIncidents.find(i => 
+          (i.report_id && i.report_id === report.incident_id) ||
+          (i.title && i.title.includes(report.incident_id))
+        );
+        if (inc) {
+          const iLat = parseFloat(inc.lat);
+          const iLon = parseFloat(inc.lon);
+          if (!isNaN(iLat) && !isNaN(iLon) && iLat !== 0 && iLon !== 0) {
+            return { lat: iLat, lon: iLon, source: 'incident' };
+          }
+        }
+      }
+      return { lat: 0, lon: 0, source: 'none' };
+    }
+
     async function fetchFieldReports() {
       try {
         const res = await fetch(`${API_BASE}/api/incident/field-reports`);
@@ -4187,6 +4222,130 @@
       }
     }
 
+    function renderLiveSosMarkersOnMap(sosReports) {
+      if (!tacticalMap) return;
+
+      const currentSosIds = new Set();
+
+      (sosReports || []).forEach(item => {
+        const coords = resolveReportCoordinates(item);
+        if (coords.lat === 0 || coords.lon === 0) return;
+
+        const sosId = `sos_${item.id || item.timestamp || item.unit_id}`;
+        currentSosIds.add(sosId);
+
+        const sender = item.commander || item.sender_name || item.unit_id || 'ชุดปฏิบัติการ';
+        const unit = item.unit_id ? `[${item.unit_id}]` : '';
+        const msg = item.message || item.requested_resource || 'ขอกำลังสนับสนุนด่วน';
+        const timeDisplay = formatDisplayTimeThai(item.timestamp);
+        const relTime = formatRelativeTime(item.timestamp);
+
+        const customSosIcon = L.divIcon({
+          className: 'sos-marker-div-icon',
+          iconSize: [44, 50],
+          iconAnchor: [22, 46],
+          popupAnchor: [0, -44],
+          html: `
+            <div class="relative flex items-center justify-center cursor-pointer group" style="width: 44px; height: 50px;">
+              <span class="absolute w-14 h-14 rounded-full bg-red-600 opacity-80 animate-ping"></span>
+              <span class="absolute w-9 h-9 rounded-full bg-rose-500 opacity-60 animate-pulse"></span>
+              <div style="width: 36px; height: 36px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: linear-gradient(135deg, #ef4444, #991b1b); border: 2.5px solid #ffffff; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 20px rgba(239,68,68,0.95); transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+                <i class="fa-solid fa-triangle-exclamation" style="transform: rotate(45deg); color: #ffffff; font-size: 16px;"></i>
+              </div>
+              <div style="position: absolute; top: -32px; left: 50%; transform: translateX(-50%); background: rgba(185, 28, 28, 0.98); border: 1.5px solid #fecaca; color: #ffffff; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 6px; white-space: nowrap; pointer-events: none; box-shadow: 0 4px 14px rgba(0,0,0,0.8); display: flex; align-items: center; gap: 4px;">
+                <span class="animate-pulse">🚨 SOS ขอด่วน:</span>
+                <span style="max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${msg}</span>
+              </div>
+            </div>
+          `
+        });
+
+        const safeSender = (sender || '').replace(/'/g, "\\'");
+        const safeTitle = (item.incident_id || 'เหตุการณ์หน้างาน').replace(/'/g, "\\'");
+        const popupHtml = `
+          <div style="min-width: 250px; max-width: 300px; font-family: 'Prompt', sans-serif;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-bottom: 6px;">
+              <span style="font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 6px; background: rgba(239, 68, 68, 0.25); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); display: flex; align-items: center; gap: 4px;">
+                <span class="relative flex h-2 w-2">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                </span>
+                สัญญาณขอกำลังเสริม (SOS)
+              </span>
+              <span style="font-size: 10px; font-family: monospace; color: #fca5a5;">${timeDisplay}</span>
+            </div>
+            <div style="font-weight: 800; color: #ffffff; font-size: 14px; line-height: 1.3; margin-bottom: 4px; color: #fca5a5;">
+              ${msg}
+            </div>
+            <div style="font-size: 12px; color: #e2e8f0; margin-bottom: 8px; padding: 5px 8px; background: rgba(30, 41, 59, 0.8); border-radius: 6px; border: 1px solid rgba(255,255,255,0.08);">
+              <div style="font-weight: 700; color: #ffffff;">
+                <i class="fa-solid fa-id-badge" style="color: #f87171; margin-right: 4px;"></i>
+                ${unit} ${sender}
+              </div>
+              <div style="font-size: 10px; color: #94a3b8; margin-top: 3px; display: flex; align-items: center; justify-content: space-between;">
+                <span><i class="fa-regular fa-clock" style="margin-right: 3px;"></i>${relTime}</span>
+                <span style="font-family: monospace;">GPS: ${coords.lat.toFixed(5)}, ${coords.lon.toFixed(5)}</span>
+              </div>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <button onclick="triggerDispatchForIncident('${safeTitle}', '')" style="flex: 1; padding: 6px 10px; border-radius: 6px; background: #dc2626; hover:background: #b91c1c; color: #ffffff; font-size: 11px; font-weight: 700; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; box-shadow: 0 2px 8px rgba(220,38,38,0.5);">
+                <i class="fa-solid fa-bullhorn"></i> สั่งการกำลังพลเสริม
+              </button>
+              <a href="https://www.google.com/maps/dir/?api=1&destination=${coords.lat},${coords.lon}" target="_blank" style="padding: 6px 10px; border-radius: 6px; background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-size: 11px; font-weight: 700; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                <i class="fa-solid fa-location-arrow"></i> นำทาง
+              </a>
+            </div>
+          </div>
+        `;
+
+        if (liveSosMapMarkers[sosId]) {
+          liveSosMapMarkers[sosId].setLatLng([coords.lat, coords.lon]);
+          liveSosMapMarkers[sosId].setPopupContent(popupHtml);
+        } else {
+          const marker = L.marker([coords.lat, coords.lon], { icon: customSosIcon, zIndexOffset: 2500 })
+            .addTo(tacticalMap)
+            .bindPopup(popupHtml, { maxWidth: 320 });
+          liveSosMapMarkers[sosId] = marker;
+        }
+      });
+
+      // ลบหมุด SOS ที่หมดสถานะแล้ว
+      Object.keys(liveSosMapMarkers).forEach(id => {
+        if (!currentSosIds.has(id)) {
+          tacticalMap.removeLayer(liveSosMapMarkers[id]);
+          delete liveSosMapMarkers[id];
+        }
+      });
+    }
+
+    function zoomToSosRequest(sosId, lat, lon, unitId, sender, msg, incidentId) {
+      let targetLat = parseFloat(lat);
+      let targetLon = parseFloat(lon);
+
+      // ถ้าไม่มีพิกัดโดยตรง ให้ resolve พิกัดจาก Tracker สด หรือจากเหตุการณ์
+      if (isNaN(targetLat) || isNaN(targetLon) || (targetLat === 0 && targetLon === 0)) {
+        const coords = resolveReportCoordinates({ unit_id: unitId, incident_id: incidentId });
+        targetLat = coords.lat;
+        targetLon = coords.lon;
+      }
+
+      if (targetLat !== 0 && targetLon !== 0 && tacticalMap) {
+        tacticalMap.flyTo([targetLat, targetLon], 17, { animate: true, duration: 1.2 });
+        showToast(`🎯 กำลังซูมไปยังจุดขอรับการสนับสนุน: ${sender}`);
+
+        const markerKey = `sos_${sosId}`;
+        setTimeout(() => {
+          if (liveSosMapMarkers[markerKey]) {
+            liveSosMapMarkers[markerKey].openPopup();
+          } else if (unitId && tacticalMarkers[unitId]) {
+            tacticalMarkers[unitId].openPopup();
+          }
+        }, 1100);
+      } else {
+        showToast(`⚠️ ยังไม่ได้รับพิกัด GPS ล่าสุดของชุดปฏิบัติการ ${unitId || sender}`);
+      }
+    }
+
     function renderLiveFieldReports() {
       const sosContainer = document.getElementById('liveFieldSosContainer');
       const photosContainer = document.getElementById('liveFieldPhotosContainer');
@@ -4201,6 +4360,9 @@
         r.status === 'SOS' || 
         (r.message && (r.message.includes('ขอสนับสนุน') || r.message.includes('ขอกำลัง') || r.message.includes('ขอเรือ') || r.message.includes('ขอรถ') || r.message.includes('ขอกู้ภัย')))
       );
+
+      // วาดหมุดสัญญาณขอรับการสนับสนุน (SOS) บนแผนที่ทันที
+      renderLiveSosMarkersOnMap(sosReports);
 
       // Filter Photo Reports
       const photoReports = liveFieldReports.filter(r => 
@@ -4219,35 +4381,43 @@
           const sender = item.commander || item.sender_name || item.unit_id || 'เจ้าหน้าที่ชุดปฏิบัติการ';
           const unit = item.unit_id ? `[${item.unit_id}]` : '';
           const msg = item.message || item.requested_resource || 'ขอรับการสนับสนุนด่วนจากหน้างาน';
-          const time = item.timestamp ? formatRelativeTime(item.timestamp) : 'เมื่อสักครู่';
-          const lat = parseFloat(item.latitude !== undefined ? item.latitude : item.lat);
-          const lon = parseFloat(item.longitude !== undefined ? item.longitude : item.lon);
-          const hasCoords = !isNaN(lat) && !isNaN(lon) && lat !== 0 && lon !== 0;
+          const timeText = formatDisplayTimeThai(item.timestamp);
+          const relTime = item.timestamp ? formatRelativeTime(item.timestamp) : 'เมื่อสักครู่';
+          const coords = resolveReportCoordinates(item);
+          const hasCoords = coords.lat !== 0 && coords.lon !== 0;
+
+          const safeSender = sender.replace(/'/g, "\\'");
+          const safeMsg = msg.replace(/'/g, "\\'");
+          const safeId = (item.id || item.timestamp || item.unit_id || '').replace(/'/g, "\\'");
+          const safeUnit = (item.unit_id || '').replace(/'/g, "\\'");
+          const safeInc = (item.incident_id || '').replace(/'/g, "\\'");
 
           return `
-            <div class="p-2.5 rounded-xl bg-gradient-to-r from-rose-950/80 via-red-900/60 to-slate-900 border border-rose-500/70 shadow-lg shadow-rose-950/50 animate-pulse">
-              <div class="flex items-center justify-between text-xs font-bold text-rose-300 mb-1">
+            <div onclick="zoomToSosRequest('${safeId}', ${coords.lat}, ${coords.lon}, '${safeUnit}', '${safeSender}', '${safeMsg}', '${safeInc}')" 
+                 class="p-3 rounded-xl bg-gradient-to-r from-rose-950/90 via-red-900/70 to-slate-900 border-2 border-rose-500/80 shadow-xl shadow-rose-950/60 cursor-pointer hover:border-rose-400 hover:scale-[1.01] transition-all group">
+              <div class="flex items-center justify-between text-xs font-bold text-rose-300 mb-1.5">
                 <span class="flex items-center gap-1.5">
-                  <span class="relative flex h-2 w-2">
-                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                  <span class="relative flex h-2.5 w-2.5">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-80"></span>
+                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
                   </span>
-                  <i class="fa-solid fa-triangle-exclamation text-rose-400"></i>
-                  <span>สัญญาณขอรับการสนับสนุนหน้างาน</span>
+                  <i class="fa-solid fa-triangle-exclamation text-rose-400 text-sm"></i>
+                  <span class="text-white font-extrabold tracking-wide">สัญญาณขอรับการสนับสนุนหน้างาน (SOS)</span>
                 </span>
-                <span class="text-[10px] text-rose-300 font-mono">${time}</span>
+                <span class="text-[11px] text-rose-200 font-mono bg-black/50 px-2 py-0.5 rounded border border-rose-500/30 font-bold" title="${relTime}">
+                  ${timeText}
+                </span>
               </div>
-              <div class="text-xs text-white font-medium pl-3 border-l-2 border-rose-500 my-1">
+              <div class="text-sm text-rose-100 font-bold pl-3 border-l-4 border-rose-500 my-1.5 leading-snug">
                 ${msg}
               </div>
-              <div class="flex items-center justify-between text-[10px] text-slate-300 pt-1 mt-1 border-t border-rose-500/30">
-                <span class="truncate"><i class="fa-solid fa-id-badge text-rose-400 mr-1"></i>${unit} ${sender}</span>
-                <div class="flex items-center gap-1.5 shrink-0">
-                  ${hasCoords ? `
-                    <button onclick="flyToIncident(${lat}, ${lon}, 'ขอสนับสนุน: ${sender}')" class="px-2 py-0.5 rounded bg-rose-600 hover:bg-rose-500 text-white font-bold transition-all shadow-sm">
-                      <i class="fa-solid fa-crosshairs mr-0.5"></i> ไปจุดขอสนับสนุน
-                    </button>
-                  ` : ''}
+              <div class="flex items-center justify-between text-[11px] text-slate-300 pt-1.5 mt-1 border-t border-rose-500/30">
+                <span class="truncate font-semibold"><i class="fa-solid fa-id-badge text-rose-400 mr-1"></i>${unit} ${sender}</span>
+                <div class="flex items-center gap-1.5 shrink-0" onclick="event.stopPropagation()">
+                  <button onclick="zoomToSosRequest('${safeId}', ${coords.lat}, ${coords.lon}, '${safeUnit}', '${safeSender}', '${safeMsg}', '${safeInc}')" 
+                          class="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-[11px] flex items-center gap-1 transition-all shadow-md shadow-rose-950/50 cursor-pointer">
+                    <i class="fa-solid fa-crosshairs"></i> ซูมดูในแผนที่
+                  </button>
                 </div>
               </div>
             </div>
@@ -4266,17 +4436,23 @@
         photosList.innerHTML = photoReports.map((photo, pIdx) => {
           const imgSrc = photo.photo_url || photo.image_url;
           const sender = photo.commander || photo.sender_name || photo.unit_id || 'ชุดปฏิบัติการ';
-          const time = photo.timestamp ? formatRelativeTime(photo.timestamp) : '';
-          const lat = parseFloat(photo.latitude !== undefined ? photo.latitude : photo.lat);
-          const lon = parseFloat(photo.longitude !== undefined ? photo.longitude : photo.lon);
-          const hasCoords = !isNaN(lat) && !isNaN(lon) && lat !== 0 && lon !== 0;
+          const timeText = formatDisplayTimeThai(photo.timestamp);
+          const relTime = photo.timestamp ? formatRelativeTime(photo.timestamp) : '';
+          const coords = resolveReportCoordinates(photo);
+
+          const safeSender = sender.replace(/'/g, "\\'");
+          const safeMsg = (photo.message || '').replace(/'/g, "\\'");
+          const safeTime = (photo.timestamp || '').replace(/'/g, "\\'");
+          const safeUnit = (photo.unit_id || '').replace(/'/g, "\\'");
+          const safeInc = (photo.incident_id || '').replace(/'/g, "\\'");
 
           return `
-            <div class="relative shrink-0 w-24 h-24 rounded-lg overflow-hidden border border-slate-700/80 bg-slate-900 group shadow-md cursor-pointer" onclick="openPhotoViewer('${imgSrc}', '${sender}', '${photo.message || ''}', '${photo.timestamp || ''}', ${lat}, ${lon})">
+            <div class="relative shrink-0 w-24 h-24 rounded-lg overflow-hidden border border-slate-700/80 bg-slate-900 group shadow-md cursor-pointer hover:border-sky-400 transition-all" 
+                 onclick="openPhotoViewer('${imgSrc}', '${safeSender}', '${safeMsg}', '${safeTime}', ${coords.lat}, ${coords.lon}, '${safeUnit}', '${safeInc}')">
               <img src="${imgSrc}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" alt="ภาพถ่ายหน้างาน" onerror="this.src='https://placehold.co/100x100/1e293b/94a3b8?text=Photo+Error'">
-              <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 opacity-90 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-1">
-                <span class="text-[9px] text-sky-300 font-mono self-end bg-black/60 px-1 rounded">${time}</span>
-                <span class="text-[9px] text-white font-medium truncate bg-black/60 px-1 rounded">${sender}</span>
+              <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/40 opacity-95 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-1">
+                <span class="text-[9px] text-sky-200 font-mono self-end bg-black/70 px-1 py-0.5 rounded font-bold" title="${relTime}">${timeText}</span>
+                <span class="text-[9px] text-white font-semibold truncate bg-black/70 px-1 rounded">${sender}</span>
               </div>
             </div>
           `;
@@ -4284,11 +4460,18 @@
       }
     }
 
-    function openPhotoViewer(url, sender, note, time, lat, lon) {
+    function openPhotoViewer(url, sender, note, time, lat, lon, unitId, incidentId) {
       if (!url) return;
       openModal(url);
-      if (!isNaN(lat) && !isNaN(lon) && lat !== 0 && lon !== 0 && tacticalMap) {
-        flyToIncident(lat, lon, `ภาพจาก: ${sender}`);
+      let targetLat = parseFloat(lat);
+      let targetLon = parseFloat(lon);
+      if (isNaN(targetLat) || isNaN(targetLon) || (targetLat === 0 && targetLon === 0)) {
+        const coords = resolveReportCoordinates({ unit_id: unitId, incident_id: incidentId });
+        targetLat = coords.lat;
+        targetLon = coords.lon;
+      }
+      if (targetLat !== 0 && targetLon !== 0 && tacticalMap) {
+        flyToIncident(targetLat, targetLon, `ภาพจาก: ${sender}`);
       }
     }
 
@@ -7764,15 +7947,52 @@
       renderTacticalUnits(filtered);
     }
 
+    function parseThaiDate(dateStr) {
+      if (!dateStr || dateStr === '-') return null;
+      try {
+        let s = String(dateStr).trim();
+        // ถ้าเป็นเวลาล้วน HH:mm:ss เช่น "07:47:30"
+        if (/^\d{2}:\d{2}(:\d{2})?$/.test(s)) {
+          const now = new Date();
+          const parts = s.split(':').map(Number);
+          return new Date(now.getFullYear(), now.getMonth(), now.getDate(), parts[0], parts[1], parts[2] || 0);
+        }
+        let clean = s.replace(' ', 'T');
+        let d = new Date(clean);
+        if (!isNaN(d.getTime())) {
+          // หากเวลาที่บันทึกมาห่างจากเวลาปัจจุบันประมาณ 6.5 - 7.5 ชั่วโมง (มาจาก Server UTC ที่เก็บ string แบบ local)
+          const diffHours = (Date.now() - d.getTime()) / (1000 * 3600);
+          if (diffHours >= 6.5 && diffHours <= 7.5) {
+            d = new Date(d.getTime() + 7 * 3600 * 1000);
+          }
+          return d;
+        }
+      } catch (e) {}
+      return null;
+    }
+
+    function formatDisplayTimeThai(dateStr) {
+      if (!dateStr || dateStr === '-') return '-';
+      const d = parseThaiDate(dateStr);
+      if (d) {
+        return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' น.';
+      }
+      return String(dateStr).slice(11, 19) || dateStr;
+    }
+
     function formatRelativeTime(isoString) {
       if (!isoString || isoString === '-') return '-';
       try {
-        const d = new Date(isoString);
-        if (isNaN(d.getTime())) return isoString.slice(11, 19) || isoString;
+        const d = parseThaiDate(isoString);
+        if (!d) return String(isoString).slice(11, 19) || isoString;
         const diffSec = Math.floor((Date.now() - d.getTime()) / 1000);
-        if (diffSec < 60) return `เมื่อ ${diffSec} วินาทีที่แล้ว`;
-        if (diffSec < 3600) return `เมื่อ ${Math.floor(diffSec / 60)} นาทีที่แล้ว`;
-        return d.toLocaleTimeString('th-TH');
+        if (diffSec >= 0 && diffSec < 60) return `เมื่อ ${diffSec} วิที่แล้ว`;
+        if (diffSec >= 60 && diffSec < 3600) return `เมื่อ ${Math.floor(diffSec / 60)} นาทีที่แล้ว`;
+        if (diffSec >= 3600 && diffSec < 86400) {
+          const hours = Math.floor(diffSec / 3600);
+          return `${hours} ชม. ที่แล้ว (${d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.)`;
+        }
+        return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' น.';
       } catch (e) {
         return isoString;
       }
