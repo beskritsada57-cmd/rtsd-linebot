@@ -788,14 +788,104 @@ def api_create_incident():
 
 @app.route("/api/incident/update-status", methods=['POST'])
 def api_update_incident_status():
-    """API สำหรับให้ Dashboard หรือระบบภายนอกสั่งเปลี่ยนสถานะของเหตุการณ์เดิม"""
+    """API สำหรับให้ Dashboard หรือแอปมือถือสั่งเปลี่ยนสถานะของเหตุการณ์เดิม และบันทึกชุดปฏิบัติการที่เข้าพื้นที่"""
+    global DISPATCHED_INCIDENTS, active_trackers
     data = request.get_json(silent=True) or {}
-    title = data.get("title", "")
-    timestamp = data.get("timestamp", "")
-    new_status = data.get("status", "🟢 แก้ไขแล้วเสร็จ")
+    report_id = str(data.get("report_id") or data.get("incident_id") or "").strip()
+    title = str(data.get("title") or "").strip()
+    timestamp = str(data.get("timestamp") or "").strip()
+    new_status = str(data.get("status") or "🟢 แก้ไขแล้วเสร็จ").strip()
+    unit_id = str(data.get("unit_id") or "").strip()
+    commander = str(data.get("commander") or "").strip()
+    note = str(data.get("note") or "").strip()
 
+    # หากไม่มี title หรือ timestamp ให้ค้นหาจากแคชเหตุการณ์โดยใช้ report_id
+    if (not title or not timestamp) and report_id:
+        try:
+            cached_rows = get_user_incidents(limit=200)
+            for r in cached_rows:
+                if len(r) > 1 and (report_id in str(r[1]) or (len(r) > 0 and report_id == str(r[0]))):
+                    if not timestamp and len(r) > 0:
+                        timestamp = str(r[0])
+                    if not title and len(r) > 1:
+                        title = str(r[1])
+                    break
+        except Exception as e:
+            print(f"Error finding incident by report_id: {e}")
+
+    # ปรับแต่งสถานะให้ระบุชุดปฏิบัติการชัดเจน หากมีการรับภารกิจหรือกำลังเข้าพื้นที่
+    unit_label = f"{unit_id} / {commander}".strip(" /") if (unit_id or commander) else ""
+    if unit_label:
+        if any(kw in new_status for kw in ["เข้าพื้นที่", "ดำเนินการ", "ช่วยเหลือ", "ปฏิบัติ"]) or "รับภารกิจ" in note:
+            if "ชุด:" not in new_status:
+                new_status = f"{new_status} (ชุด: {unit_label})"
+
+    # อัปเดต DISPATCHED_INCIDENTS ในหน่วยความจำเพื่อให้ Dashboard แสดงผลทันที
+    now_th = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+    assigned_info = {
+        "incident_id": report_id,
+        "title": title,
+        "timestamp": timestamp,
+        "status": new_status,
+        "dispatched_at": now_th,
+        "directive_note": note or "กดยืนยันรับภารกิจผ่านแอปพลิเคชัน RTSD Mobile",
+        "dispatch_all": False,
+        "assigned_units": [{
+            "unit_id": unit_id,
+            "commander": commander,
+            "status": new_status,
+            "timestamp": now_th
+        }] if unit_label else [],
+        "dispatched_units": [unit_label] if unit_label else [],
+        "accepted_by_unit": {
+            "unit_id": unit_id,
+            "commander": commander,
+            "status": new_status,
+            "timestamp": now_th
+        } if unit_label else None
+    }
+
+    if report_id:
+        DISPATCHED_INCIDENTS[report_id] = assigned_info
+    if timestamp and title:
+        DISPATCHED_INCIDENTS[f"{timestamp}_{title}"] = assigned_info
+    if title:
+        DISPATCHED_INCIDENTS[title] = assigned_info
+
+    # อัปเดตสถานะของ Tracker หากเป็นชุดปฏิบัติการในระบบ
+    if unit_id and unit_id in active_trackers:
+        active_trackers[unit_id]["status"] = f"🚗 กำลังไประงับเหตุ: {title[:20]}"
+        active_trackers[unit_id]["last_seen"] = time.time()
+
+    # แจ้งเตือนผู้บังคับบัญชา / LINE Admin ทันทีที่มีชุดปฏิบัติการกดรับภารกิจ
+    if unit_label and ("เข้าพื้นที่" in new_status or "รับภารกิจ" in note):
+        try:
+            push_msg = (
+                f"🚗 ชุดปฏิบัติการยืนยันรับภารกิจแล้ว!\n"
+                f"━━━━━━━━━━━━━━━━━━\n"
+                f"🆔 เหตุการณ์: #{report_id or title}\n"
+                f"🛡️ ชุดปฏิบัติการ: {unit_label}\n"
+                f"📌 สถานะ: {new_status}\n"
+                f"━━━━━━━━━━━━━━━━━━\n"
+                f"ศูนย์ TOC สามารถติดตามพิกัดการเคลื่อนที่ได้สดบน Dashboard"
+            )
+            for admin_phone in ADMIN_PHONES:
+                for phone, u in phone_to_user.items():
+                    if phone == admin_phone and u.get("user_id"):
+                        push_line_message(u["user_id"], push_msg)
+        except Exception as e:
+            print(f"Error sending mission accepted line push: {e}")
+
+    # ส่งอัปเดตลง Google Sheets
     result = update_google_sheet_status(title=title, timestamp=timestamp, new_status=new_status)
-    return jsonify(result), 200
+    return jsonify({
+        "status": "success",
+        "sheet_result": result,
+        "new_status": new_status,
+        "report_id": report_id,
+        "title": title,
+        "dispatched_info": assigned_info
+    }), 200
 
 
 # =========================================================================
@@ -1183,9 +1273,16 @@ def api_incident_dispatch():
         "directive_note": directive_note,
         "commander_name": commander_name,
         "dispatched_at": now_th,
-        "sent_count": sent_count
+        "sent_count": sent_count,
+        "assigned_units": [{"unit_id": name, "commander": name} for name in target_unit_names]
     }
-    DISPATCHED_INCIDENTS[incident_id] = assigned_info
+    if incident_id:
+        DISPATCHED_INCIDENTS[incident_id] = assigned_info
+    ts = str(data.get("timestamp") or "").strip()
+    if ts and title:
+        DISPATCHED_INCIDENTS[f"{ts}_{title}"] = assigned_info
+    if title:
+        DISPATCHED_INCIDENTS[title] = assigned_info
 
     try:
         sheet_payload = {
@@ -1209,7 +1306,11 @@ def api_incident_dispatch():
 @app.route("/api/incident/dispatched-list", methods=['GET'])
 def api_incident_dispatched_list():
     """ส่งคืนรายการเหตุการณ์ที่ถูกสั่งการมอบหมายกำลังพลแล้วทั้งหมด"""
-    return jsonify(DISPATCHED_INCIDENTS), 200
+    return jsonify({
+        "status": "success",
+        "dispatched": DISPATCHED_INCIDENTS,
+        "items": list(DISPATCHED_INCIDENTS.values())
+    }), 200
 
 
 # =========================================================================

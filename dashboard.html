@@ -2132,10 +2132,10 @@
         total++;
         if (urgency.includes('วิกฤต')) critical++;
         
-        if (status.includes('เสร็จ') || status.includes('เรียบร้อย') || status.includes('แล้ว')) {
+        if (status.includes('เสร็จ') || status.includes('เรียบร้อย') || status.includes('แล้วเสร็จ')) {
           resolved++;
           statusCounts['🟢 แก้ไขแล้วเสร็จ']++;
-        } else if (status.includes('ดำเนิน') || status.includes('ปฏิบัติ')) {
+        } else if (status.includes('ดำเนิน') || status.includes('ปฏิบัติ') || status.includes('เข้าพื้นที่') || status.includes('ช่วยเหลือ') || status.includes('รับภารกิจ')) {
           inProgress++;
           statusCounts['🟡 กำลังดำเนินการ']++;
         } else {
@@ -2161,8 +2161,11 @@
         }
         dateCounts[dateKey] = (dateCounts[dateKey] || 0) + 1;
 
+        const idMatch = (title || '').match(/\[(RTSD-\d+)\]/);
+        const report_id = idMatch ? idMatch[1] : '';
+
         rawIncidents.push({
-          timestamp, title, address, lat, lon, reporter, urgency, incident_type: cleanType, raw_type: incident_type, status, media_url
+          timestamp, title, address, lat, lon, reporter, urgency, incident_type: cleanType, raw_type: incident_type, status, media_url, report_id
         });
       });
 
@@ -2721,7 +2724,7 @@
         } else if (tacticalIncidentFilter === 'PENDING') {
           matchesStatus = (item.status || '').includes('รอ');
         } else if (tacticalIncidentFilter === 'IN_PROGRESS') {
-          matchesStatus = (item.status || '').includes('ดำเนิน');
+          matchesStatus = (item.status || '').includes('ดำเนิน') || (item.status || '').includes('ช่วย') || (item.status || '').includes('เข้าพื้นที่') || (item.status || '').includes('ปฏิบัติ');
         } else if (tacticalIncidentFilter === 'RESOLVED') {
           matchesStatus = (item.status || '').includes('เสร็จ') || (item.status || '').includes('เรียบร้อย');
         }
@@ -2748,7 +2751,9 @@
       filtered.slice().reverse().forEach(item => {
         const isCrit = (item.urgency || '').includes('วิกฤต');
         const isResolved = (item.status || '').includes('เสร็จ') || (item.status || '').includes('เรียบร้อย');
-        const isProgress = (item.status || '').includes('ดำเนิน');
+        const isProgress = (item.status || '').includes('ดำเนิน') || (item.status || '').includes('ช่วย') || (item.status || '').includes('เข้าพื้นที่') || (item.status || '').includes('ปฏิบัติ');
+
+        const respInfo = getRespondingUnitInfo(item);
 
         let urgBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/30">🟡 ปานกลาง</span>';
         let cardAccent = 'border-slate-800 hover:border-slate-700';
@@ -2762,8 +2767,37 @@
         let statBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-sky-500/20 text-sky-400 border border-sky-500/30">⏳ รอดำเนินการ</span>';
         if (isResolved) {
           statBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">🟢 เสร็จสิ้น</span>';
+        } else if (respInfo.isResponding) {
+          statBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/25 text-amber-300 border border-amber-500/40 animate-pulse flex items-center gap-1 shadow-sm"><i class="fa-solid fa-person-running"></i> 🚗 กำลังเข้าพื้นที่</span>';
         } else if (isProgress) {
           statBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/30">🟡 กำลังช่วยเหลือ</span>';
+        }
+
+        let respondingBannerHtml = '';
+        if (respInfo.unitText) {
+          if (respInfo.isResponding) {
+            respondingBannerHtml = `
+              <div class="mt-2 p-2 rounded-xl bg-amber-950/40 border border-amber-500/40 text-[11px] text-amber-200 flex items-center gap-2 shadow-sm">
+                <i class="fa-solid fa-truck-fast text-amber-400 text-sm animate-bounce"></i>
+                <div class="min-w-0 flex-1">
+                  <div class="font-bold flex items-center gap-1 text-amber-300">
+                    <span>ชุดปฏิบัติการกำลังเข้าพื้นที่</span>
+                    <span class="text-[9px] px-1.5 py-0.2 bg-amber-500/30 rounded border border-amber-500/50">กำลังไประงับเหตุ</span>
+                  </div>
+                  <div class="truncate text-[11px] text-amber-100 font-medium">🛡️ ${respInfo.unitText}</div>
+                </div>
+              </div>
+            `;
+          } else {
+            respondingBannerHtml = `
+              <div class="mt-2 p-1.5 rounded-xl bg-purple-950/40 border border-purple-500/40 text-[11px] text-purple-200 flex items-center gap-2">
+                <i class="fa-solid fa-bullhorn text-purple-400"></i>
+                <div class="truncate flex-1">
+                  <span class="font-bold">มอบหมายกำลังพล:</span> ${respInfo.unitText}
+                </div>
+              </div>
+            `;
+          }
         }
 
         const directImg = getDirectImageUrl(item.media_url);
@@ -2783,11 +2817,9 @@
         const safeTime = encodeURIComponent(item.timestamp || '');
         const safeTitle = encodeURIComponent(item.title || '');
 
-        const incKey = `${item.timestamp || ''}_${item.title || ''}`;
-        const dispInfo = dispatchedIncidents[incKey];
         let dispBadge = '';
-        if (dispInfo) {
-          const assignedCount = dispInfo.dispatch_all ? 'ทุกคน' : `${(dispInfo.assigned_units || []).length} นาย`;
+        if (respInfo.dispInfo && !respInfo.isResponding) {
+          const assignedCount = respInfo.dispInfo.dispatch_all ? 'ทุกคน' : `${(respInfo.dispInfo.assigned_units || []).length} นาย`;
           dispBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 flex items-center gap-1 shadow-sm"><i class="fa-solid fa-bullhorn text-[9px]"></i> สั่งการแล้ว (${assignedCount})</span>`;
         }
 
@@ -2824,6 +2856,8 @@
             </div>
           </div>
 
+          ${respondingBannerHtml}
+
           <div class="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-800/80 text-[11px] text-slate-400">
             <span class="flex items-center gap-1 truncate max-w-[130px]" title="${item.reporter}">
               <i class="fa-solid fa-user text-slate-500 text-[10px]"></i> ${item.reporter || 'ประชาชน'}
@@ -2841,7 +2875,7 @@
               `}
               <select data-prev="${item.status}" onchange="updateIncidentStatus(this, '${safeTime}', '${safeTitle}')" class="px-1.5 py-0.5 text-[10px] rounded-lg bg-slate-950 border border-slate-700 text-slate-300 font-medium focus:outline-none focus:border-sky-500 transition-colors cursor-pointer">
                 <option value="⏳ รอดำเนินการ" ${item.status.includes('รอ') ? 'selected' : ''}>⏳ รอดำเนินการ</option>
-                <option value="🟡 กำลังดำเนินการ" ${item.status.includes('ดำเนิน') ? 'selected' : ''}>🟡 กำลังช่วยเหลือ</option>
+                <option value="🟡 กำลังดำเนินการ" ${item.status.includes('ดำเนิน') || item.status.includes('ช่วย') || item.status.includes('เข้าพื้นที่') ? 'selected' : ''}>🟡 กำลังช่วยเหลือ</option>
                 <option value="🟢 แก้ไขแล้วเสร็จ" ${isResolved ? 'selected' : ''}>🟢 แก้ไขแล้ว</option>
                 <option value="❌ ยกเลิก/ระงับเหตุ" ${item.status.includes('ยกเลิก') ? 'selected' : ''}>❌ ยกเลิก</option>
               </select>
@@ -2851,6 +2885,53 @@
 
         container.appendChild(card);
       });
+    }
+
+    function getRespondingUnitInfo(item) {
+      const incKey = `${item.timestamp || ''}_${item.title || ''}`;
+      const dispInfo = (typeof dispatchedIncidents !== 'undefined') ? (
+        dispatchedIncidents[incKey] ||
+        (item.report_id && dispatchedIncidents[item.report_id]) ||
+        dispatchedIncidents[item.title]
+      ) : null;
+
+      let unitText = '';
+      let isResponding = false;
+      let isDispatched = false;
+
+      // 1. ตรวจสอบจากข้อความสถานะใน Google Sheet
+      const statusStr = item.status || '';
+      if (statusStr.includes('ชุด:') || statusStr.includes('ชุด ')) {
+        const match = statusStr.match(/ชุด[:\s]+([^)]+)/);
+        if (match) unitText = match[1].trim();
+        isResponding = true;
+      } else if (statusStr.includes('มอบหมาย:')) {
+        const match = statusStr.match(/มอบหมาย[:\s]+([^)]+)/);
+        if (match) unitText = match[1].trim();
+        isDispatched = true;
+      } else if (statusStr.includes('เข้าพื้นที่') || statusStr.includes('กำลังช่วยเหลือ')) {
+        isResponding = true;
+      }
+
+      // 2. ตรวจสอบจาก dispatchedIncidents ที่ sync มาจาก Backend
+      if (dispInfo) {
+        isDispatched = true;
+        if (dispInfo.accepted_by_unit) {
+          isResponding = true;
+          const u = dispInfo.accepted_by_unit;
+          unitText = `${u.unit_id || ''} ${u.commander ? '(' + u.commander + ')' : ''}`.trim();
+        } else if (!unitText) {
+          if (dispInfo.dispatch_all) {
+            unitText = 'แจ้งกำลังพลทุกนาย (All Units)';
+          } else if (dispInfo.dispatched_units && dispInfo.dispatched_units.length) {
+            unitText = dispInfo.dispatched_units.join(', ');
+          } else if (dispInfo.assigned_units && dispInfo.assigned_units.length) {
+            unitText = dispInfo.assigned_units.map(u => u.commander || u.unit_id || u.phone).filter(Boolean).join(', ');
+          }
+        }
+      }
+
+      return { unitText, isResponding, isDispatched, dispInfo };
     }
 
     function renderTacticalIncidentMarkers() {
@@ -2872,7 +2953,9 @@
 
         const isCrit = (item.urgency || '').includes('วิกฤต');
         const isResolved = (item.status || '').includes('เสร็จ') || (item.status || '').includes('เรียบร้อย');
-        const isProgress = (item.status || '').includes('ดำเนิน');
+        const isProgress = (item.status || '').includes('ดำเนิน') || (item.status || '').includes('ช่วย') || (item.status || '').includes('เข้าพื้นที่') || (item.status || '').includes('ปฏิบัติ');
+
+        const respInfo = getRespondingUnitInfo(item);
 
         let pinColor = '#38bdf8';
         let pulseHtml = '';
@@ -2885,6 +2968,10 @@
         } else if (isResolved) {
           pinColor = '#10b981';
           iconClass = 'fa-check';
+        } else if (respInfo.isResponding) {
+          pinColor = '#f59e0b';
+          pulseHtml = '<span class="absolute w-8 h-8 rounded-full bg-amber-500 opacity-60 animate-ping"></span>';
+          iconClass = 'fa-person-running';
         } else if (isProgress) {
           pinColor = '#f59e0b';
           pulseHtml = '<span class="absolute w-8 h-8 rounded-full bg-amber-500 opacity-40 animate-ping"></span>';
@@ -2896,10 +2983,13 @@
         else if (t.includes('น้ำ') || t.includes('ท่วม')) iconClass = 'fa-water';
         else if (t.includes('รถ') || t.includes('อุบัติเหตุ')) iconClass = 'fa-car-burst';
         else if (t.includes('ช่วย') || t.includes('พยาบาล')) iconClass = 'fa-hand-holding-medical';
+        if (respInfo.isResponding) iconClass = 'fa-person-running';
 
         const cleanIncTitle = (item.title || 'เหตุการณ์')
           .replace(/^\[RTSD-\d+\]\s*/, '')
           .trim();
+
+        const badgeLabel = respInfo.unitText ? `🚗 ${respInfo.unitText.slice(0, 18)}` : (cleanIncTitle.length > 22 ? cleanIncTitle.slice(0, 22) + '...' : cleanIncTitle);
 
         const customIcon = L.divIcon({
           className: 'tactical-div-icon',
@@ -2912,8 +3002,8 @@
               <div style="width: 32px; height: 32px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: ${pinColor}; border: 2px solid #ffffff; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(0,0,0,0.7); transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
                 <i class="fa-solid ${iconClass}" style="transform: rotate(45deg); color: #ffffff; font-size: 14px;"></i>
               </div>
-              <div style="position: absolute; top: -28px; left: 50%; transform: translateX(-50%); background: rgba(10, 16, 30, 0.96); border: 1px solid ${pinColor}; color: #ffffff; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 5px; white-space: nowrap; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,0.8); max-width: 220px; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 4px;">
-                <span>${cleanIncTitle.length > 22 ? cleanIncTitle.slice(0, 22) + '...' : cleanIncTitle}</span>
+              <div style="position: absolute; top: -28px; left: 50%; transform: translateX(-50%); background: rgba(10, 16, 30, 0.96); border: 1px solid ${pinColor}; color: #ffffff; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 5px; white-space: nowrap; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,0.8); max-width: 240px; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 4px;">
+                <span>${badgeLabel}</span>
               </div>
             </div>
           `
@@ -2925,6 +3015,19 @@
             <img src="${directImg}" style="width: 100%; height: 100%; object-fit: cover;" alt="ภาพหลักฐาน">
           </div>
         ` : '';
+
+        let popupUnitHtml = '';
+        if (respInfo.unitText) {
+          popupUnitHtml = `
+            <div style="background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.5); border-radius: 6px; padding: 5px 8px; margin-top: 6px; font-size: 11px; color: #fef08a; display: flex; align-items: center; gap: 6px;">
+              <i class="fa-solid fa-truck-fast" style="color: #fbbf24; font-size: 13px;"></i>
+              <div style="min-width: 0; flex: 1;">
+                <b style="color: #fbbf24;">${respInfo.isResponding ? '🚗 ชุดปฏิบัติการกำลังเข้าพื้นที่:' : '📢 มอบหมายกำลังพล:'}</b><br>
+                <span style="font-weight: 600;">${respInfo.unitText}</span>
+              </div>
+            </div>
+          `;
+        }
 
         const popupContent = `
           <div style="min-width: 230px; max-width: 280px; font-family: 'Prompt', sans-serif;">
@@ -2944,6 +3047,9 @@
               <i class="fa-solid fa-location-dot" style="color: #f43f5e; margin-top: 2px; font-size: 10px;"></i>
               <span>${item.address || 'ไม่ระบุที่อยู่'}</span>
             </div>
+
+            ${popupUnitHtml}
+
             <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #64748b; border-top: 1px solid #1e293b; padding-top: 6px; margin-top: 6px;">
               <span>👤 ${item.reporter || 'ประชาชน'}</span>
               <span>${formatRelativeTime(item.timestamp)}</span>
@@ -3037,9 +3143,10 @@
         const res = await fetch(`${API_BASE}/api/incident/dispatched-list`);
         if (res.ok) {
           const data = await res.json();
-          if (data && data.dispatched) {
-            dispatchedIncidents = data.dispatched;
+          if (data) {
+            dispatchedIncidents = data.dispatched || data;
             renderTacticalIncidentFeed();
+            renderTacticalIncidentMarkers();
           }
         }
       } catch (err) {
@@ -6252,6 +6359,7 @@
           setTimeout(() => refreshIcon.classList.remove('fa-spin'), 600);
         }
         fetchFieldReports();
+        fetchDispatchedList();
         const syncText = document.getElementById('tacticalLastSyncText');
         if (syncText) {
           const now = new Date();
