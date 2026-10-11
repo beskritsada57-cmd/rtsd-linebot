@@ -541,6 +541,69 @@
               <i class="fa-solid fa-map-pin"></i> <span id="addPinBtnText" class="hidden xl:inline">ปักหมุด</span>
               <span id="customPinCountBadge" class="hidden px-1.5 py-0.2 rounded-full bg-emerald-500 text-slate-950 text-[9px] font-bold">0</span>
             </button>
+
+            <!-- Layer Filters Dropdown (ฟิลเตอร์เปิด/ปิดหมุดบนแผนที่) -->
+            <div class="relative inline-block text-left" id="mapLayerFilterContainer">
+              <button id="btnMapLayerFilter" onclick="toggleMapLayerFilterDropdown()" class="px-2 py-0.5 text-[11px] rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 cursor-pointer transition-all flex items-center gap-1 shadow-sm" title="ฟิลเตอร์เปิด/ปิดการแสดงผลหมุดบนแผนที่">
+                <i class="fa-solid fa-layer-group text-amber-400"></i>
+                <span class="hidden xl:inline">ฟิลเตอร์หมุด</span>
+                <i class="fa-solid fa-chevron-down text-[9px] text-slate-400"></i>
+              </button>
+              
+              <!-- Dropdown Menu -->
+              <div id="mapLayerFilterDropdown" class="hidden absolute right-0 mt-1 w-56 rounded-xl bg-slate-900/95 backdrop-blur-md border border-slate-700 shadow-2xl z-50 p-2.5 space-y-1.5 text-xs text-slate-200">
+                <div class="text-[11px] font-bold text-slate-400 px-1 pb-1 border-b border-slate-800 flex items-center justify-between">
+                  <span>ตัวกรองการแสดงผลบนแผนที่</span>
+                  <span id="activeLayerCount" class="text-[10px] text-sky-400 font-mono">4/4 เปิด</span>
+                </div>
+                
+                <!-- Toggle SOS -->
+                <label class="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-800/80 cursor-pointer select-none">
+                  <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
+                    <span class="font-medium text-red-300">🚨 สัญญาณ SOS</span>
+                  </div>
+                  <input type="checkbox" id="chkFilterSos" checked onchange="toggleLayerFilter('sos', this.checked)" class="accent-red-500 rounded cursor-pointer">
+                </label>
+                
+                <!-- Toggle Incidents -->
+                <label class="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-800/80 cursor-pointer select-none">
+                  <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                    <span>📍 จุดแจ้งเหตุการณ์</span>
+                  </div>
+                  <input type="checkbox" id="chkFilterIncidents" checked onchange="toggleLayerFilter('incidents', this.checked)" class="accent-amber-500 rounded cursor-pointer">
+                </label>
+                
+                <!-- Toggle Tactical Units -->
+                <label class="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-800/80 cursor-pointer select-none">
+                  <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                    <span>🛡️ ชุดปฏิบัติการสด</span>
+                  </div>
+                  <input type="checkbox" id="chkFilterUnits" checked onchange="toggleLayerFilter('units', this.checked)" class="accent-emerald-500 rounded cursor-pointer">
+                </label>
+                
+                <!-- Toggle Custom Dropped Pins -->
+                <label class="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-800/80 cursor-pointer select-none">
+                  <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
+                    <span>📌 หมุดที่ปักเอง</span>
+                    <span id="dropdownCustomPinCount" class="text-[10px] text-purple-300 font-mono">(0)</span>
+                  </div>
+                  <input type="checkbox" id="chkFilterPins" checked onchange="toggleLayerFilter('pins', this.checked)" class="accent-purple-500 rounded cursor-pointer">
+                </label>
+
+                <!-- Action: Clear / Delete all custom pins -->
+                <div class="pt-1.5 border-t border-slate-800 flex items-center justify-between gap-1 text-[11px]">
+                  <button onclick="clearAllCustomPins()" class="w-full py-1 px-2 rounded-lg bg-rose-950/60 hover:bg-rose-900 border border-rose-500/30 text-rose-300 hover:text-white transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                    <i class="fa-solid fa-trash-can text-[10px]"></i>
+                    <span>ลบหมุดที่ปักเองทั้งหมด</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <button id="toggleRadarBtn" onclick="toggleRadarSweep()" class="px-2 py-0.5 text-[11px] rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 cursor-pointer" title="เปิด/ปิดการกวาดสัญญาณเรดาร์">
               <i class="fa-solid fa-radar text-red-400 mr-0.5"></i> <span id="radarStateText">เปิด</span>
             </button>
@@ -3808,9 +3871,17 @@
           incidentMapMarkers[key].setLatLng([lat, lon]);
           incidentMapMarkers[key].setIcon(customIcon);
           incidentMapMarkers[key].setPopupContent(popupContent);
+          if (isLayerVisible.incidents === false && tacticalMap.hasLayer(incidentMapMarkers[key])) {
+            tacticalMap.removeLayer(incidentMapMarkers[key]);
+          } else if (isLayerVisible.incidents !== false && !tacticalMap.hasLayer(incidentMapMarkers[key])) {
+            incidentMapMarkers[key].addTo(tacticalMap);
+          }
         } else {
-          const marker = L.marker([lat, lon], { icon: customIcon }).addTo(tacticalMap);
+          const marker = L.marker([lat, lon], { icon: customIcon });
           marker.bindPopup(popupContent);
+          if (isLayerVisible.incidents !== false) {
+            marker.addTo(tacticalMap);
+          }
           incidentMapMarkers[key] = marker;
         }
       });
@@ -4380,6 +4451,9 @@
               <a href="https://www.google.com/maps/dir/?api=1&destination=${coords.lat},${coords.lon}" target="_blank" style="padding: 6px 10px; border-radius: 6px; background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-size: 11px; font-weight: 700; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 4px;">
                 <i class="fa-solid fa-location-arrow"></i> นำทาง
               </a>
+              <button onclick="dismissSosAlert('${item.id || item.timestamp || item.unit_id}', '${safeSender}')" style="padding: 6px 8px; border-radius: 6px; background: rgba(148, 163, 184, 0.2); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.4); font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;" title="ปิดหรือซ่อนหมุด SOS นี้">
+                <i class="fa-solid fa-eye-slash"></i> ซ่อน
+              </button>
             </div>
           </div>
         `;
@@ -4387,10 +4461,17 @@
         if (liveSosMapMarkers[sosId]) {
           liveSosMapMarkers[sosId].setLatLng([coords.lat, coords.lon]);
           liveSosMapMarkers[sosId].setPopupContent(popupHtml);
+          if (isLayerVisible.sos === false && tacticalMap.hasLayer(liveSosMapMarkers[sosId])) {
+            tacticalMap.removeLayer(liveSosMapMarkers[sosId]);
+          } else if (isLayerVisible.sos !== false && !tacticalMap.hasLayer(liveSosMapMarkers[sosId])) {
+            liveSosMapMarkers[sosId].addTo(tacticalMap);
+          }
         } else {
           const marker = L.marker([coords.lat, coords.lon], { icon: customSosIcon, zIndexOffset: 2500 })
-            .addTo(tacticalMap)
             .bindPopup(popupHtml, { maxWidth: 320 });
+          if (isLayerVisible.sos !== false) {
+            marker.addTo(tacticalMap);
+          }
           liveSosMapMarkers[sosId] = marker;
         }
       });
@@ -4441,11 +4522,17 @@
       if (!sosContainer || !photosContainer || !photosList) return;
 
       // Filter SOS and Support Requests (status contains SOS or request)
-      const sosReports = liveFieldReports.filter(r => 
+      const allSosReports = liveFieldReports.filter(r => 
         r.report_type === 'support_request' || 
         r.status === 'SOS' || 
         (r.message && (r.message.includes('ขอสนับสนุน') || r.message.includes('ขอกำลัง') || r.message.includes('ขอเรือ') || r.message.includes('ขอรถ') || r.message.includes('ขอกู้ภัย')))
       );
+
+      // กรองเฉพาะรายการที่ยังไม่ได้ถูกกดปิด/ซ่อน
+      const sosReports = allSosReports.filter(r => {
+        const id = r.id || r.timestamp || r.unit_id;
+        return !dismissedSosIds.has(String(id));
+      });
 
       // วาดหมุดสัญญาณขอรับการสนับสนุน (SOS) บนแผนที่ทันที
       renderLiveSosMarkersOnMap(sosReports);
@@ -4458,9 +4545,29 @@
       );
 
       // 1. Render SOS / Support Requests Container
+      const hiddenCount = allSosReports.length - sosReports.length;
+      let restoreBarHtml = '';
+      if (hiddenCount > 0) {
+        restoreBarHtml = `
+          <div class="p-2 rounded-xl bg-slate-900/80 border border-slate-700/60 text-xs text-slate-300 flex items-center justify-between">
+            <span class="flex items-center gap-1.5 text-[11px] text-slate-400">
+              <i class="fa-solid fa-eye-slash text-slate-500"></i> ซ่อนสัญญาณ SOS ไว้ <strong>${hiddenCount}</strong> รายการ
+            </span>
+            <button onclick="restoreAllDismissedSos()" class="px-2 py-0.5 rounded-lg bg-sky-600/30 hover:bg-sky-600 text-sky-300 hover:text-white border border-sky-500/40 text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1">
+              <i class="fa-solid fa-rotate-left text-[10px]"></i> กู้คืนทั้งหมด
+            </button>
+          </div>
+        `;
+      }
+
       if (sosReports.length === 0) {
-        sosContainer.classList.add('hidden');
-        sosContainer.innerHTML = '';
+        if (hiddenCount > 0) {
+          sosContainer.classList.remove('hidden');
+          sosContainer.innerHTML = restoreBarHtml;
+        } else {
+          sosContainer.classList.add('hidden');
+          sosContainer.innerHTML = '';
+        }
       } else {
         sosContainer.classList.remove('hidden');
         sosContainer.innerHTML = sosReports.map(item => {
@@ -4504,11 +4611,15 @@
                           class="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-[11px] flex items-center gap-1 transition-all shadow-md shadow-rose-950/50 cursor-pointer">
                     <i class="fa-solid fa-crosshairs"></i> ซูมดูในแผนที่
                   </button>
+                  <button onclick="dismissSosAlert('${safeId}', '${safeSender}')" 
+                          class="px-2 py-1 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600 font-semibold text-[11px] flex items-center gap-1 transition-all cursor-pointer shadow-sm" title="ปิดหรือซ่อนการแจ้งเตือนสัญญาณ SOS นี้">
+                    <i class="fa-solid fa-eye-slash text-slate-400"></i> ปิด/ซ่อน
+                  </button>
                 </div>
               </div>
             </div>
           `;
-        }).join('');
+        }).join('') + restoreBarHtml;
       }
 
       // 2. Render Field Photos Strip Container
@@ -5713,6 +5824,197 @@
     let pendingPinLatLng = null;
     let currentRadarRangeMode = 'auto'; // 'auto' or fixed meters (e.g. 500, 1000, 3000, 5000, 10000)
 
+    // Dismissed SOS Alerts set (stored locally)
+    let dismissedSosIds = new Set();
+    try {
+      const savedDismissed = localStorage.getItem('rtsd_dismissed_sos_ids');
+      if (savedDismissed) {
+        const arr = JSON.parse(savedDismissed);
+        if (Array.isArray(arr)) dismissedSosIds = new Set(arr);
+      }
+    } catch(e) {}
+
+    // Map Layer Visibility State (stored locally)
+    let isLayerVisible = {
+      sos: true,
+      incidents: true,
+      units: true,
+      pins: true
+    };
+    try {
+      const savedLayers = localStorage.getItem('rtsd_layer_filters');
+      if (savedLayers) {
+        const obj = JSON.parse(savedLayers);
+        if (obj && typeof obj === 'object') {
+          isLayerVisible = { ...isLayerVisible, ...obj };
+        }
+      }
+    } catch(e) {}
+
+    function dismissSosAlert(sosId, sender) {
+      if (!sosId) return;
+      dismissedSosIds.add(String(sosId));
+      try {
+        localStorage.setItem('rtsd_dismissed_sos_ids', JSON.stringify([...dismissedSosIds]));
+      } catch (e) {}
+
+      // ปิด popup บนแผนที่
+      if (tacticalMap) tacticalMap.closePopup();
+
+      // ลบหมุดออกจากแผนที่
+      const markerKey = `sos_${sosId}`;
+      if (liveSosMapMarkers[markerKey] && tacticalMap) {
+        tacticalMap.removeLayer(liveSosMapMarkers[markerKey]);
+        delete liveSosMapMarkers[markerKey];
+      }
+      if (liveSosMapMarkers[sosId] && tacticalMap) {
+        tacticalMap.removeLayer(liveSosMapMarkers[sosId]);
+        delete liveSosMapMarkers[sosId];
+      }
+
+      // ปลดล็อคเป้าหมายหากล็อคอยู่บนจุดนี้
+      if (lockedTargetUnitId === sosId || lockedTargetUnitId === markerKey) {
+        unlockTarget();
+      }
+
+      // รีเฟรชการแสดงผลแถบ SOS ขวา
+      renderLiveFieldReports();
+      showToast(`✅ ปิด/ซ่อนการแจ้งเตือน SOS ของ ${sender || 'ชุดปฏิบัติการ'} เรียบร้อยแล้ว`);
+    }
+
+    function restoreAllDismissedSos() {
+      dismissedSosIds.clear();
+      try {
+        localStorage.removeItem('rtsd_dismissed_sos_ids');
+      } catch (e) {}
+      renderLiveFieldReports();
+      showToast('🔄 กู้คืนรายการแจ้งเตือน SOS ทั้งหมดกลับมาแสดงผลแล้ว');
+    }
+
+    function toggleLayerFilter(type, isVisible) {
+      if (!tacticalMap) return;
+      isLayerVisible[type] = isVisible;
+      try {
+        localStorage.setItem('rtsd_layer_filters', JSON.stringify(isLayerVisible));
+      } catch(e) {}
+
+      if (type === 'sos') {
+        Object.keys(liveSosMapMarkers).forEach(k => {
+          if (isVisible) {
+            if (!tacticalMap.hasLayer(liveSosMapMarkers[k])) liveSosMapMarkers[k].addTo(tacticalMap);
+          } else {
+            if (tacticalMap.hasLayer(liveSosMapMarkers[k])) tacticalMap.removeLayer(liveSosMapMarkers[k]);
+          }
+        });
+        showToast(isVisible ? '🚨 เปิดแสดงหมุด SOS' : '🙈 ซ่อนหมุด SOS บนแผนที่แล้ว');
+      } else if (type === 'incidents') {
+        Object.keys(incidentMapMarkers).forEach(k => {
+          if (isVisible) {
+            if (!tacticalMap.hasLayer(incidentMapMarkers[k])) incidentMapMarkers[k].addTo(tacticalMap);
+          } else {
+            if (tacticalMap.hasLayer(incidentMapMarkers[k])) tacticalMap.removeLayer(incidentMapMarkers[k]);
+          }
+        });
+        showToast(isVisible ? '📍 เปิดแสดงหมุดเหตุการณ์' : '🙈 ซ่อนหมุดเหตุการณ์บนแผนที่แล้ว');
+      } else if (type === 'units') {
+        Object.keys(tacticalMarkers).forEach(k => {
+          if (isVisible) {
+            if (!tacticalMap.hasLayer(tacticalMarkers[k])) tacticalMarkers[k].addTo(tacticalMap);
+          } else {
+            if (tacticalMap.hasLayer(tacticalMarkers[k])) tacticalMap.removeLayer(tacticalMarkers[k]);
+          }
+        });
+        showToast(isVisible ? '🛡️ เปิดแสดงหมุดชุดปฏิบัติการ' : '🙈 ซ่อนหมุดชุดปฏิบัติการบนแผนที่แล้ว');
+      } else if (type === 'pins') {
+        Object.keys(customPinMarkers).forEach(k => {
+          if (isVisible) {
+            if (!tacticalMap.hasLayer(customPinMarkers[k])) customPinMarkers[k].addTo(tacticalMap);
+          } else {
+            if (tacticalMap.hasLayer(customPinMarkers[k])) tacticalMap.removeLayer(customPinMarkers[k]);
+          }
+        });
+        showToast(isVisible ? '📌 เปิดแสดงหมุดที่ปักเอง' : '🙈 ซ่อนหมุดที่ปักเองบนแผนที่แล้ว');
+      }
+
+      updateLayerFilterBadge();
+    }
+
+    function updateLayerFilterBadge() {
+      const activeCount = Object.values(isLayerVisible).filter(Boolean).length;
+      const totalCount = Object.keys(isLayerVisible).length;
+      const lbl = document.getElementById('activeLayerCount');
+      if (lbl) lbl.innerText = `${activeCount}/${totalCount} เปิด`;
+
+      const btn = document.getElementById('btnMapLayerFilter');
+      if (btn) {
+        if (activeCount < totalCount) {
+          btn.className = "px-2 py-0.5 text-[11px] rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/50 cursor-pointer transition-all flex items-center gap-1 shadow-sm";
+        } else {
+          btn.className = "px-2 py-0.5 text-[11px] rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 cursor-pointer transition-all flex items-center gap-1 shadow-sm";
+        }
+      }
+
+      const pinCountSpan = document.getElementById('dropdownCustomPinCount');
+      if (pinCountSpan) pinCountSpan.innerText = `(${customTacticalPins.length})`;
+    }
+
+    function toggleMapLayerFilterDropdown() {
+      const dd = document.getElementById('mapLayerFilterDropdown');
+      if (!dd) return;
+      const isHidden = dd.classList.contains('hidden');
+      if (isHidden) {
+        const chkSos = document.getElementById('chkFilterSos');
+        const chkInc = document.getElementById('chkFilterIncidents');
+        const chkUnits = document.getElementById('chkFilterUnits');
+        const chkPins = document.getElementById('chkFilterPins');
+        if (chkSos) chkSos.checked = isLayerVisible.sos !== false;
+        if (chkInc) chkInc.checked = isLayerVisible.incidents !== false;
+        if (chkUnits) chkUnits.checked = isLayerVisible.units !== false;
+        if (chkPins) chkPins.checked = isLayerVisible.pins !== false;
+        updateLayerFilterBadge();
+        dd.classList.remove('hidden');
+      } else {
+        dd.classList.add('hidden');
+      }
+    }
+
+    function clearAllCustomPins() {
+      if (customTacticalPins.length === 0) {
+        showToast('ℹ️ ไม่มีหมุดที่ปักเองบนแผนที่');
+        return;
+      }
+      if (!confirm(`คุณต้องการลบหมุดที่ปักเองทั้งหมด (${customTacticalPins.length} หมุด) ออกจากแผนที่หรือไม่?`)) return;
+
+      Object.keys(customPinMarkers).forEach(id => {
+        if (customPinMarkers[id] && tacticalMap) {
+          tacticalMap.removeLayer(customPinMarkers[id]);
+        }
+      });
+      customPinMarkers = {};
+      window.customPinMarkers = customPinMarkers;
+
+      if (lockedTargetUnitId && customTacticalPins.some(p => p.id === lockedTargetUnitId)) {
+        unlockTarget();
+      }
+
+      customTacticalPins = [];
+      saveTacticalPinsToStorage();
+      updatePinCountBadge();
+      updateLayerFilterBadge();
+
+      fetch(API_BASE + '/api/tactical-pins/clear-all', { method: 'POST' }).catch(() => {});
+      showToast('🗑️ ลบหมุดที่ปักเองทั้งหมดเรียบร้อยแล้ว');
+    }
+
+    // Close dropdown on click outside
+    document.addEventListener('click', (e) => {
+      const container = document.getElementById('mapLayerFilterContainer');
+      const dd = document.getElementById('mapLayerFilterDropdown');
+      if (container && dd && !container.contains(e.target)) {
+        dd.classList.add('hidden');
+      }
+    });
+
     const DEFAULT_TACTICAL_UNITS = [];
 
     const SOLDIER_AVATARS = [
@@ -6738,13 +7040,21 @@
         customPinMarkers[pin.id].setLatLng([lat, lon]);
         customPinMarkers[pin.id].setIcon(customIcon);
         customPinMarkers[pin.id].setPopupContent(popupContent);
+        if (isLayerVisible.pins === false && tacticalMap.hasLayer(customPinMarkers[pin.id])) {
+          tacticalMap.removeLayer(customPinMarkers[pin.id]);
+        } else if (isLayerVisible.pins !== false && !tacticalMap.hasLayer(customPinMarkers[pin.id])) {
+          customPinMarkers[pin.id].addTo(tacticalMap);
+        }
       } else {
-        const marker = L.marker([lat, lon], { icon: customIcon }).addTo(tacticalMap);
+        const marker = L.marker([lat, lon], { icon: customIcon });
         marker.bindPopup(popupContent);
         // Clicking marker on map locks radar immediately onto this pin!
         marker.on('click', () => {
           lockOnTacticalPin(pin.id);
         });
+        if (isLayerVisible.pins !== false) {
+          marker.addTo(tacticalMap);
+        }
         customPinMarkers[pin.id] = marker;
       }
     }
@@ -6804,7 +7114,7 @@
       // Update bottom telemetry text
       const coordsBar = document.getElementById('mapCoordsBar');
       if (coordsBar) {
-        coordsBar.innerHTML = `<span class="text-red-400 font-bold">🎯 RADAR LOCKED ON WAYPOINT: [${pin.id}]</span> | LAT: ${lat.toFixed(4)}° LON: ${lon.toFixed(4)}°`;
+        coordsBar.innerHTML = `<span class="text-red-400 font-bold">🎯 RADAR LOCKED ON WAYPOINT: [${pin.id}]</span> | LAT: ${lat.toFixed(4)}° LON: ${lon.toFixed(4)}° <button onclick="unlockTarget()" class="ml-2 px-1.5 py-0.5 rounded bg-red-950/80 hover:bg-red-800 text-red-300 text-[10px] border border-red-500/50 cursor-pointer inline-flex items-center gap-1"><i class="fa-solid fa-unlock text-[9px]"></i>ปลดล็อค</button>`;
       }
 
       // Re-render unit cards to clear unit highlight
@@ -6886,12 +7196,16 @@
 
     function updatePinCountBadge() {
       const badge = document.getElementById('customPinCountBadge');
-      if (!badge) return;
-      if (customTacticalPins.length > 0) {
-        badge.innerText = customTacticalPins.length;
-        badge.classList.remove('hidden');
-      } else {
-        badge.classList.add('hidden');
+      if (badge) {
+        if (customTacticalPins.length > 0) {
+          badge.innerText = customTacticalPins.length;
+          badge.classList.remove('hidden');
+        } else {
+          badge.classList.add('hidden');
+        }
+      }
+      if (typeof updateLayerFilterBadge === 'function') {
+        updateLayerFilterBadge();
       }
     }
 
@@ -7691,12 +8005,20 @@
           tacticalMarkers[uid].setLatLng([lat, lon]);
           tacticalMarkers[uid].setIcon(customIcon);
           tacticalMarkers[uid].setPopupContent(popupContent);
+          if (isLayerVisible.units === false && tacticalMap.hasLayer(tacticalMarkers[uid])) {
+            tacticalMap.removeLayer(tacticalMarkers[uid]);
+          } else if (isLayerVisible.units !== false && !tacticalMap.hasLayer(tacticalMarkers[uid])) {
+            tacticalMarkers[uid].addTo(tacticalMap);
+          }
         } else {
-          const marker = L.marker([lat, lon], { icon: customIcon }).addTo(tacticalMap);
+          const marker = L.marker([lat, lon], { icon: customIcon });
           marker.bindPopup(popupContent);
           marker.on('click', () => {
             lockOnTacticalUnit(uid, lat, lon);
           });
+          if (isLayerVisible.units !== false) {
+            marker.addTo(tacticalMap);
+          }
           tacticalMarkers[uid] = marker;
         }
       });
@@ -8021,7 +8343,7 @@
       // Update bottom telemetry text
       const coordsBar = document.getElementById('mapCoordsBar');
       if (coordsBar) {
-        coordsBar.innerHTML = `<span class="text-red-400 font-bold">🎯 TARGET LOCKED: [${uid}]</span> | LAT: ${targetLat.toFixed(4)}° LON: ${targetLon.toFixed(4)}°`;
+        coordsBar.innerHTML = `<span class="text-red-400 font-bold">🎯 TARGET LOCKED: [${uid}]</span> | LAT: ${targetLat.toFixed(4)}° LON: ${targetLon.toFixed(4)}° <button onclick="unlockTarget()" class="ml-2 px-1.5 py-0.5 rounded bg-red-950/80 hover:bg-red-800 text-red-300 text-[10px] border border-red-500/50 cursor-pointer inline-flex items-center gap-1"><i class="fa-solid fa-unlock text-[9px]"></i>ปลดล็อค</button>`;
       }
 
       // Re-render unit cards to highlight the locked target

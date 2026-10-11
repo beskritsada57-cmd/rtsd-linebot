@@ -1319,6 +1319,15 @@ def api_delete_tactical_pin():
     return jsonify({"status": "success", "id": pin_id}), 200
 
 
+@app.route("/api/tactical-pins/clear-all", methods=['POST'])
+def api_clear_all_tactical_pins():
+    """ลบหมุดยุทธการทั้งหมด"""
+    global TACTICAL_PINS
+    TACTICAL_PINS = []
+    save_tactical_pins()
+    return jsonify({"status": "success", "message": "ลบหมุดยุทธการทั้งหมดเรียบร้อยแล้ว"}), 200
+
+
 # =========================================================================
 # 🚨 5.3 ศูนย์สั่งการกำลังพล & แจ้งเตือนไประงับเหตุ (Incident Dispatch Center)
 # =========================================================================
