@@ -78,7 +78,7 @@ def create_unified_4grid_menu():
             # ช่อง 2 (ขวาบน): 🗺️ แผนที่สถานการณ์ & กำลังพล
             {
                 "bounds": {"x": 1250, "y": 0, "width": 1250, "height": 843},
-                "action": {"type": "uri", "uri": "https://rtsd-linebot.onrender.com/dashboard"}
+                "action": {"type": "uri", "uri": "https://rtsd-linebot.onrender.com/map"}
             },
             # ช่อง 3 (ซ้ายล่าง): 📞 สายด่วนกู้ภัย & ศูนย์ TOC 24 ชม.
             {

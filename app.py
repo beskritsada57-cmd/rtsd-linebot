@@ -553,6 +553,24 @@ def index():
             "👉 เปิดหน้าจอส่งพิกัดสดสำหรับเจ้าหน้าที่ (Live Tracker): <a href='/tracker'><b>/tracker</b></a>")
 
 
+
+@app.route("/map", methods=['GET'])
+@app.route("/situational-map", methods=['GET'])
+def situational_map_page():
+    """หน้าเว็บแผนที่สถานการณ์สดสำหรับมือถือ (Mobile-First Situational Map)"""
+    html_path = os.path.join(os.path.dirname(__file__), "map.html")
+    if os.path.exists(html_path):
+        with open(html_path, "r", encoding="utf-8") as f:
+            headers = {
+                'Content-Type': 'text/html; charset=utf-8',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
+            return f.read(), 200, headers
+    return "Map HTML template not found on server", 404
+
+
 @app.route("/dashboard", methods=['GET'])
 def dashboard():
     """หน้าเว็บ Command Center Dashboard สำหรับแสดงผลสถิติและแผนที่ GIS"""
@@ -3219,13 +3237,13 @@ def handle_text(event):
             msg_lines.append("💡 เจ้าหน้าที่สามารถกด '🛰️ ส่งพิกัดสด GPS' หรือเปิดหน้าเว็บ https://rtsd-linebot.onrender.com/tracker เพื่อเริ่มเข้าเวรได้ทันทีครับ")
             
         msg_lines.append("━━━━━━━━━━━━━━━━━━")
-        msg_lines.append("🌐 ดูแผนที่ Tactical GIS สด:\n👉 https://rtsd-linebot.onrender.com/dashboard")
+        msg_lines.append("🌐 ดูแผนที่สถานการณ์สด (มือถือ):\n👉 https://rtsd-linebot.onrender.com/map\n(หรือเปิด Command Dashboard PC: https://rtsd-linebot.onrender.com/dashboard)")
         
         quick_reply = QuickReply(items=[
+            QuickReplyItem(action=URIAction(label="🗺️ แผนที่สถานการณ์", uri="https://rtsd-linebot.onrender.com/map")),
             QuickReplyItem(action=MessageAction(label="🔄 รีเฟรชยอด", text="เช็กกำลังพล")),
             QuickReplyItem(action=LocationAction(label="📍 เช็กสถานการณ์รอบตัว")),
-            QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุเตือนภัย", text="แจ้งเหตุ")),
-            QuickReplyItem(action=MessageAction(label="🛰️ ส่งพิกัดสด GPS", text="แทร็กกิ้ง"))
+            QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุเตือนภัย", text="แจ้งเหตุ"))
         ])
         reply_message = TextMessage(text="\n".join(msg_lines), quick_reply=quick_reply)
 
@@ -3297,7 +3315,25 @@ def handle_text(event):
         )
         quick_reply = QuickReply(items=[
             QuickReplyItem(action=URIAction(label="📥 ดาวน์โหลดไฟล์ APK", uri="https://rtsd-linebot.onrender.com/download/app")),
-            QuickReplyItem(action=URIAction(label="🗺️ แผนที่สถานการณ์", uri="https://rtsd-linebot.onrender.com/dashboard")),
+            QuickReplyItem(action=URIAction(label="🗺️ แผนที่สถานการณ์", uri="https://rtsd-linebot.onrender.com/map")),
+            QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุฉุกเฉิน", text="แจ้งเหตุ"))
+        ])
+        reply_message = TextMessage(text=reply_msg, quick_reply=quick_reply)
+
+    # =========================================================================
+    # 🗺️ แผนที่สถานการณ์สดสำหรับมือถือ (Mobile Situational Map)
+    # =========================================================================
+    elif user_text in ["แผนที่", "แผนที่สถานการณ์", "แมพ", "map", "live map", "ดูแผนที่"]:
+        reply_msg = (
+            "🗺️ แผนที่สถานการณ์สด RTSD (Mobile Situational Map)\n"
+            "━━━━━━━━━━━━━━━━━━\n"
+            "ระบบแสดงพิกัดเหตุการณ์ฉุกเฉินและจุดชุดปฏิบัติการที่กำลัง Active แบบเรียลไทม์\n"
+            "ออกแบบสำหรับเปิดใช้งานบนสมาร์ตโฟนโดยเฉพาะ รวดเร็ว ไม่รกตา ใช้งานง่าย\n\n"
+            "👉 แตะปุ่ม '🗺️ เปิดแผนที่สถานการณ์' ด้านล่างเพื่อเข้าดูได้ทันทีครับ:"
+        )
+        quick_reply = QuickReply(items=[
+            QuickReplyItem(action=URIAction(label="🗺️ เปิดแผนที่สถานการณ์", uri="https://rtsd-linebot.onrender.com/map")),
+            QuickReplyItem(action=URIAction(label="🖥️ แดชบอร์ดศูนย์ TOC (PC)", uri="https://rtsd-linebot.onrender.com/dashboard")),
             QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุฉุกเฉิน", text="แจ้งเหตุ"))
         ])
         reply_message = TextMessage(text=reply_msg, quick_reply=quick_reply)
