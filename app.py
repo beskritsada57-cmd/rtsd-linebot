@@ -762,6 +762,116 @@ def api_system_settings():
     return jsonify(SYSTEM_SETTINGS), 200
 
 
+@app.route("/api/system/broadcast-app-update", methods=['POST'])
+def api_broadcast_app_update():
+    """
+    ส่งข้อความ Broadcast ทาง LINE แจ้งเตือนเพื่อน/ผู้ติดตามทุกคนว่ามีการอัปเดตแอปพลิเคชันเวอร์ชันใหม่
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        version = str(data.get("version") or "v1.3").strip()
+        changelog = str(data.get("changelog") or "ปรับปรุงระบบถ่ายภาพหน้างาน และส่งสัญญาณขอกำลังเสริมด่วน (SOS) พร้อมพิกัด GPS สด").strip()
+        download_url = str(data.get("download_url") or "https://rtsd-linebot.onrender.com/download/app").strip()
+        map_url = "https://rtsd-linebot.onrender.com/map"
+        dashboard_url = "https://rtsd-linebot.onrender.com/dashboard"
+
+        msg_text = (
+            f"📲 [แจ้งอัปเดตแอปพลิเคชัน RTSD Tactical Tracker]\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"🌟 เวอร์ชันใหม่: {version}\n"
+            f"🛡️ ระบบติดตามยุทธการและสนับสนุนภาคสนาม กรมแผนที่ทหาร\n\n"
+            f"📋 ไฮไลต์การปรับปรุง:\n"
+            f"• {changelog}\n"
+            f"• รองรับการถ่ายภาพความคืบหน้าหน้างานส่งตรงเข้าศูนย์ TOC\n"
+            f"• เพิ่มระบบส่งสัญญาณขอกำลังเสริมด่วน (SOS) พร้อมพิกัดสด\n"
+            f"• เพิ่มความแม่นยำและการซูมตำแหน่งเหตุการณ์บนแผนที่\n\n"
+            f"📥 ดาวน์โหลดและติดตั้งใหม่ได้ทันทีที่:\n"
+            f"👉 {download_url}\n\n"
+            f"💡 ข้อแนะนำ: เจ้าหน้าที่สามารถกดดาวน์โหลดไฟล์ APK และกดติดตั้งทับ (Update) เพื่อเริ่มใช้งานต่อได้ทันทีครับ\n"
+            f"━━━━━━━━━━━━━━━━━━"
+        )
+
+        quick_reply = {
+            "items": [
+                {
+                    "type": "action",
+                    "action": {
+                        "type": "uri",
+                        "label": "📥 ดาวน์โหลด APK",
+                        "uri": download_url
+                    }
+                },
+                {
+                    "type": "action",
+                    "action": {
+                        "type": "uri",
+                        "label": "🗺️ แผนที่สถานการณ์",
+                        "uri": map_url
+                    }
+                },
+                {
+                    "type": "action",
+                    "action": {
+                        "type": "uri",
+                        "label": "🖥️ แดชบอร์ดศูนย์ TOC",
+                        "uri": dashboard_url
+                    }
+                }
+            ]
+        }
+
+        headers = {
+            "Authorization": f"Bearer {CHANNEL_ACCESS_TOKEN}",
+            "Content-Type": "application/json"
+        }
+        broadcast_payload = {
+            "messages": [
+                {
+                    "type": "text",
+                    "text": msg_text,
+                    "quickReply": quick_reply
+                }
+            ]
+        }
+
+        # ส่งผ่าน LINE Official Broadcast API (ไปยังเพื่อนทุกคน)
+        resp = requests.post("https://api.line.me/v2/bot/message/broadcast", headers=headers, json=broadcast_payload, timeout=10)
+        is_broadcast_ok = resp.status_code == 200
+
+        # ส่ง Push Message สำรองไปยังผู้ใช้ที่ลงทะเบียนในระบบ
+        pushed_count = 0
+        for lid in list(registered_users.keys()):
+            if str(lid).startswith("U"):
+                try:
+                    push_payload = {
+                        "to": str(lid),
+                        "messages": [
+                            {
+                                "type": "text",
+                                "text": msg_text,
+                                "quickReply": quick_reply
+                            }
+                        ]
+                    }
+                    p_resp = requests.post("https://api.line.me/v2/bot/message/push", headers=headers, json=push_payload, timeout=5)
+                    if p_resp.status_code == 200:
+                        pushed_count += 1
+                except Exception as push_err:
+                    print(f"[Broadcast fallback push] Error to {lid}: {push_err}")
+
+        return jsonify({
+            "status": "success",
+            "message": "ส่งข้อความแจ้งเตือนอัปเดตแอปพลิเคชันทาง LINE เรียบร้อยแล้ว",
+            "broadcast_status": resp.status_code,
+            "broadcast_ok": is_broadcast_ok,
+            "pushed_count": pushed_count,
+            "version": version
+        }), 200
+    except Exception as e:
+        print(f"[api_broadcast_app_update] Error: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 @app.route("/api/incidents", methods=['GET'])
 def api_incidents():
     """API ดึงข้อมูลเหตุการณ์ทั้งหมดจาก Google Sheets สำหรับ Dashboard"""

@@ -413,6 +413,13 @@
           <span id="pendingUsersBadge" class="hidden px-1.5 py-0.5 rounded-full bg-amber-500 text-slate-900 text-[10px] font-bold animate-pulse">0</span>
         </button>
 
+        <!-- Broadcast LINE App Update Button -->
+        <button id="broadcastAppUpdateBtn" onclick="openBroadcastAppUpdateModal()" class="items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 border border-emerald-500/40 transition-all font-medium cursor-pointer shadow-md shadow-emerald-950/40 text-xs flex" title="ส่งข้อความแจ้งเตือนอัปเดตแอปพลิเคชันไปยังเพื่อนทุกคนใน LINE">
+          <i class="fa-brands fa-line text-emerald-400 text-sm"></i>
+          <span class="hidden sm:inline">แจ้งอัปเดตแอป (LINE)</span>
+          <span class="sm:hidden">LINE Update</span>
+        </button>
+
         <!-- New Incident Report Button (TOC ศูนย์ควบคุมแจ้งเหตุ) -->
         <button onclick="openCreateIncidentModal()" class="px-3 py-1 rounded-lg bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 transition-all font-bold text-white shadow-md shadow-red-900/40 flex items-center gap-1.5 cursor-pointer text-xs" title="ศูนย์ TOC เปิดใบแจ้งเหตุฉุกเฉินใหม่">
           <i class="fa-solid fa-bullhorn text-amber-300 animate-pulse"></i>
@@ -1488,7 +1495,86 @@
       </div>
     </div>
 
-  </main>
+  <!-- ========================================================================= -->
+  <!-- 📲 BROADCAST APP UPDATE MODAL (แจ้งเตือนอัปเดตแอปทาง LINE) -->
+  <!-- ========================================================================= -->
+  <div id="broadcastAppUpdateModal" class="hidden fixed inset-0 z-[125] bg-black/85 backdrop-blur-md items-center justify-center p-3 sm:p-5" style="display: none;">
+    <div class="bg-slate-900 border border-emerald-500/50 rounded-2xl max-w-xl w-full p-4 sm:p-6 relative shadow-2xl shadow-emerald-950/60 flex flex-col overflow-hidden max-h-[92vh]">
+      <!-- Modal Header -->
+      <div class="shrink-0 flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl border border-emerald-500/30 shadow-inner">
+            <i class="fa-brands fa-line"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-white text-base flex items-center gap-2">
+              แจ้งเตือนอัปเดตแอปพลิเคชันทาง LINE
+              <span class="px-2 py-0.5 text-[10px] font-semibold rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">BROADCAST</span>
+            </h3>
+            <p class="text-xs text-slate-400">ส่งข้อความแจ้งเตือนเพื่อนและผู้ติดตามทุกคนใน LINE เพื่อดาวน์โหลด APK เวอร์ชันล่าสุด</p>
+          </div>
+        </div>
+        <button onclick="closeBroadcastAppUpdateModal()" class="text-slate-400 hover:text-white text-xl px-2.5 py-1 rounded-lg hover:bg-slate-800 cursor-pointer transition-colors" title="ปิดหน้าต่าง">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Form Body -->
+      <div class="flex-1 overflow-y-auto space-y-4 pr-1">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5">
+            <i class="fa-solid fa-code-branch text-emerald-400 mr-1"></i> เวอร์ชันของแอปพลิเคชัน (Version)
+          </label>
+          <input type="text" id="broadcastAppVersion" value="v1.3" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white text-sm focus:outline-none focus:border-emerald-500 transition-colors" placeholder="เช่น v1.3">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5">
+            <i class="fa-solid fa-list-check text-emerald-400 mr-1"></i> รายละเอียดการอัปเดต (Changelog Highlights)
+          </label>
+          <textarea id="broadcastAppChangelog" rows="2" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs focus:outline-none focus:border-emerald-500 transition-colors leading-relaxed" placeholder="ระบุสิ่งที่อัปเดตหรือปรับปรุง">ปรับปรุงระบบถ่ายภาพรายงานหน้างาน และส่งสัญญาณขอกำลังเสริมด่วน (SOS) พร้อมพิกัด GPS สด</textarea>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5">
+            <i class="fa-solid fa-link text-emerald-400 mr-1"></i> ลิงก์ดาวน์โหลดไฟล์ติดตั้ง APK
+          </label>
+          <input type="text" id="broadcastAppUrl" value="https://rtsd-linebot.onrender.com/download/app" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-sky-400 font-mono text-xs focus:outline-none focus:border-emerald-500 transition-colors">
+        </div>
+
+        <!-- Preview Card -->
+        <div class="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 text-xs">
+          <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+            <span><i class="fa-solid fa-eye text-sky-400 mr-1"></i> ตัวอย่างข้อความที่จะส่งเข้า LINE</span>
+            <span class="text-emerald-400 font-mono text-[10px]">LINE PREVIEW</span>
+          </div>
+          <div class="bg-emerald-950/30 border border-emerald-500/30 rounded-lg p-3 text-slate-200 leading-relaxed font-sans space-y-1.5">
+            <p class="font-bold text-emerald-300">📲 [แจ้งอัปเดตแอปพลิเคชัน RTSD Tactical Tracker]</p>
+            <p class="text-[11px] text-slate-300">🌟 เวอร์ชันใหม่ล่าสุด: <span id="previewVersionText" class="text-white font-bold">v1.3</span></p>
+            <p class="text-[11px] text-slate-300">🛡️ ระบบติดตามยุทธการและสนับสนุนภาคสนาม กรมแผนที่ทหาร</p>
+            <p class="text-[11px] text-emerald-200/90 pt-1 border-t border-emerald-500/20" id="previewChangelogText">
+              • ปรับปรุงระบบถ่ายภาพรายงานหน้างาน และส่งสัญญาณขอกำลังเสริมด่วน (SOS) พร้อมพิกัด GPS สด
+            </p>
+            <p class="text-[11px] text-slate-400 pt-1">
+              📥 ดาวน์โหลดและติดตั้งใหม่ได้ทันที:<br>
+              <span class="text-sky-400 font-mono underline" id="previewUrlText">https://rtsd-linebot.onrender.com/download/app</span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="shrink-0 pt-3 border-t border-slate-800 mt-4 flex items-center justify-between gap-3">
+        <button onclick="closeBroadcastAppUpdateModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-all cursor-pointer">
+          ยกเลิก
+        </button>
+        <button id="sendBroadcastBtn" onclick="confirmSendBroadcastAppUpdate()" class="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-950/60 transition-all cursor-pointer">
+          <i class="fa-solid fa-paper-plane"></i>
+          <span>ส่งข้อความแจ้งเตือนเพื่อนทุกคนใน LINE</span>
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- ========================================================================= -->
   <!-- 🛡️ ADMIN PERSONNEL & ACCESS CONTROL MODAL (จัดการสิทธิ์กำลังพล) -->
@@ -5018,6 +5104,89 @@
           adminBtn.classList.remove('flex');
         }
         document.getElementById('authModal').classList.remove('hidden');
+      }
+    }
+
+    // =========================================================================
+    // 📲 BROADCAST APP UPDATE FUNCTIONS (LINE NOTIFICATION)
+    // =========================================================================
+    function openBroadcastAppUpdateModal() {
+      const modal = document.getElementById('broadcastAppUpdateModal');
+      if (!modal) return;
+      modal.style.display = 'flex';
+      modal.classList.remove('hidden');
+
+      const vInput = document.getElementById('broadcastAppVersion');
+      const cInput = document.getElementById('broadcastAppChangelog');
+      const uInput = document.getElementById('broadcastAppUrl');
+
+      const updatePreview = () => {
+        const pv = document.getElementById('previewVersionText');
+        const pc = document.getElementById('previewChangelogText');
+        const pu = document.getElementById('previewUrlText');
+        if (pv && vInput) pv.innerText = vInput.value;
+        if (pc && cInput) pc.innerText = '• ' + cInput.value;
+        if (pu && uInput) pu.innerText = uInput.value;
+      };
+
+      if (vInput) vInput.oninput = updatePreview;
+      if (cInput) cInput.oninput = updatePreview;
+      if (uInput) uInput.oninput = updatePreview;
+      updatePreview();
+    }
+
+    function closeBroadcastAppUpdateModal() {
+      const modal = document.getElementById('broadcastAppUpdateModal');
+      if (modal) {
+        modal.style.display = 'none';
+        modal.classList.add('hidden');
+      }
+    }
+
+    async function confirmSendBroadcastAppUpdate() {
+      const vInput = document.getElementById('broadcastAppVersion');
+      const cInput = document.getElementById('broadcastAppChangelog');
+      const uInput = document.getElementById('broadcastAppUrl');
+      const sendBtn = document.getElementById('sendBroadcastBtn');
+
+      const version = (vInput ? vInput.value : 'v1.3').trim();
+      const changelog = (cInput ? cInput.value : '').trim();
+      const downloadUrl = (uInput ? uInput.value : 'https://rtsd-linebot.onrender.com/download/app').trim();
+
+      if (!confirm(`ยืนยันการส่งข้อความ Broadcast แจ้งเตือนอัปเดตแอป ${version} ไปยังเพื่อนทุกคนใน LINE ทันทีหรือไม่?`)) {
+        return;
+      }
+
+      if (sendBtn) {
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>กำลังส่งผ่าน LINE API...</span>';
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/system/broadcast-app-update`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            version: version,
+            changelog: changelog,
+            download_url: downloadUrl
+          })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.status === 'success') {
+          showToast(`✅ ส่งข้อความแจ้งอัปเดต ${version} ไปยังทุกคนใน LINE สำเร็จแล้ว!`);
+          closeBroadcastAppUpdateModal();
+        } else {
+          showToast(`⚠️ การส่งขัดข้อง: ${data.message || 'เกิดข้อผิดพลาด'}`);
+        }
+      } catch (err) {
+        showToast(`⚠️ เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์: ${err.message}`);
+      } finally {
+        if (sendBtn) {
+          sendBtn.disabled = false;
+          sendBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>ส่งข้อความแจ้งเตือนเพื่อนทุกคนใน LINE</span>';
+        }
       }
     }
 
