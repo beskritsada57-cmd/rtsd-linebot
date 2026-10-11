@@ -1454,7 +1454,17 @@ def api_incident_field_report():
     """
     global FIELD_REPORTS, active_trackers
     try:
-        data = request.get_json(force=True, silent=True) or {}
+        import json as _py_json
+        data = {}
+        try:
+            if request.is_json:
+                data = request.get_json(silent=True) or {}
+            elif request.data:
+                data = _py_json.loads(request.data.decode('utf-8', errors='ignore'))
+            elif request.form:
+                data = request.form.to_dict()
+        except Exception:
+            data = {}
 
         unit_id = str(data.get("unit_id") or "FIELD-UNIT").strip()
         commander = str(data.get("commander") or "").strip()
