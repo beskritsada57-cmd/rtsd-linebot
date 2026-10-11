@@ -423,17 +423,16 @@
       <!-- LEFT 50%: TACTICAL RADAR MAP -->
       <div id="tacticalMapPanel" class="w-full md:w-1/2 flex flex-col h-full min-h-0 bg-rtsd-card border border-slate-800 rounded-xl p-2.5 shadow-2xl relative overflow-hidden transition-all duration-200">
         <!-- Radar Header -->
-        <div class="shrink-0 flex items-center justify-between pb-1.5 border-b border-slate-800/80 mb-1.5">
-          <div class="flex items-center gap-2">
-            <div class="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></div>
-            <div>
-              <h3 class="font-bold text-xs md:text-sm text-white tracking-wide uppercase flex items-center gap-1.5 font-mono">
-                <i class="fa-solid fa-crosshairs text-red-500"></i>
-                แผนที่เรดาร์พิกัดยุทธวิธีสด
-              </h3>
-            </div>
+        <div class="shrink-0 flex items-center justify-between pb-1.5 border-b border-slate-800/80 mb-1.5 gap-1.5 overflow-x-auto no-scrollbar">
+          <div class="flex items-center gap-1.5 shrink-0 min-w-0">
+            <div class="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping shrink-0"></div>
+            <h3 class="font-bold text-xs text-white tracking-wide uppercase flex items-center gap-1 font-mono shrink-0">
+              <i class="fa-solid fa-crosshairs text-red-500"></i>
+              <span class="hidden sm:inline">เรดาร์พิกัดยุทธวิธีสด</span>
+              <span class="sm:hidden">เรดาร์สด</span>
+            </h3>
           </div>
-          <div class="flex items-center gap-1.5 flex-wrap">
+          <div class="flex items-center gap-1 shrink-0">
             <div class="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-slate-900 text-xs border border-slate-700 text-slate-300" title="ตั้งค่าสเกลระยะเรดาร์ตามระยะทางจริงบนแผนที่">
               <i class="fa-solid fa-ruler-combined text-red-400 text-[10px]"></i>
               <select id="radarRangeSelect" onchange="changeRadarRangeMode(this.value)" class="bg-transparent text-white font-mono text-[11px] focus:outline-none cursor-pointer">
@@ -446,23 +445,23 @@
               </select>
             </div>
             <button id="addPinBtn" onclick="toggleAddPinMode()" class="px-2 py-0.5 text-[11px] rounded-lg bg-emerald-600/30 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/50 cursor-pointer transition-all flex items-center gap-1 shadow-sm" title="เปิดโหมดปักหมุดยุทธวิธีบนแผนที่">
-              <i class="fa-solid fa-map-pin"></i> <span id="addPinBtnText">ปักหมุด</span>
+              <i class="fa-solid fa-map-pin"></i> <span id="addPinBtnText" class="hidden xl:inline">ปักหมุด</span>
               <span id="customPinCountBadge" class="hidden px-1.5 py-0.2 rounded-full bg-emerald-500 text-slate-950 text-[9px] font-bold">0</span>
             </button>
-            <button id="toggleRadarBtn" onclick="toggleRadarSweep()" class="px-2 py-0.5 text-[11px] rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 cursor-pointer">
+            <button id="toggleRadarBtn" onclick="toggleRadarSweep()" class="px-2 py-0.5 text-[11px] rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 cursor-pointer" title="เปิด/ปิดการกวาดสัญญาณเรดาร์">
               <i class="fa-solid fa-radar text-red-400 mr-0.5"></i> <span id="radarStateText">เปิด</span>
             </button>
 
             <!-- 3-Way Segmented Basemap Switcher (Instant 1-Click Selection) -->
             <div class="inline-flex rounded-lg bg-slate-900 p-0.5 border border-slate-700 text-xs">
-              <button id="btnMapOsm" onclick="setBasemapStyle('osm')" class="px-2 py-0.5 rounded-md text-[11px] font-medium transition-all bg-sky-600 text-white shadow cursor-pointer" title="แผนที่ถนน (OpenStreetMap)">
-                <i class="fa-solid fa-map mr-1"></i> ถนน (OSM)
+              <button id="btnMapOsm" onclick="setBasemapStyle('osm')" class="px-2 py-0.5 rounded-md text-[11px] font-medium transition-all bg-sky-600 text-white shadow cursor-pointer flex items-center gap-1" title="แผนที่ถนน (OpenStreetMap)">
+                <i class="fa-solid fa-map"></i> <span class="hidden 2xl:inline">ถนน</span>
               </button>
-              <button id="btnMapSat" onclick="setBasemapStyle('satellite')" class="px-2 py-0.5 rounded-md text-[11px] font-medium text-slate-400 hover:text-white transition-all cursor-pointer" title="ภาพถ่ายดาวเทียม (Esri World Imagery)">
-                <i class="fa-solid fa-satellite mr-1"></i> ดาวเทียม
+              <button id="btnMapSat" onclick="setBasemapStyle('satellite')" class="px-2 py-0.5 rounded-md text-[11px] font-medium text-slate-400 hover:text-white transition-all cursor-pointer flex items-center gap-1" title="ภาพถ่ายดาวเทียม (Esri World Imagery)">
+                <i class="fa-solid fa-satellite"></i> <span class="hidden 2xl:inline">ดาวเทียม</span>
               </button>
-              <button id="btnMapDark" onclick="setBasemapStyle('dark')" class="px-2 py-0.5 rounded-md text-[11px] font-medium text-slate-400 hover:text-white transition-all cursor-pointer" title="แผนที่ยุทธวิธีโหมดมืด (Dark Matter)">
-                <i class="fa-solid fa-moon mr-1"></i> มืด
+              <button id="btnMapDark" onclick="setBasemapStyle('dark')" class="px-2 py-0.5 rounded-md text-[11px] font-medium text-slate-400 hover:text-white transition-all cursor-pointer flex items-center gap-1" title="แผนที่ยุทธวิธีโหมดมืด (Dark Matter)">
+                <i class="fa-solid fa-moon"></i> <span class="hidden 2xl:inline">มืด</span>
               </button>
             </div>
 
@@ -471,7 +470,7 @@
             </button>
             <button id="btnMapFullscreen" onclick="toggleMapFullscreen()" class="px-2 py-0.5 text-[11px] rounded-lg bg-slate-800 hover:bg-sky-600 text-slate-300 hover:text-white border border-slate-700 cursor-pointer transition-all flex items-center gap-1 shadow-sm" title="ขยายแผนที่เต็มหน้าจอ (Fullscreen)">
               <i id="btnMapFullscreenIcon" class="fa-solid fa-maximize text-sky-400"></i>
-              <span id="btnMapFullscreenText" class="font-medium text-[11px]">เต็มจอ</span>
+              <span id="btnMapFullscreenText" class="font-medium text-[11px] hidden xl:inline">เต็มจอ</span>
             </button>
           </div>
         </div>
@@ -498,55 +497,55 @@
           </div>
 
           <!-- Floating Target Lock HUD (Interactive & Collapsible) -->
-          <div id="targetLockHUD" class="hidden absolute top-3 left-3 right-3 z-30 bg-slate-950/95 border-2 border-red-500/80 rounded-xl shadow-2xl backdrop-blur-md transition-all duration-200">
+          <div id="targetLockHUD" class="hidden absolute top-2 left-2 right-2 z-30 bg-slate-950/95 border-2 border-red-500/80 rounded-xl shadow-2xl backdrop-blur-md transition-all duration-200 overflow-hidden">
             
             <!-- EXPANDED VIEW (Default) -->
-            <div id="hudExpandedContent" class="p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div class="flex items-center gap-3">
+            <div id="hudExpandedContent" class="p-2 sm:p-2.5 flex flex-col md:flex-row md:items-center justify-between gap-2">
+              <div class="flex items-center gap-2.5 min-w-0 flex-1">
                 <div class="relative flex items-center justify-center shrink-0">
-                  <img id="hudTargetPhoto" src="" alt="โปรไฟล์" style="width: 44px; height: 44px; min-width: 44px; min-height: 44px; object-fit: cover;" class="w-11 h-11 rounded-xl object-cover border-2 border-red-500/80 shadow-lg shadow-red-950/80 hidden cursor-pointer" onclick="openModal(this.src, document.getElementById('hudTargetCommander')?.innerText || 'หัวหน้าชุด', document.getElementById('hudTargetName')?.innerText || 'หน่วยปฏิบัติการ')">
+                  <img id="hudTargetPhoto" src="" alt="โปรไฟล์" style="width: 40px; height: 40px; min-width: 40px; min-height: 40px; object-fit: cover;" class="w-10 h-10 rounded-xl object-cover border-2 border-red-500/80 shadow-lg shadow-red-950/80 hidden cursor-pointer" onclick="openModal(this.src, document.getElementById('hudTargetCommander')?.innerText || 'หัวหน้าชุด', document.getElementById('hudTargetName')?.innerText || 'หน่วยปฏิบัติการ')">
                   <div id="hudTargetIconBox" class="w-10 h-10 rounded-lg bg-red-950/90 border border-red-500/80 flex items-center justify-center text-red-500 shadow-lg shadow-red-950/80">
-                    <i class="fa-solid fa-crosshairs text-xl animate-spin" style="animation-duration: 8s;"></i>
+                    <i class="fa-solid fa-crosshairs text-lg animate-spin" style="animation-duration: 8s;"></i>
                   </div>
                   <span class="absolute -top-1 -right-1 flex h-2.5 w-2.5">
                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                     <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
                   </span>
                 </div>
-                <div class="min-w-0">
-                  <div class="flex items-center gap-2 flex-wrap">
-                    <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-red-500/20 text-red-400 border border-red-500/50 animate-pulse">
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center gap-1.5 flex-wrap">
+                    <span class="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-red-500/20 text-red-400 border border-red-500/50 shrink-0">
                       🎯 TARGET LOCKED
                     </span>
-                    <h4 id="hudTargetName" class="font-bold text-xs md:text-sm text-white font-mono truncate">UNIT-01</h4>
-                    <span id="hudTargetCommander" class="text-xs text-sky-400 font-medium truncate">หัวหน้าชุด</span>
+                    <h4 id="hudTargetName" class="font-bold text-xs text-white font-mono truncate max-w-[180px] sm:max-w-[240px]" title="">UNIT-01</h4>
+                    <span id="hudTargetCommander" class="text-[11px] text-sky-400 font-medium truncate max-w-[120px]">หัวหน้าชุด</span>
                   </div>
-                  <div id="hudTargetTelemetry" class="text-[11px] text-slate-300 font-mono mt-0.5 flex flex-wrap items-center gap-2">
+                  <div id="hudTargetTelemetry" class="text-[10px] text-slate-300 font-mono mt-0.5 flex flex-wrap items-center gap-1.5">
                     <span><i class="fa-solid fa-battery-half text-emerald-400"></i> <b id="hudTargetBatt">--%</b></span>
                     <span>•</span>
                     <span><i class="fa-solid fa-gauge text-amber-400"></i> <b id="hudTargetSpeed">0</b> กม./ชม.</span>
                     <span>•</span>
                     <span><i class="fa-solid fa-compass text-sky-400"></i> <b id="hudTargetHeading">--°</b></span>
                     <span>•</span>
-                    <span><i class="fa-solid fa-location-dot text-sky-400"></i> <span id="hudTargetCoords">--</span></span>
+                    <span class="truncate"><i class="fa-solid fa-location-dot text-sky-400"></i> <span id="hudTargetCoords">--</span></span>
                   </div>
                 </div>
               </div>
-              <div class="flex items-center gap-2 shrink-0 self-end sm:self-auto">
-                <button id="hudFollowBtn" onclick="toggleAutoFollowTarget()" class="px-2.5 py-1.5 rounded-lg bg-sky-600/30 hover:bg-sky-600 text-sky-300 hover:text-white border border-sky-500/40 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer" title="ล็อคเป้าติดตามพิกัดอัตโนมัติ">
-                  <i class="fa-solid fa-location-arrow"></i>
+              <div class="flex items-center gap-1.5 shrink-0 self-end md:self-auto flex-wrap">
+                <button id="hudFollowBtn" onclick="toggleAutoFollowTarget()" class="px-2 py-1 rounded-lg bg-sky-600/30 hover:bg-sky-600 text-sky-300 hover:text-white border border-sky-500/40 text-[11px] font-semibold flex items-center gap-1 transition-all cursor-pointer" title="ล็อคเป้าติดตามพิกัดอัตโนมัติ">
+                  <i class="fa-solid fa-location-arrow text-[10px]"></i>
                   <span id="hudFollowText">ติดตาม: เปิด</span>
                 </button>
-                <button onclick="recenterOnLockedTarget()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer" title="ปรับมุมมองให้เป้าหมายอยู่กึ่งกลางจอ">
-                  <i class="fa-solid fa-crosshairs text-sky-400"></i>
-                  <span>จัดกึ่งกลาง</span>
+                <button onclick="recenterOnLockedTarget()" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[11px] font-semibold flex items-center gap-1 transition-all cursor-pointer" title="ปรับมุมมองให้เป้าหมายอยู่กึ่งกลางจอ">
+                  <i class="fa-solid fa-crosshairs text-sky-400 text-[10px]"></i>
+                  <span>กึ่งกลาง</span>
                 </button>
-                <button onclick="toggleTargetHudCollapse(true)" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer" title="ยุบแผงควบคุม (เพื่อดูแผนที่เต็ม)">
-                  <i class="fa-solid fa-compress"></i>
+                <button onclick="toggleTargetHudCollapse(true)" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-[11px] font-semibold flex items-center gap-1 transition-all cursor-pointer" title="ยุบแผงควบคุม (เพื่อดูแผนที่เต็ม)">
+                  <i class="fa-solid fa-compress text-[10px]"></i>
                   <span>ยุบ</span>
                 </button>
-                <button onclick="unlockTarget()" class="px-2.5 py-1.5 rounded-lg bg-red-950/80 hover:bg-red-800 text-red-300 hover:text-white border border-red-500/50 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer" title="ปลดล็อคเป้าหมาย">
-                  <i class="fa-solid fa-unlock"></i>
+                <button onclick="unlockTarget()" class="px-2 py-1 rounded-lg bg-red-950/80 hover:bg-red-800 text-red-300 hover:text-white border border-red-500/50 text-[11px] font-semibold flex items-center gap-1 transition-all cursor-pointer" title="ปลดล็อคเป้าหมาย">
+                  <i class="fa-solid fa-unlock text-[10px]"></i>
                   <span>ปลดล็อค</span>
                 </button>
               </div>
@@ -5627,6 +5626,7 @@
       lockedTargetUnitId = pin.id;
       lockedTargetCoords = [lat, lon];
       playLockOnSound();
+      if (tacticalMap) tacticalMap.closePopup();
 
       // Smoothly fly map directly so radar sweep centers right on the pin!
       tacticalMap.flyTo([lat, lon], 16, {
@@ -6083,15 +6083,15 @@
 
       if (lblOuter) {
         lblOuter.innerText = formatRadarDistance(targetRangeMeters);
-        lblOuter.style.transform = `translateY(-${outerRadiusPx}px)`;
+        lblOuter.style.transform = `translate(14px, -${outerRadiusPx}px)`;
       }
       if (lblMid) {
         lblMid.innerText = formatRadarDistance(targetRangeMeters * 0.5);
-        lblMid.style.transform = `translateY(-${midRadiusPx}px)`;
+        lblMid.style.transform = `translate(14px, -${midRadiusPx}px)`;
       }
       if (lblInner) {
         lblInner.innerText = formatRadarDistance(targetRangeMeters * 0.25);
-        lblInner.style.transform = `translateY(-${innerRadiusPx}px)`;
+        lblInner.style.transform = `translate(14px, -${innerRadiusPx}px)`;
       }
 
       // Update Telemetry Bar
@@ -6806,6 +6806,7 @@
       lockedTargetUnitId = uid;
       lockedTargetCoords = [targetLat, targetLon];
       playLockOnSound();
+      if (tacticalMap) tacticalMap.closePopup();
 
       // Smoothly fly map to target
       tacticalMap.flyTo([targetLat, targetLon], 16, {
