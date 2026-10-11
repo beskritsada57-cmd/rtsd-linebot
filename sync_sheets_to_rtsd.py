@@ -21,7 +21,7 @@ TARGET_LAYER_URL = "https://geoportal.rtsd.mi.th/arcgis/rest/services/Hosted/inc
 TRACKER_LAYER_URL = "https://geoportal.rtsd.mi.th/arcgis/rest/services/Hosted/rtsd_live_trackers_south/FeatureServer/0"
 
 # Web App URL ของ Google Sheets และ API สำหรับ Trackers
-GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbw5Gepu7a5s9j1vXtgE55403L0K3sKtOcpUNArNCm6RJO1ulNp735XyZgAbTlMBwxI/exec"
+GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycby-f5gD5sOvpl8WPGTIARGWCvmFMH0lpW_acfUWEq2DQzQivEE1Yi7UCoAwF0YYu10t/exec"
 TRACKER_UNITS_URL = "https://rtsd-linebot.onrender.com/api/tracker/units"
 
 # ไฟล์บันทึกประวัติแถวที่ Sync ไปแล้ว เพื่อไม่ให้ปักหมุดซ้ำ

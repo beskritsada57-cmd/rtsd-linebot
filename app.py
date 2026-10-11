@@ -64,7 +64,7 @@ handler = WebhookHandler(CHANNEL_SECRET)
 # =========================================================================
 # 🔴 2. ข้อมูล Google Sheets Webhook URL & Master PIN
 # =========================================================================
-GOOGLE_SHEET_URL = os.environ.get('GOOGLE_SHEET_URL', "https://script.google.com/macros/s/AKfycbw5Gepu7a5s9j1vXtgE55403L0K3sKtOcpUNArNCm6RJO1ulNp735XyZgAbTlMBwxI/exec")
+GOOGLE_SHEET_URL = os.environ.get('GOOGLE_SHEET_URL', "https://script.google.com/macros/s/AKfycby-f5gD5sOvpl8WPGTIARGWCvmFMH0lpW_acfUWEq2DQzQivEE1Yi7UCoAwF0YYu10t/exec")
 MASTER_PIN = os.environ.get('MASTER_PIN', 'RTSD2024')
 
 # =========================================================================
