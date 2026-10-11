@@ -400,6 +400,25 @@ def notify_admins(message_text):
         print(f"Error initializing line api for admin push: {e}")
 
 
+def push_line_message(target_user_id, text_message):
+    """ส่ง Push Message หาผู้ใช้ LINE หรือ Admin ตาม User ID"""
+    if not target_user_id or not str(target_user_id).startswith("U"):
+        return False
+    try:
+        with ApiClient(configuration) as api_client:
+            line_bot_api = MessagingApi(api_client)
+            line_bot_api.push_message(
+                PushMessageRequest(
+                    to=str(target_user_id),
+                    messages=[TextMessage(text=text_message)]
+                )
+            )
+            return True
+    except Exception as e:
+        print(f"Error in push_line_message to {target_user_id}: {e}")
+        return False
+
+
 # แคชข้อมูลเหตุการณ์จาก Google Sheets เพื่อความเร็วและลด API quota
 INCIDENTS_CACHE = {
     "data": [],
@@ -543,6 +562,8 @@ def get_user_incidents(query_text=None, user_name=None, limit=50):
 
 # ที่เก็บข้อมูลพิกัดสดของหน่วยกำลังพล / ยานพาหนะ (In-memory Active Units)
 active_trackers = {}
+# แผนที่จับคู่รหัสเหตุการณ์กับ LINE User ID ของประชาชนผู้แจ้งเหตุ
+INCIDENT_REPORTERS = {}
 
 
 @app.route("/", methods=['GET'])
@@ -807,7 +828,7 @@ def api_create_incident():
 @app.route("/api/incident/update-status", methods=['POST'])
 def api_update_incident_status():
     """API สำหรับให้ Dashboard หรือแอปมือถือสั่งเปลี่ยนสถานะของเหตุการณ์เดิม และบันทึกชุดปฏิบัติการที่เข้าพื้นที่"""
-    global DISPATCHED_INCIDENTS, active_trackers
+    global DISPATCHED_INCIDENTS, active_trackers, FIELD_REPORTS, INCIDENT_REPORTERS
     data = request.get_json(silent=True) or {}
     report_id = str(data.get("report_id") or data.get("incident_id") or "").strip()
     title = str(data.get("title") or "").strip()
@@ -816,6 +837,14 @@ def api_update_incident_status():
     unit_id = str(data.get("unit_id") or "").strip()
     commander = str(data.get("commander") or "").strip()
     note = str(data.get("note") or "").strip()
+    image_base64 = data.get("image_base64") or data.get("imageBase64") or ""
+    photo_url = data.get("photo_url") or "-"
+
+    if image_base64:
+        if not str(image_base64).startswith("data:"):
+            photo_url = f"data:image/jpeg;base64,{image_base64}"
+        else:
+            photo_url = str(image_base64)
 
     # หากไม่มี title หรือ timestamp ให้ค้นหาจากแคชเหตุการณ์โดยใช้ report_id
     if (not title or not timestamp) and report_id:
@@ -833,8 +862,12 @@ def api_update_incident_status():
 
     # ปรับแต่งสถานะให้ระบุชุดปฏิบัติการชัดเจน หากมีการรับภารกิจหรือกำลังเข้าพื้นที่
     unit_label = f"{unit_id} / {commander}".strip(" /") if (unit_id or commander) else ""
+    is_completed = any(kw in new_status for kw in ["เสร็จ", "เรียบร้อย", "แล้วเสร็จ"]) or "เสร็จสิ้น" in note
+
     if unit_label:
-        if any(kw in new_status for kw in ["เข้าพื้นที่", "ดำเนินการ", "ช่วยเหลือ", "ปฏิบัติ"]) or "รับภารกิจ" in note:
+        if is_completed:
+            new_status = f"🟢 แก้ไขแล้วเสร็จ (ชุด: {unit_label})"
+        elif any(kw in new_status for kw in ["เข้าพื้นที่", "ดำเนินการ", "ช่วยเหลือ", "ปฏิบัติ"]) or "รับภารกิจ" in note:
             if "ชุด:" not in new_status:
                 new_status = f"{new_status} (ชุด: {unit_label})"
 
@@ -846,7 +879,9 @@ def api_update_incident_status():
         "timestamp": timestamp,
         "status": new_status,
         "dispatched_at": now_th,
-        "directive_note": note or "กดยืนยันรับภารกิจผ่านแอปพลิเคชัน RTSD Mobile",
+        "directive_note": note or ("ภารกิจเสร็จสิ้นเรียบร้อย" if is_completed else "กดยืนยันรับภารกิจผ่านแอปพลิเคชัน RTSD Mobile"),
+        "completion_note": note if is_completed else "",
+        "photo_url": photo_url,
         "dispatch_all": False,
         "assigned_units": [{
             "unit_id": unit_id,
@@ -872,27 +907,97 @@ def api_update_incident_status():
 
     # อัปเดตสถานะของ Tracker หากเป็นชุดปฏิบัติการในระบบ
     if unit_id and unit_id in active_trackers:
-        active_trackers[unit_id]["status"] = f"🚗 กำลังไประงับเหตุ: {title[:20]}"
+        if is_completed:
+            active_trackers[unit_id]["status"] = "🟢 พร้อมปฏิบัติการ (STANDBY)"
+        else:
+            active_trackers[unit_id]["status"] = f"🚗 กำลังไประงับเหตุ: {title[:20]}"
         active_trackers[unit_id]["last_seen"] = time.time()
 
-    # แจ้งเตือนผู้บังคับบัญชา / LINE Admin ทันทีที่มีชุดปฏิบัติการกดรับภารกิจ
-    if unit_label and ("เข้าพื้นที่" in new_status or "รับภารกิจ" in note):
+    # ถ้ามีภาพถ่ายหรือเป็นการปิดภารกิจ ให้บันทึกลง FIELD_REPORTS เพื่อโชว์ใน Dashboard ทันที
+    if is_completed or photo_url != "-":
+        FIELD_REPORTS.append({
+            "id": f"REP-{int(time.time())}",
+            "incident_id": report_id or title,
+            "unit_id": unit_id or "RTSD-UNIT",
+            "commander": commander or "เจ้าหน้าที่หน้างาน",
+            "phone": "",
+            "report_type": "completion_report" if is_completed else "photo_report",
+            "message": note or ("ภารกิจเสร็จสิ้นเรียบร้อย ปลอดภัยทุกฝ่าย" if is_completed else "ภาพถ่ายรายงานผลหน้างาน"),
+            "image_url": photo_url,
+            "latitude": 0.0,
+            "longitude": 0.0,
+            "timestamp": now_th
+        })
+        if len(FIELD_REPORTS) > 100:
+            FIELD_REPORTS = FIELD_REPORTS[-100:]
+
+    # ดึง LINE User ID ของประชาชนผู้แจ้งเหตุ (ถ้ามี)
+    reporter_line_id = INCIDENT_REPORTERS.get(report_id) or INCIDENT_REPORTERS.get(title)
+
+    # 1. กรณี: ชุดปฏิบัติการกดรับภารกิจ (En route)
+    if unit_label and ("เข้าพื้นที่" in new_status or "รับภารกิจ" in note) and not is_completed:
         try:
-            push_msg = (
+            push_admin_msg = (
                 f"🚗 ชุดปฏิบัติการยืนยันรับภารกิจแล้ว!\n"
                 f"━━━━━━━━━━━━━━━━━━\n"
                 f"🆔 เหตุการณ์: #{report_id or title}\n"
                 f"🛡️ ชุดปฏิบัติการ: {unit_label}\n"
                 f"📌 สถานะ: {new_status}\n"
                 f"━━━━━━━━━━━━━━━━━━\n"
-                f"ศูนย์ TOC สามารถติดตามพิกัดการเคลื่อนที่ได้สดบน Dashboard"
+                f"ศูนย์ TOC สามารถติดตามพิกัดการเคลื่อนที่ได้สดบน Dashboard\n"
+                f"👉 https://rtsd-linebot.onrender.com/map"
             )
             for admin_phone in ADMIN_PHONES:
                 for phone, u in phone_to_user.items():
                     if phone == admin_phone and u.get("user_id"):
-                        push_line_message(u["user_id"], push_msg)
+                        push_line_message(u["user_id"], push_admin_msg)
+            
+            if reporter_line_id:
+                push_citizen_msg = (
+                    f"🚒 แจ้งความคืบหน้าการช่วยเหลือ!\n"
+                    f"━━━━━━━━━━━━━━━━━━\n"
+                    f"🆔 รหัสเหตุ: #{report_id or title}\n"
+                    f"🛡️ ชุดปฏิบัติการ: {unit_label}\n"
+                    f"📍 สถานะ: กำลังมุ่งหน้าเข้าสู่จุดเกิดเหตุของท่าน\n"
+                    f"━━━━━━━━━━━━━━━━━━\n"
+                    f"🗺️ ตรวจสอบแผนที่สถานการณ์สด:\n"
+                    f"👉 https://rtsd-linebot.onrender.com/map"
+                )
+                push_line_message(reporter_line_id, push_citizen_msg)
         except Exception as e:
             print(f"Error sending mission accepted line push: {e}")
+
+    # 2. กรณี: ภารกิจเสร็จสิ้น (Mission Completed)
+    elif is_completed:
+        try:
+            push_admin_msg = (
+                f"✅ รายงานปิดภารกิจสำเร็จ!\n"
+                f"━━━━━━━━━━━━━━━━━━\n"
+                f"🆔 เหตุการณ์: #{report_id or title}\n"
+                f"🛡️ ชุดปฏิบัติการ: {unit_label}\n"
+                f"📝 ผลการปฏิบัติ: {note or 'ระงับเหตุและช่วยเหลือประชาชนเรียบร้อยแล้ว ปลอดภัยทุกฝ่าย'}\n"
+                f"━━━━━━━━━━━━━━━━━━\n"
+                f"🌐 ตรวจสอบภาพและสรุปงาน:\n"
+                f"👉 https://rtsd-linebot.onrender.com/map"
+            )
+            for admin_phone in ADMIN_PHONES:
+                for phone, u in phone_to_user.items():
+                    if phone == admin_phone and u.get("user_id"):
+                        push_line_message(u["user_id"], push_admin_msg)
+            
+            if reporter_line_id:
+                push_citizen_msg = (
+                    f"🎉 ภารกิจระงับเหตุเสร็จสิ้นเรียบร้อย!\n"
+                    f"━━━━━━━━━━━━━━━━━━\n"
+                    f"🆔 รหัสเหตุ: #{report_id or title}\n"
+                    f"🛡️ ชุดปฏิบัติการ: {unit_label}\n"
+                    f"📝 ผลการปฏิบัติ: {note or 'ให้การช่วยเหลือและดูแลความปลอดภัยเรียบร้อยแล้ว'}\n"
+                    f"━━━━━━━━━━━━━━━━━━\n"
+                    f"🙏 ศูนย์ปฏิบัติการ RTSD ขอขอบคุณที่ท่านได้ร่วมแจ้งเหตุเตือนภัยครับ"
+                )
+                push_line_message(reporter_line_id, push_citizen_msg)
+        except Exception as e:
+            print(f"Error sending mission completed line push: {e}")
 
     # ส่งอัปเดตลง Google Sheets
     result = update_google_sheet_status(title=title, timestamp=timestamp, new_status=new_status)
@@ -2570,6 +2675,8 @@ def handle_image(event):
     # ออกรหัสติดตามเหตุการณ์เฉพาะ (Report Tracking ID)
     report_id = f"RTSD-{int(time.time()) % 100000:04d}"
     title = f"[{report_id}] แจ้งเหตุ: {incident_type}"
+    INCIDENT_REPORTERS[report_id] = user_id
+    INCIDENT_REPORTERS[title] = user_id
 
     # ดาวน์โหลดรูปจาก LINE API
     file_base64 = None
@@ -2656,6 +2763,8 @@ def handle_video(event):
 
     report_id = f"RTSD-{int(time.time()) % 100000:04d}"
     title = f"[{report_id}] แจ้งเหตุ: {incident_type}"
+    INCIDENT_REPORTERS[report_id] = user_id
+    INCIDENT_REPORTERS[title] = user_id
 
     # ดาวน์โหลดวิดีโอจาก LINE API
     file_base64 = None
@@ -3099,6 +3208,8 @@ def handle_text(event):
 
         report_id = f"RTSD-{int(time.time()) % 100000:04d}"
         title = f"[{report_id}] แจ้งเหตุ: {incident_type}"
+        INCIDENT_REPORTERS[report_id] = user_id
+        INCIDENT_REPORTERS[title] = user_id
 
         save_to_google_sheet(lat, lon, title, address, user_name, urgency, incident_type)
 
