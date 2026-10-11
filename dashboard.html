@@ -522,9 +522,9 @@
     <div id="tacticalContainer" class="flex-1 min-h-0 w-full flex flex-col md:flex-row gap-2.5 overflow-hidden">
       
       <!-- LEFT 50%: TACTICAL RADAR MAP -->
-      <div id="tacticalMapPanel" class="w-full md:w-1/2 flex flex-col h-full min-h-0 bg-rtsd-card border border-slate-800 rounded-xl p-2.5 shadow-2xl relative overflow-hidden transition-all duration-200">
+      <div id="tacticalMapPanel" class="w-full md:w-1/2 flex flex-col h-full min-h-0 bg-rtsd-card border border-slate-800 rounded-xl p-2.5 shadow-2xl relative overflow-hidden isolate transition-all duration-200">
         <!-- Radar Header -->
-        <div class="shrink-0 flex items-center justify-between pb-1.5 border-b border-slate-800/80 mb-1.5 gap-1.5 relative z-[1050]">
+        <div class="shrink-0 flex items-center justify-between pb-1.5 border-b border-slate-800/80 mb-1.5 gap-1.5 relative z-20">
           <div class="flex items-center gap-1.5 shrink-0 min-w-0">
             <div class="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping shrink-0"></div>
             <h3 class="font-bold text-xs text-white tracking-wide uppercase flex items-center gap-1 font-mono shrink-0">
@@ -559,7 +559,7 @@
               </button>
               
               <!-- Dropdown Menu -->
-              <div id="mapLayerFilterDropdown" class="hidden absolute right-0 mt-1 w-56 rounded-xl bg-slate-900/95 backdrop-blur-md border border-slate-700 shadow-2xl z-[1060] p-2.5 space-y-1.5 text-xs text-slate-200">
+              <div id="mapLayerFilterDropdown" class="hidden absolute right-0 mt-1 w-56 rounded-xl bg-slate-900/95 backdrop-blur-md border border-slate-700 shadow-2xl z-50 p-2.5 space-y-1.5 text-xs text-slate-200">
                 <div class="text-[11px] font-bold text-slate-400 px-1 pb-1 border-b border-slate-800 flex items-center justify-between">
                   <span>ตัวกรองการแสดงผลบนแผนที่</span>
                   <span id="activeLayerCount" class="text-[10px] text-sky-400 font-mono">4/4 เปิด</span>
@@ -1574,7 +1574,7 @@
   <!-- ========================================================================= -->
   <!-- 📲 BROADCAST APP UPDATE MODAL (แจ้งเตือนอัปเดตแอปทาง LINE) -->
   <!-- ========================================================================= -->
-  <div id="broadcastAppUpdateModal" class="hidden fixed inset-0 z-[125] bg-black/85 backdrop-blur-md items-center justify-center p-3 sm:p-5" style="display: none;">
+  <div id="broadcastAppUpdateModal" class="hidden fixed inset-0 z-[2000] bg-black/85 backdrop-blur-md items-center justify-center p-3 sm:p-5" style="display: none;">
     <div class="bg-slate-900 border border-emerald-500/50 rounded-2xl max-w-xl w-full p-4 sm:p-6 relative shadow-2xl shadow-emerald-950/60 flex flex-col overflow-hidden max-h-[92vh]">
       <!-- Modal Header -->
       <div class="shrink-0 flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
@@ -1655,7 +1655,7 @@
   <!-- ========================================================================= -->
   <!-- 🛡️ ADMIN PERSONNEL & ACCESS CONTROL MODAL (จัดการสิทธิ์กำลังพล) -->
   <!-- ========================================================================= -->
-  <div id="userManagementModal" class="hidden fixed inset-0 z-[120] bg-black/85 backdrop-blur-md items-center justify-center p-2 sm:p-4" style="display: none;">
+  <div id="userManagementModal" class="hidden fixed inset-0 z-[2000] bg-black/85 backdrop-blur-md items-center justify-center p-2 sm:p-4" style="display: none;">
     <div class="bg-rtsd-card border border-purple-500/40 rounded-2xl max-w-6xl w-full h-[92vh] p-3 sm:p-5 relative shadow-2xl shadow-purple-950/60 flex flex-col overflow-hidden">
       <!-- Modal Header -->
       <div class="shrink-0 flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
@@ -1801,7 +1801,7 @@
   <!-- ========================================================================= -->
   <!-- 🛡️ RTSD TACTICAL AUTHENTICATION MODAL (OTP & PIN GATE) -->
   <!-- ========================================================================= -->
-  <div id="authModal" class="hidden fixed inset-0 z-[100] bg-black/90 backdrop-blur-md items-center justify-center p-4" style="display: none;">
+  <div id="authModal" class="hidden fixed inset-0 z-[2000] bg-black/90 backdrop-blur-md items-center justify-center p-4" style="display: none;">
     <div class="bg-rtsd-card border border-sky-500/30 rounded-2xl max-w-md w-full p-6 relative shadow-2xl shadow-sky-950/50 space-y-5 text-center">
       <button type="button" onclick="closeAuthModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-lg p-1.5 rounded-lg hover:bg-slate-800 transition cursor-pointer" title="ปิดหน้าต่าง / เข้าชมแผนที่">
         <i class="fa-solid fa-xmark"></i>
@@ -1907,7 +1907,7 @@
   <!-- ========================================================================= -->
   <!-- 👤 USER EDIT PROFILE MODAL (PERSONAL PROFILE EDIT) -->
   <!-- ========================================================================= -->
-  <div id="editProfileModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-md z-[115] items-center justify-center p-4" style="display: none;">
+  <div id="editProfileModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-md z-[2000] items-center justify-center p-4" style="display: none;">
     <div class="bg-rtsd-card border border-sky-500/40 rounded-2xl max-w-lg w-full p-5 sm:p-6 relative shadow-2xl shadow-sky-950/60 space-y-5">
       <!-- Header -->
       <div class="flex items-center justify-between pb-3 border-b border-slate-800">
@@ -2001,7 +2001,7 @@
   <!-- ========================================================================= -->
   <!-- 🖼️ IMAGE PREVIEW MODAL -->
   <!-- ========================================================================= -->
-  <div id="imageModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 items-center justify-center p-4 cursor-pointer" style="display: none;">
+  <div id="imageModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[2200] items-center justify-center p-4 cursor-pointer" style="display: none;">
     <div class="bg-rtsd-card border border-slate-700 rounded-2xl max-w-2xl w-full p-4 relative shadow-2xl space-y-3">
       <div class="flex items-center justify-between pb-2 border-b border-slate-800">
         <h3 id="modalTitle" class="font-semibold text-white text-sm">รูปภาพหลักฐานจากจุดเกิดเหตุ</h3>
@@ -2024,7 +2024,7 @@
   <!-- ========================================================================= -->
   <!-- 📑 1. EXECUTIVE SITUATION & AFTER-ACTION REPORT (AAR) MODAL (A4 PRINT READY) -->
   <!-- ========================================================================= -->
-  <div id="executiveReportModal" class="hidden fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[130] items-center justify-center p-2 sm:p-4 overflow-y-auto custom-scrollbar" style="display: none;">
+  <div id="executiveReportModal" class="hidden fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[2000] items-center justify-center p-2 sm:p-4 overflow-y-auto custom-scrollbar" style="display: none;">
     <div class="report-modal-dialog bg-white text-slate-900 border border-slate-300 rounded-2xl max-w-4xl w-full p-4 sm:p-8 relative shadow-2xl space-y-6 my-auto print-break-inside-avoid print-color-exact">
       
       <!-- Top Action Bar (Hide in Print) -->
@@ -2177,7 +2177,7 @@
   <!-- ========================================================================= -->
   <!-- 📑 2. SINGLE INCIDENT DOSSIER MODAL (ใบรายงานสรุปเฉพาะกรณี รายบุคคล/A4) -->
   <!-- ========================================================================= -->
-  <div id="incidentDossierModal" class="hidden fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[130] items-center justify-center p-2 sm:p-4 overflow-y-auto custom-scrollbar" style="display: none;">
+  <div id="incidentDossierModal" class="hidden fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[2000] items-center justify-center p-2 sm:p-4 overflow-y-auto custom-scrollbar" style="display: none;">
     <div class="report-modal-dialog bg-white text-slate-900 border border-slate-300 rounded-2xl max-w-2xl w-full p-4 sm:p-7 relative shadow-2xl space-y-5 my-auto print-break-inside-avoid print-color-exact">
       
       <!-- Top Action Bar (Hide in Print) -->
@@ -2287,7 +2287,7 @@
   <!-- ========================================================================= -->
   <!-- 📍 TACTICAL PIN CREATION MODAL -->
   <!-- ========================================================================= -->
-  <div id="tacticalPinModal" class="hidden fixed inset-0 z-[120] bg-black/85 backdrop-blur-md items-center justify-center p-4" style="display: none;">
+  <div id="tacticalPinModal" class="hidden fixed inset-0 z-[2000] bg-black/85 backdrop-blur-md items-center justify-center p-4" style="display: none;">
     <div class="bg-rtsd-card border border-slate-700 rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <div class="flex items-center gap-2.5">
@@ -2377,7 +2377,7 @@
   <!-- ========================================================================= -->
   <!-- 🚨 INCIDENT DISPATCH MODAL (ศูนย์สั่งการมอบหมายกำลังพลไประงับเหตุ) -->
   <!-- ========================================================================= -->
-  <div id="incidentDispatchModal" class="hidden fixed inset-0 z-[130] items-center justify-center p-3 bg-slate-950/85 backdrop-blur-md" style="display: none;">
+  <div id="incidentDispatchModal" class="hidden fixed inset-0 z-[2000] items-center justify-center p-3 bg-slate-950/85 backdrop-blur-md" style="display: none;">
     <div class="relative w-full max-w-xl bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-2xl max-h-[94vh] overflow-y-auto custom-scrollbar">
       
       <!-- Modal Header -->
@@ -2480,7 +2480,7 @@
   <!-- ========================================================================= -->
   <!-- 🚨 TOC OFFICIAL INCIDENT REPORT MODAL (ศูนย์ควบคุมเปิดใบแจ้งเหตุใหม่) -->
   <!-- ========================================================================= -->
-  <div id="createIncidentModal" class="hidden fixed inset-0 z-50 items-center justify-center p-3 bg-slate-950/80 backdrop-blur-md" style="display: none;">
+  <div id="createIncidentModal" class="hidden fixed inset-0 z-[2000] items-center justify-center p-3 bg-slate-950/80 backdrop-blur-md" style="display: none;">
     <div class="relative w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-2xl max-h-[92vh] overflow-y-auto custom-scrollbar">
       <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
         <div class="flex items-center gap-2">
@@ -3092,7 +3092,7 @@
       if (!toast) {
         toast = document.createElement('div');
         toast.id = 'toast';
-        toast.className = 'fixed bottom-5 right-5 z-50 px-4 py-2.5 rounded-xl bg-slate-900 border border-emerald-500/40 text-emerald-400 font-medium shadow-2xl transition-all duration-300 transform translate-y-10 opacity-0 text-xs md:text-sm flex items-center gap-2';
+        toast.className = 'fixed bottom-5 right-5 z-[3000] px-4 py-2.5 rounded-xl bg-slate-900 border border-emerald-500/40 text-emerald-400 font-medium shadow-2xl transition-all duration-300 transform translate-y-10 opacity-0 text-xs md:text-sm flex items-center gap-2';
         document.body.appendChild(toast);
       }
       toast.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> <span>${msg}</span>`;
