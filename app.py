@@ -3570,7 +3570,7 @@ def handle_text(event):
             "━━━━━━━━━━━━━━━━━━\n"
             "ระบบติดตามพิกัด GPS สด & เรดาร์ยุทธการ สำหรับเจ้าหน้าที่ภาคสนาม\n\n"
             "🎖️ สังกัด: กรมแผนที่ทหาร (RTSD)\n"
-            "📦 เวอร์ชัน: v1.2 (Full Auth & Radar)\n"
+            "📦 เวอร์ชัน: v1.3 (SOS & Direct Photo Report)\n"
             "⚙️ ขนาดไฟล์: ~55 MB (Android 8.0+)\n"
             "━━━━━━━━━━━━━━━━━━\n"
             "📥 ลิงก์ดาวน์โหลดตรง (.APK):\n"
@@ -3605,9 +3605,40 @@ def handle_text(event):
         reply_message = TextMessage(text=reply_msg, quick_reply=quick_reply)
 
     # =========================================================================
+    # ❓ คู่มือการใช้งานระบบฉบับย่อ (Quick User Guide)
+    # =========================================================================
+    elif user_text in ["คู่มือ", "คู่มือการใช้งาน", "วิธีใช้งาน", "วิธีใช้", "guide", "manual", "user guide"]:
+        guide_text = (
+            "📖 คู่มือการใช้งานระบบศูนย์บัญชาการสถานการณ์ RTSD\n"
+            "━━━━━━━━━━━━━━━━━━\n"
+            "👥 สำหรับประชาชนผู้แจ้งเหตุ:\n"
+            "1. แจ้งเหตุฉุกเฉิน: พิมพ์ 'แจ้งเหตุ' แล้วเลือกระดับความเร่งด่วนและประเภทเหตุ\n"
+            "2. ปักหมุดพิกัด: กดแชร์ตำแหน่งที่ตั้งใน LINE เพื่อให้ทีมกู้ภัยเข้าช่วยเหลือตรงจุด\n"
+            "3. ส่งภาพถ่ายหลักฐาน: ส่งรูปภาพหน้างานในแชตได้ทันที มี AI วิเคราะห์ประเภทอัตโนมัติ\n"
+            "4. ติดตามสถานะ: ระบบจะส่งรหัสเหตุการณ์ เช่น #RTSD-1234 และแจ้งเตือนเมื่อมีเจ้าหน้าที่เข้าพื้นที่\n\n"
+            "🪖 สำหรับเจ้าหน้าที่ภาคสนาม:\n"
+            "• พิมพ์ 'กำลังเข้าพื้นที่ RTSD-xxxx' เพื่อรับงาน\n"
+            "• พิมพ์ 'ถึงที่เกิดเหตุ RTSD-xxxx' เพื่อยืนยันการปฏิบัติการ\n"
+            "• พิมพ์ 'เสร็จสิ้น RTSD-xxxx' เพื่อปิดงาน\n"
+            "• ส่งภาพรายงานจากหน้างานเข้าระบบ Dashboard ได้ทันที\n\n"
+            "🛰️ ศูนย์ควบคุม TOC & แอปพลิเคชัน:\n"
+            "• แดชบอร์ดควบคุม (PC): https://rtsd-linebot.onrender.com/dashboard\n"
+            "• แผนที่มือถือสด: https://rtsd-linebot.onrender.com/map\n"
+            "• ดาวน์โหลดแอป Android: https://rtsd-linebot.onrender.com/download/app"
+        )
+        quick_reply = QuickReply(items=[
+            QuickReplyItem(action=URIAction(label="🗺️ แผนที่สถานการณ์", uri="https://rtsd-linebot.onrender.com/map")),
+            QuickReplyItem(action=URIAction(label="🖥️ แดชบอร์ด TOC", uri="https://rtsd-linebot.onrender.com/dashboard")),
+            QuickReplyItem(action=URIAction(label="📲 ติดตั้งแอป APK", uri="https://rtsd-linebot.onrender.com/download/app")),
+            QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุเตือนภัย", text="แจ้งเหตุ")),
+            QuickReplyItem(action=MessageAction(label="🆘 เบอร์ฉุกเฉิน", text="เบอร์ฉุกเฉิน"))
+        ])
+        reply_message = TextMessage(text=guide_text, quick_reply=quick_reply)
+
+    # =========================================================================
     # 🆘 ระบบเบอร์ฉุกเฉิน & ข้อแนะนำรับมือภัยพิบัติ
     # =========================================================================
-    elif user_text in ["ฉุกเฉิน", "เบอร์ฉุกเฉิน", "สายด่วน", "ช่วยเหลือ", "sos", "emergency", "จุดอพยพ", "คู่มือ", "เบอร์ติดต่อ", "ติดต่อฉุกเฉิน", "ขอความช่วยเหลือ"]:
+    elif user_text in ["ฉุกเฉิน", "เบอร์ฉุกเฉิน", "สายด่วน", "ช่วยเหลือ", "sos", "emergency", "จุดอพยพ", "เบอร์ติดต่อ", "ติดต่อฉุกเฉิน", "ขอความช่วยเหลือ"]:
         reply_msg = (
             "🆘 หมายเลขโทรศัพท์ฉุกเฉิน & ช่องทางช่วยเหลือ 24 ชม.\n"
             "━━━━━━━━━━━━━━━━━━\n"

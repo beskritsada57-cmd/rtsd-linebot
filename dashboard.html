@@ -473,10 +473,16 @@
           </div>
         </div>
 
-        <a href="https://line.me/R/ti/p/@411vtica" target="_blank" class="px-3 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 transition-all flex items-center gap-1.5">
+        <a href="https://line.me/R/ti/p/@411vtica" target="_blank" class="px-3 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 transition-all flex items-center gap-1.5" title="เปิดแชท LINE Bot">
           <i class="fa-brands fa-line text-base"></i>
           <span class="hidden sm:inline">LINE Bot</span>
         </a>
+
+        <!-- ❓ Quick User Guide Button -->
+        <button onclick="openUserGuideModal()" class="px-3 py-1 rounded-lg bg-sky-600/20 hover:bg-sky-600/40 text-sky-300 hover:text-white border border-sky-500/40 transition-all flex items-center gap-1.5 text-xs font-semibold cursor-pointer shadow-sm" title="เปิดคู่มือการใช้งานระบบฉบับย่อ">
+          <i class="fa-solid fa-circle-question text-sky-400 text-sm"></i>
+          <span class="hidden md:inline">คู่มือ</span>
+        </button>
       </div>
     </div>
   </header>
@@ -2590,6 +2596,284 @@
   </div>
 
   <!-- ========================================================================= -->
+  <!-- ❓ QUICK USER GUIDE MODAL (คู่มือการใช้งานระบบฉบับย่อ) -->
+  <!-- ========================================================================= -->
+  <div id="userGuideModal" class="hidden fixed inset-0 z-[2000] bg-black/85 backdrop-blur-md items-center justify-center p-3 sm:p-5" style="display: none;">
+    <div class="bg-slate-900 border border-sky-500/50 rounded-2xl max-w-4xl w-full p-4 sm:p-6 relative shadow-2xl shadow-sky-950/60 flex flex-col overflow-hidden max-h-[92vh]">
+      
+      <!-- Modal Header -->
+      <div class="shrink-0 flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center text-xl border border-sky-500/30 shadow-inner">
+            <i class="fa-solid fa-circle-question"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-white text-base flex items-center gap-2">
+              คู่มือการใช้งานระบบฉบับย่อ (Quick User Guide)
+              <span class="px-2 py-0.5 text-[10px] font-semibold rounded bg-sky-500/20 text-sky-300 border border-sky-500/30">RTSD C2 MANUAL</span>
+            </h3>
+            <p class="text-xs text-slate-400">สรุปขั้นตอนการปฏิบัติงานสำหรับ ประชาชน, เจ้าหน้าที่ภาคสนาม, และศูนย์บัญชาการ TOC</p>
+          </div>
+        </div>
+        <button onclick="closeUserGuideModal()" class="text-slate-400 hover:text-white text-xl px-2.5 py-1 rounded-lg hover:bg-slate-800 cursor-pointer transition-colors" title="ปิดหน้าต่าง">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Segmented Tab Navigation for Roles -->
+      <div class="shrink-0 flex items-center gap-1.5 p-1 bg-slate-950/80 rounded-xl border border-slate-800 mb-3 overflow-x-auto no-scrollbar text-xs">
+        <button id="guideTabCitizenBtn" onclick="switchGuideTab('citizen')" class="flex-1 min-w-[130px] py-2 px-3 rounded-lg font-bold transition-all flex items-center justify-center gap-2 bg-sky-600 text-white shadow-sm cursor-pointer">
+          <i class="fa-solid fa-users text-sm"></i>
+          <span>1. ประชาชนผู้แจ้งเหตุ</span>
+        </button>
+        <button id="guideTabFieldBtn" onclick="switchGuideTab('field')" class="flex-1 min-w-[130px] py-2 px-3 rounded-lg font-bold transition-all flex items-center justify-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800/80 cursor-pointer">
+          <i class="fa-solid fa-person-military-pointing text-emerald-400 text-sm"></i>
+          <span>2. เจ้าหน้าที่ภาคสนาม</span>
+        </button>
+        <button id="guideTabTocBtn" onclick="switchGuideTab('toc')" class="flex-1 min-w-[130px] py-2 px-3 rounded-lg font-bold transition-all flex items-center justify-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800/80 cursor-pointer">
+          <i class="fa-solid fa-satellite text-amber-400 text-sm"></i>
+          <span>3. ศูนย์ควบคุม TOC</span>
+        </button>
+        <button id="guideTabAppBtn" onclick="switchGuideTab('app')" class="flex-1 min-w-[130px] py-2 px-3 rounded-lg font-bold transition-all flex items-center justify-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800/80 cursor-pointer">
+          <i class="fa-solid fa-mobile-screen text-cyan-400 text-sm"></i>
+          <span>4. ติดตั้งแอปมือถือ</span>
+        </button>
+      </div>
+
+      <!-- Scrollable Guide Content Area -->
+      <div class="flex-1 overflow-y-auto custom-scrollbar pr-1 space-y-4 text-xs text-slate-200">
+        
+        <!-- ========================================== -->
+        <!-- TAB 1: ประชาชนผู้แจ้งเหตุ -->
+        <!-- ========================================== -->
+        <div id="guideSection_citizen" class="space-y-3">
+          <div class="p-3 rounded-xl bg-sky-950/40 border border-sky-500/30 flex items-start gap-3">
+            <div class="w-8 h-8 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center text-base shrink-0 mt-0.5">
+              <i class="fa-brands fa-line"></i>
+            </div>
+            <div>
+              <h4 class="font-bold text-white text-sm">การแจ้งเหตุฉุกเฉินและขอรับความช่วยเหลือผ่าน LINE Bot</h4>
+              <p class="text-slate-400 text-[11px]">ประชาชนสามารถแจ้งภัยพิบัติ น้ำท่วม ดินสไลด์ หรืออุบัติเหตุ ได้ตลอด 24 ชั่วโมง โดยไม่ต้องติดตั้งแอปพลิเคชันเพิ่มเติม</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <!-- Step 1 -->
+            <div class="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
+              <div class="flex items-center gap-2 text-sky-400 font-bold text-xs">
+                <span class="w-6 h-6 rounded-full bg-sky-500/20 flex items-center justify-center text-xs border border-sky-500/30">1</span>
+                <span>พิมพ์แจ้งเหตุ หรือกดเมนูลัด</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed">
+                พิมพ์คำว่า <code class="px-1.5 py-0.5 bg-slate-800 rounded text-sky-300 font-mono">แจ้งเหตุ</code> ในแชท หรือกดปุ่ม <strong>[🚨 แจ้งเหตุเตือนภัย]</strong> บนแถบเมนูใน LINE
+              </p>
+            </div>
+
+            <!-- Step 2 -->
+            <div class="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
+              <div class="flex items-center gap-2 text-sky-400 font-bold text-xs">
+                <span class="w-6 h-6 rounded-full bg-sky-500/20 flex items-center justify-center text-xs border border-sky-500/30">2</span>
+                <span>เลือกประเภทเหตุการณ์</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed">
+                เลือกระดับความเร่งด่วนและประเภทภัย เช่น <strong>🌊 น้ำท่วมขัง</strong>, <strong>⛰️ ดินถล่ม</strong>, หรือ <strong>🚗 อุบัติเหตุ</strong> เพื่อให้ศูนย์จัดเตรียมอุปกรณ์ถูกต้อง
+              </p>
+            </div>
+
+            <!-- Step 3 -->
+            <div class="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
+              <div class="flex items-center gap-2 text-sky-400 font-bold text-xs">
+                <span class="w-6 h-6 rounded-full bg-sky-500/20 flex items-center justify-center text-xs border border-sky-500/30">3</span>
+                <span>แชร์พิกัดสถานที่เกิดเหตุ (สำคัญที่สุด)</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed">
+                กดปุ่ม <strong>[+]</strong> ใน LINE แล้วเลือก <strong>📍 ตำแหน่งที่ตั้ง (Location)</strong> เพื่อส่งพิกัด GPS ระบบจะปักหมุดบนแผนที่เรดาร์ของศูนย์ทันที
+              </p>
+            </div>
+
+            <!-- Step 4 -->
+            <div class="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
+              <div class="flex items-center gap-2 text-sky-400 font-bold text-xs">
+                <span class="w-6 h-6 rounded-full bg-sky-500/20 flex items-center justify-center text-xs border border-sky-500/30">4</span>
+                <span>แนบรูปถ่ายหลักฐาน & ติดตามผล</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed">
+                ส่งรูปถ่ายสภาพหน้างาน จากนั้นระบบจะตอบกลับรหัสติดตามเหตุการณ์ เช่น <code class="px-1.5 py-0.5 bg-slate-800 rounded text-emerald-300 font-mono">#RTSD-1234</code> สำหรับใช้พิมพ์เช็กสถานะการช่วยเหลือ
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- TAB 2: เจ้าหน้าที่ภาคสนาม -->
+        <!-- ========================================== -->
+        <div id="guideSection_field" class="hidden space-y-3">
+          <div class="p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/30 flex items-start gap-3">
+            <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-base shrink-0 mt-0.5">
+              <i class="fa-solid fa-person-military-pointing"></i>
+            </div>
+            <div>
+              <h4 class="font-bold text-white text-sm">ขั้นตอนการปฏิบัติงานสำหรับกำลังพลและชุดปฏิบัติการภาคสนาม</h4>
+              <p class="text-slate-400 text-[11px]">การรับคำสั่งการจากศูนย์ TOC, การรายงานความคืบหน้าหน้างาน, และการส่งสัญญาณ SOS ฉุกเฉิน</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <!-- Field 1 -->
+            <div class="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
+              <div class="flex items-center gap-2 text-emerald-400 font-bold text-xs">
+                <span class="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center text-xs border border-emerald-500/30">1</span>
+                <span>การรับข้อสั่งการ (Dispatch Alert)</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed">
+                เมื่อศูนย์ TOC มอบหมายภารกิจ จะมีข้อความแจ้งเตือนเด้งเข้า LINE พร้อมพิกัดและลิงก์ <strong>🧭 นำทาง Google Maps</strong> ไปยังจุดเกิดเหตุทันที
+              </p>
+            </div>
+
+            <!-- Field 2 -->
+            <div class="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
+              <div class="flex items-center gap-2 text-emerald-400 font-bold text-xs">
+                <span class="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center text-xs border border-emerald-500/30">2</span>
+                <span>การตอบรับและอัปเดตสถานะ</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed">
+                พิมพ์ตอบกลับใน LINE เช่น <code class="px-1.5 py-0.5 bg-slate-800 rounded text-amber-300 font-mono">กำลังเข้าพื้นที่ RTSD-xxxx</code> หรือ <code class="px-1.5 py-0.5 bg-slate-800 rounded text-emerald-300 font-mono">ถึงที่เกิดเหตุ</code> สถานะบนเรดาร์จะเปลี่ยนสด
+              </p>
+            </div>
+
+            <!-- Field 3 -->
+            <div class="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
+              <div class="flex items-center gap-2 text-emerald-400 font-bold text-xs">
+                <span class="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center text-xs border border-emerald-500/30">3</span>
+                <span>ส่งพิกัดสดและภาพรายงาน (Mobile App)</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed">
+                เปิดแอปมือถือเพื่อแชร์พิกัด GPS สด (Live Telemetry) และใช้ปุ่ม <strong>[📸 ถ่ายรูปรายงาน]</strong> เพื่อส่งภาพสดขึ้นแถบแกลเลอรีหน้าจอ Dashboard
+              </p>
+            </div>
+
+            <!-- Field 4 -->
+            <div class="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
+              <div class="flex items-center gap-2 text-rose-400 font-bold text-xs">
+                <span class="w-6 h-6 rounded-full bg-rose-500/20 flex items-center justify-center text-xs border border-rose-500/30">4</span>
+                <span>ส่งสัญญาณขอการสนับสนุนด่วน (🚨 SOS)</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed">
+                หากพบสถานการณ์วิกฤตหรือต้องการกำลังเสริม ให้กดปุ่ม <strong>[🚨 SOS ขอกำลังเสริม]</strong> ในแอปมือถือ ระบบจะยิงสัญญาณไฟเรดาร์แดงเตือนเข้าศูนย์บัญชาการทันที
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- TAB 3: ศูนย์ควบคุม TOC -->
+        <!-- ========================================== -->
+        <div id="guideSection_toc" class="hidden space-y-3">
+          <div class="p-3 rounded-xl bg-amber-950/40 border border-amber-500/30 flex items-start gap-3">
+            <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-base shrink-0 mt-0.5">
+              <i class="fa-solid fa-satellite"></i>
+            </div>
+            <div>
+              <h4 class="font-bold text-white text-sm">การสั่งการและควบคุมสถานการณ์สำหรับนายทหารเวร / ศูนย์ TOC</h4>
+              <p class="text-slate-400 text-[11px]">การเฝ้าฟังเรดาร์ยุทธวิธี, สั่งการกำลังพล, ปักหมุดยุทธวิธี, และจัดทำรายงานสรุปทางการ</p>
+            </div>
+          </div>
+
+          <div class="space-y-2.5">
+            <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-start gap-3">
+              <span class="px-2 py-0.5 rounded bg-sky-600/30 text-sky-300 border border-sky-500/30 font-bold font-mono text-[11px] shrink-0">1. เรดาร์สด</span>
+              <p class="text-slate-300 leading-relaxed">
+                หน้าจอซ้ายแสดงแผนที่เรดาร์พิกัดยุทธวิธีสด สามารถปรับสเกลวงแหวนระยะทางจริงได้ตั้งแต่ <strong>1, 5, 10, 20 จนถึง 40 กม.</strong> และสลับ Basemap ได้ 3 รูปแบบ (แผนที่ถนน, ภาพดาวเทียม Esri, และโหมดมืด Dark Matter)
+              </p>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-start gap-3">
+              <span class="px-2 py-0.5 rounded bg-amber-600/30 text-amber-300 border border-amber-500/30 font-bold font-mono text-[11px] shrink-0">2. ฟิลเตอร์หมุด</span>
+              <p class="text-slate-300 leading-relaxed">
+                ใช้ปุ่ม <strong>[👁️ ฟิลเตอร์หมุด]</strong> บนหัวแถบเรดาร์ เพื่อเลือกเปิด/ปิดเลเยอร์ หมุดสัญญาณ SOS, จุดแจ้งเหตุ, ชุดปฏิบัติการสด, หรือหมุดที่ปักเองได้ตามต้องการ
+              </p>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-start gap-3">
+              <span class="px-2 py-0.5 rounded bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 font-bold font-mono text-[11px] shrink-0">3. ปักหมุดยุทธวิธี</span>
+              <p class="text-slate-300 leading-relaxed">
+                กดปุ่ม <strong>[📍 ปักหมุด]</strong> เพื่อเปิด Waypoint Mode แล้วคลิกบนแผนที่เพื่อวางจุดประสานงาน เช่น จุดนัดหมาย, ลานจอด ฮ., แนวกั้นน้ำ หรือจุดสังเกตการณ์ พร้อมส่ง Push Alert แจ้งเตือนกำลังพล
+              </p>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-start gap-3">
+              <span class="px-2 py-0.5 rounded bg-rose-600/30 text-rose-300 border border-rose-500/30 font-bold font-mono text-[11px] shrink-0">4. สั่งการระงับเหตุ</span>
+              <p class="text-slate-300 leading-relaxed">
+                คลิกที่การ์ดเหตุการณ์ในแถบขวา ➡️ หน้าต่างสั่งการจะเปิดขึ้น ➡️ เลือกชุดปฏิบัติการที่ต้องการส่งไป ➡️ กด <strong>"ยืนยันสั่งการ"</strong> ระบบจะส่งข้อความแจ้งเตือนและลิงก์นำทางเข้า LINE ของกำลังพลทันที
+              </p>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-start gap-3">
+              <span class="px-2 py-0.5 rounded bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 font-bold font-mono text-[11px] shrink-0">5. พิมพ์รายงาน A4</span>
+              <p class="text-slate-300 leading-relaxed">
+                คลิกปุ่ม <strong>[📑 ออกรายงาน]</strong> ที่มุมขวาบน ➡️ เลือก <strong>รายงานสรุปภาพรวม (AAR PDF)</strong> สำหรับพิมพ์รายงานผู้บังคับบัญชาขนาด A4 หรือเลือก <strong>ส่งออกข้อมูลดิบ (Excel / CSV)</strong>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- TAB 4: ติดตั้งแอปมือถือ -->
+        <!-- ========================================== -->
+        <div id="guideSection_app" class="hidden space-y-3">
+          <div class="p-3 rounded-xl bg-cyan-950/40 border border-cyan-500/30 flex items-start gap-3">
+            <div class="w-8 h-8 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-base shrink-0 mt-0.5">
+              <i class="fa-solid fa-mobile-screen-button"></i>
+            </div>
+            <div>
+              <h4 class="font-bold text-white text-sm">การดาวน์โหลดและติดตั้งแอปพลิเคชัน RTSD Tactical Tracker บนมือถือ</h4>
+              <p class="text-slate-400 text-[11px]">สำหรับเจ้าหน้าที่ชุดปฏิบัติการภาคสนามใช้ติดตามพิกัด ถ่ายรูปรายงาน และส่งสัญญาณ SOS</p>
+            </div>
+          </div>
+
+          <div class="p-4 rounded-xl bg-slate-950/80 border border-slate-800 text-center space-y-3">
+            <p class="text-slate-300 text-xs">ไฟล์ติดตั้งแอปพลิเคชัน Android (.apk) เวอร์ชันทางการของระบบ:</p>
+            <div class="inline-flex items-center gap-2">
+              <a href="/download/app" target="_blank" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-950/60 transition-all">
+                <i class="fa-solid fa-download text-sm"></i>
+                <span>ดาวน์โหลดแอป RTSD Tracker (APK)</span>
+              </a>
+              <a href="/map" target="_blank" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 transition-all flex items-center gap-1.5">
+                <i class="fa-solid fa-globe"></i>
+                <span>เปิดแผนที่บนเบราว์เซอร์มือถือ</span>
+              </a>
+            </div>
+          </div>
+
+          <div class="space-y-2 pt-1">
+            <h5 class="font-bold text-white text-xs flex items-center gap-1.5">
+              <i class="fa-solid fa-wrench text-amber-400"></i>
+              <span>คำแนะนำในการติดตั้งบน Android:</span>
+            </h5>
+            <ol class="list-decimal list-inside space-y-1.5 text-slate-300 text-[11px] leading-relaxed pl-1">
+              <li>เมื่อดาวน์โหลดไฟล์เสร็จ ให้เปิดไฟล์ <strong>rtsd_tracker.apk</strong> จากแถบแจ้งเตือนหรือโฟลเดอร์ Downloads</li>
+              <li>หากระบบแจ้งเตือนว่ามาจากแหล่งที่ไม่รู้จัก ให้กด <strong>การตั้งค่า (Settings)</strong> ➡️ เปิดสวิตช์ <strong>อนุญาตจากแหล่งนี้ (Allow from this source)</strong></li>
+              <li>กด <strong>ติดตั้ง (Install)</strong> แล้วเปิดแอปพลิเคชัน</li>
+              <li>กรอกเบอร์โทรศัพท์ที่ลงทะเบียนไว้เพื่อขอรับรหัส OTP ผ่าน LINE แล้วเริ่มปฏิบัติการได้ทันที</li>
+            </ol>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="shrink-0 pt-3 border-t border-slate-800 mt-3 flex items-center justify-between text-xs">
+        <a href="https://line.me/R/ti/p/@411vtica" target="_blank" class="text-emerald-400 hover:text-emerald-300 font-medium flex items-center gap-1.5 underline">
+          <i class="fa-brands fa-line text-base"></i> ทดลองใช้งานผ่าน LINE Bot (@411vtica)
+        </a>
+        <button onclick="closeUserGuideModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-medium cursor-pointer transition-colors">
+          เข้าใจแล้ว / ปิดหน้าต่าง
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
   <!-- ⚙️ DASHBOARD STATISTICAL ANALYTICS JAVASCRIPT -->
   <!-- ========================================================================= -->
   <script>
@@ -3121,6 +3405,64 @@
       const container = document.getElementById('exportDropdownContainer');
       if (container && !container.contains(e.target)) {
         closeExportDropdown();
+      }
+    });
+
+    // ==========================================
+    // ❓ QUICK USER GUIDE MODAL (คู่มือการใช้งานฉบับย่อ)
+    // ==========================================
+    function openUserGuideModal() {
+      const modal = document.getElementById('userGuideModal');
+      if (modal) {
+        modal.style.display = 'flex';
+        modal.classList.remove('hidden');
+      }
+    }
+
+    function closeUserGuideModal() {
+      const modal = document.getElementById('userGuideModal');
+      if (modal) {
+        modal.style.display = 'none';
+        modal.classList.add('hidden');
+      }
+    }
+
+    function switchGuideTab(tab) {
+      const tabMap = {
+        'citizen': { sec: 'guideSection_citizen', btn: 'guideTabCitizenBtn' },
+        'field': { sec: 'guideSection_field', btn: 'guideTabFieldBtn' },
+        'toc': { sec: 'guideSection_toc', btn: 'guideTabTocBtn' },
+        'app': { sec: 'guideSection_app', btn: 'guideTabAppBtn' }
+      };
+
+      Object.keys(tabMap).forEach(k => {
+        const item = tabMap[k];
+        const secEl = document.getElementById(item.sec);
+        const btnEl = document.getElementById(item.btn);
+
+        if (secEl) {
+          if (k === tab) {
+            secEl.classList.remove('hidden');
+          } else {
+            secEl.classList.add('hidden');
+          }
+        }
+
+        if (btnEl) {
+          if (k === tab) {
+            btnEl.className = 'flex-1 min-w-[130px] py-2 px-3 rounded-lg font-bold transition-all flex items-center justify-center gap-2 bg-sky-600 text-white shadow-sm cursor-pointer';
+          } else {
+            btnEl.className = 'flex-1 min-w-[130px] py-2 px-3 rounded-lg font-bold transition-all flex items-center justify-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800/80 cursor-pointer';
+          }
+        }
+      });
+    }
+
+    // Close user guide modal on clicking backdrop
+    document.addEventListener('click', function(e) {
+      const modal = document.getElementById('userGuideModal');
+      if (modal && e.target === modal) {
+        closeUserGuideModal();
       }
     });
 
