@@ -880,6 +880,11 @@
               <button id="pillIncAll" onclick="setTacticalIncidentFilter('ALL')" class="px-2.5 py-0.5 rounded-md bg-sky-600 text-white font-bold cursor-pointer transition-colors shadow-sm shrink-0">
                 ทั้งหมด
               </button>
+              <button id="pillIncField" onclick="setTacticalIncidentFilter('FIELD')" class="px-2 py-0.5 rounded-md bg-slate-800/80 text-cyan-400 hover:bg-slate-800 border border-slate-700/60 cursor-pointer transition-colors shrink-0 flex items-center gap-1" title="แสดงเฉพาะรายงานหรือเหตุการณ์ที่แจ้งมาจากหน้างาน">
+                <i class="fa-solid fa-satellite-dish text-cyan-400 text-[10px]"></i>
+                <span>แจ้งจากหน้างาน</span>
+                <span id="pillIncFieldCount" class="hidden px-1.5 py-0.2 rounded-full bg-cyan-500/20 text-cyan-300 text-[9px] font-mono font-bold">0</span>
+              </button>
               <button id="pillIncCritical" onclick="setTacticalIncidentFilter('CRITICAL')" class="px-2 py-0.5 rounded-md bg-slate-800/80 text-rose-400 hover:bg-slate-800 border border-slate-700/60 cursor-pointer transition-colors shrink-0">
                 🔴 วิกฤต
               </button>
@@ -2763,6 +2768,7 @@
       renderTacticalIncidentFeed();
       renderTacticalIncidentMarkers();
       renderQuickStatsPanel(typeCounts, dateCounts);
+      updateFieldReportPillBadge();
 
       // Fetch live field reports and photos
       fetchFieldReports();
@@ -3475,17 +3481,67 @@
       });
     }
 
+    function isFieldReportItem(item) {
+      if (!item) return false;
+      const t = (item.title || '').toLowerCase();
+      const type = (item.incident_type || '').toLowerCase();
+      const rawType = (item.raw_type || '').toLowerCase();
+      const rep = (item.reporter || '').toLowerCase();
+
+      if (t.includes('หน้างาน') || t.includes('ภาพรายงาน') || t.includes('สนาม') || t.includes('field') || t.includes('sos') || t.includes('ขอกำลัง') || t.includes('ขอสนับสนุน')) return true;
+      if (type.includes('หน้างาน') || type.includes('ภาพรายงาน') || type.includes('สนาม') || type.includes('sos') || type.includes('ขอสนับสนุน')) return true;
+      if (rawType.includes('หน้างาน') || rawType.includes('ภาพรายงาน') || rawType.includes('สนาม') || rawType.includes('sos')) return true;
+      if (rep.includes('ชุดปฏิบัติการ') || rep.includes('สนาม') || rep.includes('หน้างาน') || rep.includes('unit') || rep.includes('ร้อย.') || rep.includes('หมู่') || rep.includes('ส.อ.') || rep.includes('ส.ท.') || rep.includes('ส.ต.') || rep.includes('ร.ต.') || rep.includes('ร.ท.') || rep.includes('ร.อ.')) return true;
+
+      if (item.report_id && Array.isArray(liveFieldReports)) {
+        if (liveFieldReports.some(fr => (fr.id && fr.id === item.report_id) || (fr.incident_id && fr.incident_id === item.report_id) || (fr.incident_id && item.title && item.title.includes(fr.incident_id)))) return true;
+      }
+      return false;
+    }
+
+    function updateFieldReportPillBadge() {
+      const badge = document.getElementById('pillIncFieldCount');
+      if (!badge) return;
+      let count = 0;
+      const seen = new Set();
+      (rawIncidents || []).forEach(item => {
+        if (isFieldReportItem(item)) {
+          count++;
+          if (item.report_id) seen.add(item.report_id);
+        }
+      });
+      if (Array.isArray(liveFieldReports)) {
+        liveFieldReports.forEach(fr => {
+          const fid = fr.id || fr.incident_id;
+          if (!fid || !seen.has(fid)) {
+            count++;
+          }
+        });
+      }
+      if (count > 0) {
+        badge.innerText = count;
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+
     function setTacticalIncidentFilter(filter) {
       tacticalIncidentFilter = filter;
-      ['All', 'Critical', 'Pending', 'Progress', 'Resolved'].forEach(name => {
+      ['All', 'Field', 'Critical', 'Pending', 'Progress', 'Resolved'].forEach(name => {
         const btn = document.getElementById(`pillInc${name}`);
         if (btn) {
-          btn.className = 'px-2 py-0.5 rounded-md bg-slate-800/80 text-slate-400 hover:bg-slate-800 border border-slate-700/60 cursor-pointer transition-colors shrink-0';
+          if (name === 'Field') {
+            btn.className = 'px-2 py-0.5 rounded-md bg-slate-800/80 text-cyan-400 hover:bg-slate-800 border border-slate-700/60 cursor-pointer transition-colors shrink-0 flex items-center gap-1';
+          } else {
+            btn.className = 'px-2 py-0.5 rounded-md bg-slate-800/80 text-slate-400 hover:bg-slate-800 border border-slate-700/60 cursor-pointer transition-colors shrink-0';
+          }
         }
       });
 
       const activeMap = {
         'ALL': 'pillIncAll',
+        'FIELD': 'pillIncField',
         'CRITICAL': 'pillIncCritical',
         'PENDING': 'pillIncPending',
         'IN_PROGRESS': 'pillIncProgress',
@@ -3493,7 +3549,8 @@
       };
       const activeBtn = document.getElementById(activeMap[filter]);
       if (activeBtn) {
-        if (filter === 'CRITICAL') activeBtn.className = 'px-2.5 py-0.5 rounded-md bg-rose-600 text-white font-bold cursor-pointer transition-colors shadow-sm shrink-0';
+        if (filter === 'FIELD') activeBtn.className = 'px-2.5 py-0.5 rounded-md bg-cyan-600 text-white font-bold cursor-pointer transition-colors shadow-sm shrink-0 flex items-center gap-1';
+        else if (filter === 'CRITICAL') activeBtn.className = 'px-2.5 py-0.5 rounded-md bg-rose-600 text-white font-bold cursor-pointer transition-colors shadow-sm shrink-0';
         else if (filter === 'PENDING') activeBtn.className = 'px-2.5 py-0.5 rounded-md bg-sky-600 text-white font-bold cursor-pointer transition-colors shadow-sm shrink-0';
         else if (filter === 'IN_PROGRESS') activeBtn.className = 'px-2.5 py-0.5 rounded-md bg-amber-600 text-white font-bold cursor-pointer transition-colors shadow-sm shrink-0';
         else if (filter === 'RESOLVED') activeBtn.className = 'px-2.5 py-0.5 rounded-md bg-emerald-600 text-white font-bold cursor-pointer transition-colors shadow-sm shrink-0';
@@ -3516,7 +3573,39 @@
       const typeVal = document.getElementById('tacticalIncidentTypeFilter')?.value || '';
       const search = (tacticalIncidentSearchQuery || '').toLowerCase();
 
-      const filtered = rawIncidents.filter(item => {
+      let feedItems = rawIncidents.slice();
+
+      // If filtering by FIELD, include liveFieldReports if not already matched
+      if (tacticalIncidentFilter === 'FIELD' && Array.isArray(liveFieldReports) && liveFieldReports.length > 0) {
+        liveFieldReports.forEach(fr => {
+          const alreadyInRaw = feedItems.some(i => 
+            (fr.id && i.report_id === fr.id) ||
+            (fr.incident_id && i.report_id === fr.incident_id) ||
+            (fr.message && i.title.includes(fr.message.slice(0, 20)))
+          );
+          if (!alreadyInRaw) {
+            const coords = resolveReportCoordinates(fr);
+            const isSos = fr.report_type === 'support_request';
+            feedItems.push({
+              timestamp: fr.timestamp,
+              title: fr.message ? `[${fr.unit_id || 'หน้างาน'}] ${fr.message}` : (isSos ? '🚨 สัญญาณขอกำลังสนับสนุนจากหน้างาน (SOS)' : '📸 ภาพถ่ายรายงานจากหน้างาน'),
+              address: fr.address || (coords.lat ? `พิกัด ${coords.lat.toFixed(5)}, ${coords.lon.toFixed(5)}` : 'พื้นที่ปฏิบัติการหน้างาน'),
+              lat: coords.lat,
+              lon: coords.lon,
+              reporter: fr.commander || fr.sender_name || fr.unit_id || 'เจ้าหน้าที่หน้างาน',
+              urgency: isSos ? '🔴 วิกฤต' : '🟡 ปานกลาง',
+              incident_type: 'รายงานหน้างาน',
+              raw_type: isSos ? '🚨 SOS หน้างาน' : '📸 ภาพรายงานหน้างาน',
+              status: isSos ? '⏳ รอรับการสนับสนุน' : '🟢 รายงานแล้ว',
+              media_url: fr.photo_url || fr.image_url || '-',
+              report_id: fr.id || fr.incident_id || '',
+              is_live_field: true
+            });
+          }
+        });
+      }
+
+      const filtered = feedItems.filter(item => {
         const matchesSearch = !search || 
           (item.title || '').toLowerCase().includes(search) || 
           (item.address || '').toLowerCase().includes(search) || 
@@ -3526,7 +3615,9 @@
         const matchesType = !typeVal || item.incident_type === typeVal || item.raw_type === typeVal;
 
         let matchesStatus = true;
-        if (tacticalIncidentFilter === 'CRITICAL') {
+        if (tacticalIncidentFilter === 'FIELD') {
+          matchesStatus = item.is_live_field || isFieldReportItem(item);
+        } else if (tacticalIncidentFilter === 'CRITICAL') {
           matchesStatus = (item.urgency || '').includes('วิกฤต');
         } else if (tacticalIncidentFilter === 'PENDING') {
           matchesStatus = (item.status || '').includes('รอ');
@@ -3541,14 +3632,17 @@
 
       const lastSyncText = document.getElementById('tacticalIncidentLastSyncText');
       if (lastSyncText) {
-        lastSyncText.innerText = `แสดง ${filtered.length}/${rawIncidents.length} รายการ • ${new Date().toLocaleTimeString('th-TH')}`;
+        lastSyncText.innerText = `แสดง ${filtered.length}/${feedItems.length} รายการ • ${new Date().toLocaleTimeString('th-TH')}`;
       }
 
       if (filtered.length === 0) {
+        const emptyMsg = tacticalIncidentFilter === 'FIELD' 
+          ? 'ไม่พบรายงานที่แจ้งมาจากหน้างานในขณะนี้' 
+          : 'ไม่พบรายการเหตุการณ์ตามเงื่อนไขที่เลือก';
         container.innerHTML = `
           <div class="text-center py-12 text-slate-500 space-y-2">
             <i class="fa-solid fa-clipboard-check text-3xl text-slate-600 mb-1"></i>
-            <p class="text-xs">ไม่พบรายการเหตุการณ์ตามเงื่อนไขที่เลือก</p>
+            <p class="text-xs">${emptyMsg}</p>
           </div>
         `;
         return;
@@ -3630,6 +3724,12 @@
           dispBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 flex items-center gap-1 shadow-sm"><i class="fa-solid fa-bullhorn text-[9px]"></i> สั่งการแล้ว (${assignedCount})</span>`;
         }
 
+        const isFieldItem = item.is_live_field || isFieldReportItem(item);
+        let fieldBadge = '';
+        if (isFieldItem) {
+          fieldBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center gap-1 shadow-sm"><i class="fa-solid fa-satellite-dish text-[9px]"></i> หน้างาน</span>`;
+        }
+
         const card = document.createElement('div');
         card.className = `p-3 rounded-xl bg-slate-900/90 border ${cardAccent} hover:bg-slate-850 transition-all shadow-md group relative cursor-pointer`;
         card.onclick = () => {
@@ -3643,6 +3743,7 @@
               <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">
                 <i class="fa-solid fa-folder-open mr-1"></i>${item.raw_type || item.incident_type}
               </span>
+              ${fieldBadge}
               ${urgBadge}
               ${statBadge}
               ${dispBadge}
@@ -4663,6 +4764,8 @@
           `;
         }).join('');
       }
+
+      updateFieldReportPillBadge();
     }
 
     function openPhotoViewer(url, sender, note, time, lat, lon, unitId, incidentId) {
