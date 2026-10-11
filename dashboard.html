@@ -2369,14 +2369,38 @@
           <input type="text" id="incAddress" required placeholder="เช่น บ้านแม่ปอน ม.2 ต.บ้านกาด อ.แม่วาง เชียงใหม่" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-red-500">
         </div>
 
+        <!-- 🗺️ INTERACTIVE PIN PICKER MAP -->
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between text-slate-300">
+            <label class="font-medium flex items-center gap-1.5">
+              <i class="fa-solid fa-map-location-dot text-rose-500"></i>
+              <span>แผนที่กำหนดพิกัดจุดเกิดเหตุ (คลิกเพื่อปักหมุด)</span>
+            </label>
+            <span class="text-[10px] text-slate-400 font-mono" id="incMapHint">คลิกบนแผนที่เพื่อเปลี่ยนตำแหน่งพิกัด</span>
+          </div>
+          <div class="relative w-full h-44 rounded-xl overflow-hidden border border-slate-700 bg-slate-950 shadow-inner">
+            <div id="incPickerMap" class="w-full h-full"></div>
+            <!-- Crosshair center guide -->
+            <div class="absolute bottom-2 left-2 z-[400] bg-slate-900/90 backdrop-blur-md px-2 py-0.5 rounded text-[10px] text-slate-300 border border-slate-700 flex items-center gap-1">
+              <i class="fa-solid fa-crosshairs text-rose-400"></i>
+              <span id="incPickerCoordBadge">กำลังโหลดแผนที่...</span>
+            </div>
+            <!-- Quick GPS helper button -->
+            <button type="button" onclick="centerIncPickerToCurrentLocation()" class="absolute top-2 right-2 z-[400] bg-slate-900/90 hover:bg-slate-800 text-sky-400 hover:text-white px-2 py-1 rounded-lg text-[10px] font-medium border border-slate-700 shadow flex items-center gap-1 transition-all cursor-pointer" title="ใช้พิกัดปัจจุบันของเครื่อง">
+              <i class="fa-solid fa-location-crosshairs"></i>
+              <span>พิกัดฉัน</span>
+            </button>
+          </div>
+        </div>
+
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label class="block text-slate-300 mb-1 font-medium">พิกัด Latitude (ถ้ามี)</label>
-            <input type="number" step="any" id="incLat" placeholder="เช่น 18.6189" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-red-500 font-mono">
+            <label class="block text-slate-300 mb-1 font-medium">พิกัด Latitude <span class="text-rose-400">*</span></label>
+            <input type="number" step="any" id="incLat" oninput="onManualIncCoordChange()" placeholder="เช่น 18.6189" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-red-500 font-mono">
           </div>
           <div>
-            <label class="block text-slate-300 mb-1 font-medium">พิกัด Longitude (ถ้ามี)</label>
-            <input type="number" step="any" id="incLon" placeholder="เช่น 98.7421" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-red-500 font-mono">
+            <label class="block text-slate-300 mb-1 font-medium">พิกัด Longitude <span class="text-rose-400">*</span></label>
+            <input type="number" step="any" id="incLon" oninput="onManualIncCoordChange()" placeholder="เช่น 98.7421" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-red-500 font-mono">
           </div>
         </div>
 
@@ -6022,8 +6046,126 @@
     }
 
     // =========================================================================
-    // 🚨 TOC CREATE INCIDENT ENGINE (เปิดใบแจ้งเหตุการณ์อย่างเป็นทางการ)
+    // 🚨 TOC CREATE INCIDENT ENGINE (เปิดใบแจ้งเหตุการณ์อย่างเป็นทางการ & แผนที่ปักหมุด)
     // =========================================================================
+    let incPickerMap = null;
+    let incPickerMarker = null;
+
+    function initOrUpdateIncPickerMap(initialLat, initialLon) {
+      const mapContainer = document.getElementById('incPickerMap');
+      if (!mapContainer) return;
+
+      const lat = parseFloat(initialLat) || 18.6189;
+      const lon = parseFloat(initialLon) || 98.7421;
+
+      if (!incPickerMap) {
+        incPickerMap = L.map('incPickerMap', {
+          zoomControl: true,
+          attributionControl: false
+        }).setView([lat, lon], 14);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19
+        }).addTo(incPickerMap);
+
+        // Marker with custom tactical pin icon
+        const pinIcon = L.divIcon({
+          className: 'tactical-div-icon',
+          html: `
+            <div style="position: relative; width: 34px; height: 34px; display: flex; items-center; justify-content: center;">
+              <div style="position: absolute; inset: -4px; border-radius: 9999px; border: 2px solid #ef4444; animation: pulseGlow 1.8s infinite;"></div>
+              <div style="width: 32px; height: 32px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: linear-gradient(135deg, #ef4444, #991b1b); border: 2px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;">
+                <i class="fa-solid fa-bullhorn" style="transform: rotate(45deg); color: #fff; font-size: 13px;"></i>
+              </div>
+            </div>
+          `,
+          iconSize: [34, 34],
+          iconAnchor: [17, 34]
+        });
+
+        incPickerMarker = L.marker([lat, lon], {
+          draggable: true,
+          icon: pinIcon
+        }).addTo(incPickerMap);
+
+        // Map Click Event -> Move marker & update inputs
+        incPickerMap.on('click', function(e) {
+          updateIncPickerPosition(e.latlng.lat, e.latlng.lng, false);
+        });
+
+        // Marker Drag Event
+        incPickerMarker.on('dragend', function(e) {
+          const pos = e.target.getLatLng();
+          updateIncPickerPosition(pos.lat, pos.lng, false);
+        });
+      } else {
+        incPickerMap.setView([lat, lon], 14);
+        if (incPickerMarker) {
+          incPickerMarker.setLatLng([lat, lon]);
+        }
+      }
+
+      // Update badge display
+      updateIncPickerBadge(lat, lon);
+
+      // Force Leaflet to recalculate container size inside modal
+      setTimeout(() => {
+        if (incPickerMap) {
+          incPickerMap.invalidateSize();
+        }
+      }, 250);
+    }
+
+    function updateIncPickerPosition(lat, lon, panMap = true) {
+      const fixedLat = parseFloat(lat.toFixed(6));
+      const fixedLon = parseFloat(lon.toFixed(6));
+
+      const latInput = document.getElementById('incLat');
+      const lonInput = document.getElementById('incLon');
+      if (latInput) latInput.value = fixedLat;
+      if (lonInput) lonInput.value = fixedLon;
+
+      if (incPickerMarker) {
+        incPickerMarker.setLatLng([fixedLat, fixedLon]);
+      }
+      if (panMap && incPickerMap) {
+        incPickerMap.panTo([fixedLat, fixedLon]);
+      }
+      updateIncPickerBadge(fixedLat, fixedLon);
+    }
+
+    function updateIncPickerBadge(lat, lon) {
+      const badge = document.getElementById('incPickerCoordBadge');
+      if (badge) {
+        badge.innerText = `พิกัด: ${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+      }
+    }
+
+    function onManualIncCoordChange() {
+      const latVal = parseFloat(document.getElementById('incLat')?.value);
+      const lonVal = parseFloat(document.getElementById('incLon')?.value);
+      if (!isNaN(latVal) && !isNaN(lonVal) && incPickerMap) {
+        updateIncPickerPosition(latVal, lonVal, true);
+      }
+    }
+
+    function centerIncPickerToCurrentLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          pos => {
+            updateIncPickerPosition(pos.coords.latitude, pos.coords.longitude, true);
+            showToast('📍 ระบุตำแหน่งปัจจุบันของคุณเรียบร้อยแล้ว');
+          },
+          err => {
+            alert('ไม่สามารถดึงตำแหน่งปัจจุบันได้: ' + (err.message || 'โปรดอนุญาต GPS'));
+          },
+          { enableHighAccuracy: true, timeout: 8000 }
+        );
+      } else {
+        alert('เบราว์เซอร์นี้ไม่รองรับ Geolocation');
+      }
+    }
+
     function openCreateIncidentModal() {
       const modal = document.getElementById('createIncidentModal');
       const reporterInput = document.getElementById('incReporter');
@@ -6041,17 +6183,31 @@
         } catch(e) {}
       }
 
-      // Pre-fill map center coordinates if available
-      if (tacticalMap && latInput && lonInput && (!latInput.value || !lonInput.value)) {
+      // Determine initial coordinates (from map center or existing values)
+      let defaultLat = 18.6189;
+      let defaultLon = 98.7421;
+
+      if (latInput && lonInput && latInput.value && lonInput.value) {
+        defaultLat = parseFloat(latInput.value) || defaultLat;
+        defaultLon = parseFloat(lonInput.value) || defaultLon;
+      } else if (tacticalMap) {
         try {
           const center = tacticalMap.getCenter();
-          latInput.value = center.lat.toFixed(6);
-          lonInput.value = center.lng.toFixed(6);
+          defaultLat = center.lat;
+          defaultLon = center.lng;
         } catch(e) {}
       }
 
+      if (latInput) latInput.value = defaultLat.toFixed(6);
+      if (lonInput) lonInput.value = defaultLon.toFixed(6);
+
       showModal('createIncidentModal');
-      setTimeout(() => document.getElementById('incTitle')?.focus(), 100);
+      
+      // Initialize or resize interactive picker map inside modal
+      setTimeout(() => {
+        initOrUpdateIncPickerMap(defaultLat, defaultLon);
+        document.getElementById('incTitle')?.focus();
+      }, 150);
     }
 
     function closeCreateIncidentModal() {
