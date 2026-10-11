@@ -53,6 +53,14 @@
       background-color: #070c19;
       color: #f1f5f9;
     }
+    /* Fix native select dropdown styling across Windows / Chromium / WebKit */
+    select {
+      color-scheme: dark;
+    }
+    select option {
+      background-color: #0f172a !important;
+      color: #f8fafc !important;
+    }
     .custom-scrollbar::-webkit-scrollbar {
       width: 6px;
       height: 6px;
@@ -516,7 +524,7 @@
       <!-- LEFT 50%: TACTICAL RADAR MAP -->
       <div id="tacticalMapPanel" class="w-full md:w-1/2 flex flex-col h-full min-h-0 bg-rtsd-card border border-slate-800 rounded-xl p-2.5 shadow-2xl relative overflow-hidden transition-all duration-200">
         <!-- Radar Header -->
-        <div class="shrink-0 flex items-center justify-between pb-1.5 border-b border-slate-800/80 mb-1.5 gap-1.5 overflow-x-auto no-scrollbar">
+        <div class="shrink-0 flex items-center justify-between pb-1.5 border-b border-slate-800/80 mb-1.5 gap-1.5 relative z-[1050]">
           <div class="flex items-center gap-1.5 shrink-0 min-w-0">
             <div class="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping shrink-0"></div>
             <h3 class="font-bold text-xs text-white tracking-wide uppercase flex items-center gap-1 font-mono shrink-0">
@@ -528,13 +536,13 @@
           <div class="flex items-center gap-1 shrink-0">
             <div class="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-slate-900 text-xs border border-slate-700 text-slate-300" title="ตั้งค่าสเกลระยะเรดาร์ตามระยะทางจริงบนแผนที่">
               <i class="fa-solid fa-ruler-combined text-red-400 text-[10px]"></i>
-              <select id="radarRangeSelect" onchange="changeRadarRangeMode(this.value)" class="bg-transparent text-white font-mono text-[11px] focus:outline-none cursor-pointer">
-                <option value="auto">AUTO</option>
-                <option value="1000">1 กม.</option>
-                <option value="5000" selected>5 กม.</option>
-                <option value="10000">10 กม.</option>
-                <option value="20000">20 กม.</option>
-                <option value="40000">40 กม.</option>
+              <select id="radarRangeSelect" onchange="changeRadarRangeMode(this.value)" class="bg-transparent text-white font-mono text-[11px] focus:outline-none cursor-pointer" style="color-scheme: dark;">
+                <option value="auto" class="bg-slate-900 text-white">AUTO</option>
+                <option value="1000" class="bg-slate-900 text-white">1 กม.</option>
+                <option value="5000" selected class="bg-slate-900 text-white">5 กม.</option>
+                <option value="10000" class="bg-slate-900 text-white">10 กม.</option>
+                <option value="20000" class="bg-slate-900 text-white">20 กม.</option>
+                <option value="40000" class="bg-slate-900 text-white">40 กม.</option>
               </select>
             </div>
             <button id="addPinBtn" onclick="toggleAddPinMode()" class="px-2 py-0.5 text-[11px] rounded-lg bg-emerald-600/30 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/50 cursor-pointer transition-all flex items-center gap-1 shadow-sm" title="เปิดโหมดปักหมุดยุทธวิธีบนแผนที่">
@@ -551,7 +559,7 @@
               </button>
               
               <!-- Dropdown Menu -->
-              <div id="mapLayerFilterDropdown" class="hidden absolute right-0 mt-1 w-56 rounded-xl bg-slate-900/95 backdrop-blur-md border border-slate-700 shadow-2xl z-50 p-2.5 space-y-1.5 text-xs text-slate-200">
+              <div id="mapLayerFilterDropdown" class="hidden absolute right-0 mt-1 w-56 rounded-xl bg-slate-900/95 backdrop-blur-md border border-slate-700 shadow-2xl z-[1060] p-2.5 space-y-1.5 text-xs text-slate-200">
                 <div class="text-[11px] font-bold text-slate-400 px-1 pb-1 border-b border-slate-800 flex items-center justify-between">
                   <span>ตัวกรองการแสดงผลบนแผนที่</span>
                   <span id="activeLayerCount" class="text-[10px] text-sky-400 font-mono">4/4 เปิด</span>
