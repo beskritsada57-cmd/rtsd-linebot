@@ -7336,6 +7336,8 @@
     let currentRadarRangeMode = 'auto'; // 'auto' or fixed meters (e.g. 500, 1000, 3000, 5000, 10000)
 
     // 📹 CCTV Surveillance System Variables
+    const CCTV_AUTO_ZOOM_THRESHOLD = 11; // 10 km scale threshold for camera display
+    window.CCTV_AUTO_ZOOM_THRESHOLD = CCTV_AUTO_ZOOM_THRESHOLD;
     let cctvMapMarkers = {};
     window.cctvMapMarkers = cctvMapMarkers;
     let activeCctvIndex = 0;
@@ -7457,14 +7459,27 @@
         });
         showToast(isVisible ? '📌 เปิดแสดงหมุดที่ปักเอง' : '🙈 ซ่อนหมุดที่ปักเองบนแผนที่แล้ว');
       } else if (type === 'cctv') {
-        Object.keys(cctvMapMarkers).forEach(k => {
-          if (isVisible) {
-            if (!tacticalMap.hasLayer(cctvMapMarkers[k])) cctvMapMarkers[k].addTo(tacticalMap);
+        if (typeof updateCctvMarkerVisibilityByZoom === 'function') {
+          updateCctvMarkerVisibilityByZoom();
+        } else {
+          Object.keys(cctvMapMarkers).forEach(k => {
+            if (isVisible) {
+              if (!tacticalMap.hasLayer(cctvMapMarkers[k])) cctvMapMarkers[k].addTo(tacticalMap);
+            } else {
+              if (tacticalMap.hasLayer(cctvMapMarkers[k])) tacticalMap.removeLayer(cctvMapMarkers[k]);
+            }
+          });
+        }
+        if (isVisible) {
+          const curZoom = tacticalMap ? tacticalMap.getZoom() : 0;
+          if (curZoom < CCTV_AUTO_ZOOM_THRESHOLD) {
+            showToast('📹 เปิดเลเยอร์กล้อง CCTV (จะปรากฏอัตโนมัติเมื่อซูมเข้าระดับ ~10 กม.)');
           } else {
-            if (tacticalMap.hasLayer(cctvMapMarkers[k])) tacticalMap.removeLayer(cctvMapMarkers[k]);
+            showToast('📹 เปิดแสดงหมุดกล้อง CCTV บนแผนที่แล้ว');
           }
-        });
-        showToast(isVisible ? '📹 เปิดแสดงหมุดกล้อง CCTV' : '🙈 ซ่อนหมุดกล้อง CCTV บนแผนที่แล้ว');
+        } else {
+          showToast('🙈 ซ่อนหมุดกล้อง CCTV บนแผนที่แล้ว');
+        }
       }
 
       updateLayerFilterBadge();
@@ -11124,11 +11139,35 @@
 
         cctvMapMarkers[cam.id] = marker;
 
-        if (isLayerVisible.cctv !== false) {
+        const currentZoom = tacticalMap ? tacticalMap.getZoom() : 6;
+        const shouldShow = (currentZoom >= CCTV_AUTO_ZOOM_THRESHOLD) && (isLayerVisible.cctv !== false);
+        if (shouldShow) {
           marker.addTo(tacticalMap);
         }
       });
     }
+
+    // 📹 ระดับสเกลซูมประมาณ 10 กม. (District/River Basin level) ค่อยแสดงสัญลักษณ์กล้อง (CCTV_AUTO_ZOOM_THRESHOLD = 11)
+    function updateCctvMarkerVisibilityByZoom() {
+      if (!tacticalMap || !publicCctvCameras) return;
+      const currentZoom = tacticalMap.getZoom();
+      const shouldShow = (currentZoom >= CCTV_AUTO_ZOOM_THRESHOLD) && (isLayerVisible.cctv !== false);
+
+      Object.keys(cctvMapMarkers).forEach(id => {
+        const marker = cctvMapMarkers[id];
+        if (!marker) return;
+        if (shouldShow) {
+          if (!tacticalMap.hasLayer(marker)) {
+            marker.addTo(tacticalMap);
+          }
+        } else {
+          if (tacticalMap.hasLayer(marker)) {
+            tacticalMap.removeLayer(marker);
+          }
+        }
+      });
+    }
+    window.updateCctvMarkerVisibilityByZoom = updateCctvMarkerVisibilityByZoom;
 
     const popupCctvZoomStates = {};
 
@@ -11174,8 +11213,12 @@
       });
 
       if (cctvMapMarkers[cam.id]) {
+        const marker = cctvMapMarkers[cam.id];
+        if (!tacticalMap.hasLayer(marker)) {
+          marker.addTo(tacticalMap);
+        }
         setTimeout(() => {
-          cctvMapMarkers[cam.id].openPopup();
+          marker.openPopup();
         }, 1050);
       }
       showToast(`📹 เปิดกล้องสถานีโทรมาตร ${cam.code} (${cam.name}) บนแผนที่`);
@@ -11247,6 +11290,13 @@
         animate: true,
         duration: 1.0
       });
+
+      if (cctvMapMarkers[cam.id]) {
+        const marker = cctvMapMarkers[cam.id];
+        if (!tacticalMap.hasLayer(marker)) {
+          marker.addTo(tacticalMap);
+        }
+      }
 
       const hudTarget = document.getElementById('radarTargetHud');
       const hudName = document.getElementById('hudTargetName');
@@ -11478,6 +11528,9 @@
       tacticalMap.on('zoomend', () => {
         updateRadarSweepPosition();
         updateMapBorderRulers();
+        if (typeof updateCctvMarkerVisibilityByZoom === 'function') {
+          updateCctvMarkerVisibilityByZoom();
+        }
       });
 
       const initialCenter = tacticalMap.getCenter();
