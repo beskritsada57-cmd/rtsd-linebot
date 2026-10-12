@@ -697,7 +697,7 @@
             </div>
 
             <button id="toggleRadarBtn" onclick="toggleRadarSweep()" class="px-2 py-0.5 text-[11px] rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 cursor-pointer" title="เปิด/ปิดการกวาดสัญญาณเรดาร์">
-              <i class="fa-solid fa-radar text-red-400 mr-0.5"></i> <span id="radarStateText">เปิด</span>
+              <i class="fa-solid fa-radar text-slate-500 mr-0.5"></i> <span id="radarStateText">ปิด</span>
             </button>
 
             <!-- 3-Way Segmented Basemap Switcher (Instant 1-Click Selection) -->
@@ -832,8 +832,8 @@
             <div id="mapRulerRight" class="absolute top-6 bottom-6 right-1 w-7 flex flex-col justify-between items-center text-[8px] font-mono text-slate-400/90 pointer-events-none select-none z-30 tracking-wider"></div>
 
             <!-- Full Edge-to-Edge Glowing Crosshair Lines -->
-            <div id="radarFullCrosshairH" class="absolute left-0 right-0 h-[1px] bg-white/60 shadow-[0_0_8px_rgba(255,255,255,0.7)] pointer-events-none z-10 transition-all duration-75" style="top: 50%;"></div>
-            <div id="radarFullCrosshairV" class="absolute top-0 bottom-0 w-[1px] bg-white/60 shadow-[0_0_8px_rgba(255,255,255,0.7)] pointer-events-none z-10 transition-all duration-75" style="left: 50%;"></div>
+            <div id="radarFullCrosshairH" class="hidden absolute left-0 right-0 h-[1px] bg-white/60 shadow-[0_0_8px_rgba(255,255,255,0.7)] pointer-events-none z-10 transition-all duration-75" style="top: 50%;"></div>
+            <div id="radarFullCrosshairV" class="hidden absolute top-0 bottom-0 w-[1px] bg-white/60 shadow-[0_0_8px_rgba(255,255,255,0.7)] pointer-events-none z-10 transition-all duration-75" style="left: 50%;"></div>
 
             <!-- Radar Lock Badge -->
             <div id="radarLockStatusBadge" class="hidden absolute top-4 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-red-950/90 border border-red-500 text-red-400 font-mono text-[11px] font-bold tracking-wider animate-pulse flex items-center gap-1.5 shadow-lg shadow-red-950 z-30">
@@ -842,7 +842,7 @@
             </div>
 
             <!-- Center Radar Group (Tracks locked target coordinates and dynamic geographic zoom radius) -->
-            <div id="radarCenterGroup" class="absolute pointer-events-none flex items-center justify-center" style="left: 50%; top: 50%; transform: translate(-50%, -50%);">
+            <div id="radarCenterGroup" class="hidden absolute pointer-events-none flex items-center justify-center" style="left: 50%; top: 50%; transform: translate(-50%, -50%);">
               <!-- Range Rings (Sized dynamically to match true geographic meters with bright neon glow) -->
               <div id="radarRingOuter" class="absolute rounded-full border-2 border-red-500/85 shadow-[0_0_18px_rgba(239,68,68,0.7),inset_0_0_12px_rgba(239,68,68,0.25)] transition-all duration-150"></div>
               <div id="radarRingMid" class="absolute rounded-full border border-red-500/70 shadow-[0_0_12px_rgba(239,68,68,0.5)] transition-all duration-150"></div>
@@ -880,7 +880,7 @@
             <span id="mapCoordsBar">จุดกึ่งกลาง: กำลังโหลด...</span>
           </div>
           <div class="flex items-center gap-2">
-            <span id="radarRangeInfoText" class="text-red-400 font-bold">สเกลเรดาร์: คำนวณตามแผนที่จริง</span>
+            <span id="radarRangeInfoText" class="text-slate-400 font-bold">🎯 รัศมีเรดาร์: ปิดการทำงาน (STANDBY)</span>
             <span class="text-slate-700 hidden sm:inline">|</span>
             <span class="text-slate-500 hidden sm:inline">SWEEP 360° • 6s</span>
           </div>
@@ -7498,7 +7498,7 @@
     let satelliteBasemapLayer = null;
     let osmBasemapLayer = null;
     let currentBasemap = 'satellite';
-    let isRadarSweepActive = true;
+    let isRadarSweepActive = false;
     let tacticalMarkers = {};
     let activeTacticalUnits = [];
     let tacticalPollInterval = null;
