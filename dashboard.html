@@ -427,6 +427,13 @@
       0% { transform: scale(0.6); opacity: 1; }
       100% { transform: scale(1.7); opacity: 0; }
     }
+    /* 🔒 Tactical Auth Restriction Blur */
+    .tactical-auth-blurred {
+      filter: blur(14px) brightness(0.55) !important;
+      pointer-events: none !important;
+      user-select: none !important;
+      transition: filter 0.4s ease, brightness 0.4s ease;
+    }
   </style>
 </head>
 <body class="h-screen max-h-screen overflow-hidden flex flex-col bg-[#070c19] text-slate-100">
@@ -586,10 +593,10 @@
     <!-- ========================================================================= -->
     <!-- 🛰️ 1. TACTICAL RADAR & LIVE UNIT ROSTER (50 / 50 SPLIT SCREEN) -->
     <!-- ========================================================================= -->
-    <div id="tacticalContainer" class="flex-1 min-h-0 w-full flex flex-col md:flex-row gap-2.5 overflow-hidden">
+    <div id="tacticalContainer" class="flex-1 min-h-0 w-full flex flex-col md:flex-row gap-2.5 overflow-hidden relative">
       
       <!-- LEFT 50%: TACTICAL RADAR MAP -->
-      <div id="tacticalMapPanel" class="w-full md:w-1/2 flex flex-col h-full min-h-0 bg-rtsd-card border border-slate-800 rounded-xl p-2.5 shadow-2xl relative overflow-hidden isolate transition-all duration-200">
+      <div id="tacticalMapPanel" class="w-full md:w-1/2 flex flex-col h-full min-h-0 bg-rtsd-card border border-slate-800 rounded-xl p-2.5 shadow-2xl relative overflow-hidden isolate transition-all duration-300">
         <!-- Radar Header -->
         <div class="shrink-0 flex items-center justify-between pb-1.5 border-b border-slate-800/80 mb-1.5 gap-1.5 relative z-20">
           <div class="flex items-center gap-1.5 shrink-0 min-w-0">
@@ -881,7 +888,7 @@
       </div>
 
       <!-- RIGHT 50%: MULTI-TAB OPERATIONAL COMMAND FEED -->
-      <div class="w-full md:w-1/2 flex flex-col h-full min-h-0 bg-rtsd-card border border-slate-800 rounded-xl p-2.5 shadow-2xl overflow-hidden">
+      <div id="tacticalRightPanel" class="w-full md:w-1/2 flex flex-col h-full min-h-0 bg-rtsd-card border border-slate-800 rounded-xl p-2.5 shadow-2xl overflow-hidden transition-all duration-300">
         
         <!-- Tab Bar Header -->
         <div class="shrink-0 flex items-center justify-between pb-2 border-b border-slate-800/80 mb-2 gap-2 flex-wrap">
@@ -1186,6 +1193,49 @@
         </div>
 
       </div>
+
+      <!-- 🔒 TACTICAL RESTRICTED ACCESS OVERLAY (SHOWN WHEN NOT LOGGED IN) -->
+      <div id="tacticalAuthLockOverlay" class="hidden absolute inset-0 z-[50] bg-slate-950/60 backdrop-blur-[4px] flex items-center justify-center p-4">
+        <div class="max-w-md w-full bg-slate-900/95 border border-amber-500/40 rounded-2xl p-6 md:p-8 shadow-2xl shadow-black/90 text-center flex flex-col items-center animate-in fade-in zoom-in-95 duration-200">
+          <div class="w-16 h-16 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center text-3xl shadow-lg shadow-amber-500/20 mb-3.5">
+            <i class="fa-solid fa-shield-halved"></i>
+          </div>
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-400 text-xs font-mono font-bold uppercase tracking-wider mb-2">
+            <i class="fa-solid fa-lock text-[10px]"></i> RESTRICTED ACCESS
+          </span>
+          <h3 class="text-base md:text-lg font-bold text-white mb-2">พื้นที่ข้อมูลยุทธวิธีเฉพาะเจ้าหน้าที่</h3>
+          <p class="text-xs md:text-sm text-slate-300 leading-relaxed mb-6 max-w-sm">
+            กรุณาเข้าสู่ระบบเจ้าหน้าที่ RTSD เพื่อเข้าถึงข้อมูลแผนที่พิกัดยุทธวิธีสด กล้องโทรมาตร CCTV และรายละเอียดเหตุการณ์ฉุกเฉิน
+          </p>
+          <div class="flex flex-col sm:flex-row items-center gap-2.5 w-full justify-center">
+            <button onclick="openAuthModal()" class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white font-bold text-xs md:text-sm shadow-lg shadow-sky-600/30 flex items-center justify-center gap-2 transition-all cursor-pointer transform hover:scale-[1.02]">
+              <i class="fa-solid fa-right-to-bracket text-sky-200"></i>
+              <span>เข้าสู่ระบบเจ้าหน้าที่</span>
+            </button>
+            <button onclick="switchMainView('register')" class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer">
+              <i class="fa-solid fa-user-plus text-cyan-400"></i>
+              <span>สมัครสมาชิก</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        (function() {
+          try {
+            var token = localStorage.getItem('rtsd_auth_token') || sessionStorage.getItem('rtsd_auth_token');
+            var user = localStorage.getItem('rtsd_user') || sessionStorage.getItem('rtsd_user');
+            if (!token || !user) {
+              var mp = document.getElementById('tacticalMapPanel');
+              var rp = document.getElementById('tacticalRightPanel');
+              var lo = document.getElementById('tacticalAuthLockOverlay');
+              if (mp) mp.classList.add('tactical-auth-blurred');
+              if (rp) rp.classList.add('tactical-auth-blurred');
+              if (lo) { lo.classList.remove('hidden'); lo.classList.add('flex'); }
+            }
+          } catch(e) {}
+        })();
+      </script>
 
     </div>
 
@@ -6293,6 +6343,45 @@
     // =========================================================================
     let countdownInterval = null;
 
+    function updateTacticalAuthBlur(isLoggedIn) {
+      const mapPanel = document.getElementById('tacticalMapPanel');
+      const rightPanel = document.getElementById('tacticalRightPanel');
+      const lockOverlay = document.getElementById('tacticalAuthLockOverlay');
+      const guestBtn = document.getElementById('guestLoginBtnContainer');
+      const userBadge = document.getElementById('userBadge');
+
+      if (isLoggedIn) {
+        if (mapPanel) mapPanel.classList.remove('tactical-auth-blurred');
+        if (rightPanel) rightPanel.classList.remove('tactical-auth-blurred');
+        if (lockOverlay) {
+          lockOverlay.classList.add('hidden');
+          lockOverlay.classList.remove('flex');
+        }
+        if (guestBtn) guestBtn.classList.add('hidden');
+        if (userBadge) {
+          userBadge.classList.remove('hidden');
+          userBadge.classList.add('flex');
+        }
+        if (window.tacticalMap) {
+          setTimeout(() => {
+            window.tacticalMap.invalidateSize();
+          }, 200);
+        }
+      } else {
+        if (mapPanel) mapPanel.classList.add('tactical-auth-blurred');
+        if (rightPanel) rightPanel.classList.add('tactical-auth-blurred');
+        if (lockOverlay) {
+          lockOverlay.classList.remove('hidden');
+          lockOverlay.classList.add('flex');
+        }
+        if (guestBtn) guestBtn.classList.remove('hidden');
+        if (userBadge) {
+          userBadge.classList.add('hidden');
+          userBadge.classList.remove('flex');
+        }
+      }
+    }
+
     function checkAuthStatus() {
       const token = localStorage.getItem('rtsd_auth_token') || sessionStorage.getItem('rtsd_auth_token');
       const userJson = localStorage.getItem('rtsd_user') || sessionStorage.getItem('rtsd_user');
@@ -6337,6 +6426,7 @@
           if (guestBtn) guestBtn.classList.add('hidden');
 
           hideModal('authModal');
+          updateTacticalAuthBlur(true);
           fetchData();
           return true;
         } catch(e) {}
@@ -6351,8 +6441,9 @@
       const guestBtn = document.getElementById('guestLoginBtnContainer');
       if (guestBtn) guestBtn.classList.remove('hidden');
 
-      // 👁️ โหมดประชาชน (Citizen / Guest View): เข้าชมแผนที่สดได้ทันทีโดยไม่ต้องล็อกอิน
+      // 👁️ โหมดประชาชน (Citizen / Guest View): แผนที่และข้อมูลเหตุการณ์ถูกเบลอเพื่อความปลอดภัย
       hideModal('authModal');
+      updateTacticalAuthBlur(false);
       fetchData();
       return false;
     }
@@ -6745,14 +6836,8 @@
         localStorage.removeItem('rtsd_user');
         sessionStorage.removeItem('rtsd_auth_token');
         sessionStorage.removeItem('rtsd_user');
-        document.getElementById('userBadge').classList.add('hidden');
-        document.getElementById('userBadge').classList.remove('flex');
-        const adminBtn = document.getElementById('adminManageBtn');
-        if (adminBtn) {
-          adminBtn.classList.add('hidden');
-          adminBtn.classList.remove('flex');
-        }
-        document.getElementById('authModal').classList.remove('hidden');
+        checkAuthStatus();
+        showModal('authModal');
       }
     }
 
