@@ -1138,83 +1138,323 @@
     </div>
 
     <!-- ========================================================================= -->
-    <!-- 📈 STATISTICAL CHARTS GRID (2x2) -->
+    <!-- 🎛️ ANALYTICS MODE SELECTOR & CUSTOM BI STUDIO -->
     <!-- ========================================================================= -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-      <!-- Chart 1: Timeline Trend of Incidents (Line / Area Chart) -->
-      <div class="bg-rtsd-card border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col">
-        <div class="flex items-center justify-between mb-4">
-          <div class="flex items-center space-x-2">
-            <div class="w-7 h-7 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center text-sm">
-              <i class="fa-solid fa-arrow-trend-up"></i>
-            </div>
-            <div>
-              <h2 class="font-semibold text-white text-sm md:text-base">แนวโน้มการแจ้งเหตุการณ์ (Timeline Trend)</h2>
-              <p class="text-[11px] text-slate-400">สถิติความถี่การแจ้งเหตุการณ์ตามลำดับวัน</p>
-            </div>
+    <div class="bg-rtsd-card border border-slate-800 rounded-2xl p-4 shadow-xl space-y-4">
+      <!-- Mode Toggle Header -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-600 via-indigo-600 to-purple-600 flex items-center justify-center text-white text-lg shadow-lg shadow-sky-950/50">
+            <i class="fa-solid fa-chart-column"></i>
           </div>
-          <span class="text-xs px-2.5 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700">รายวัน</span>
+          <div>
+            <h2 class="text-sm md:text-base font-bold text-white flex items-center gap-2">
+              ศูนย์วิเคราะห์สถิติและข้อมูลสารสนเทศ (Analytics & BI Intelligence Studio)
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-mono bg-sky-500/20 text-sky-400 border border-sky-500/30">INTERACTIVE</span>
+            </h2>
+            <p class="text-xs text-slate-400">เลือกแกน X / แกน Y / ตัวชี้วัด / จัดกลุ่มเปรียบเทียบ และเปลี่ยนชนิดกราฟได้อิสระ</p>
+          </div>
         </div>
-        <div class="flex-1 min-h-[240px] relative">
-          <canvas id="trendChart"></canvas>
+        <!-- Subview Tabs -->
+        <div class="flex items-center gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-slate-700/80 self-start sm:self-auto shadow-inner">
+          <button id="btnAnalyticsStudioTab" onclick="switchAnalyticsSubView('studio')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-sky-600 text-white shadow-md flex items-center gap-1.5 cursor-pointer">
+            <i class="fa-solid fa-sliders text-cyan-200"></i>
+            <span>เครื่องมือวิเคราะห์อิสระ</span>
+          </button>
+          <button id="btnAnalyticsOverviewTab" onclick="switchAnalyticsSubView('overview')" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer">
+            <i class="fa-solid fa-table-cells-large"></i>
+            <span>ภาพรวม 4 กราฟมาตรฐาน</span>
+          </button>
         </div>
       </div>
 
-      <!-- Chart 2: Incident Type Breakdown (Doughnut Chart) -->
-      <div class="bg-rtsd-card border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col">
-        <div class="flex items-center justify-between mb-4">
-          <div class="flex items-center space-x-2">
-            <div class="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-sm">
-              <i class="fa-solid fa-chart-pie"></i>
-            </div>
+      <!-- ===================================================================== -->
+      <!-- VIEW 1: 🎛️ CUSTOM ANALYTICS STUDIO (DYNAMIC X / Y BUILDER) -->
+      <!-- ===================================================================== -->
+      <div id="analyticsStudioSection" class="space-y-4">
+        
+        <!-- Quick Presets Ribbon -->
+        <div class="flex flex-wrap items-center gap-1.5 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+          <span class="text-xs text-slate-400 font-semibold mr-1 flex items-center gap-1.5 shrink-0">
+            <i class="fa-solid fa-bolt text-amber-400"></i> ทางลัดวิเคราะห์ด่วน:
+          </span>
+          <button onclick="applyAnalyticsPreset('trend_daily')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] border border-slate-700 transition cursor-pointer flex items-center gap-1">
+            📈 แนวโน้มรายวัน
+          </button>
+          <button onclick="applyAnalyticsPreset('top_types')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] border border-slate-700 transition cursor-pointer flex items-center gap-1">
+            📊 ยอดเหตุสูงสุด
+          </button>
+          <button onclick="applyAnalyticsPreset('urgency_by_type')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] border border-slate-700 transition cursor-pointer flex items-center gap-1">
+            🚨 ความเร่งด่วนแยกตามประเภท
+          </button>
+          <button onclick="applyAnalyticsPreset('status_by_type')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] border border-slate-700 transition cursor-pointer flex items-center gap-1">
+            📌 สถานะดำเนินงานแยกประเภท
+          </button>
+          <button onclick="applyAnalyticsPreset('resolution_rate')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] border border-slate-700 transition cursor-pointer flex items-center gap-1">
+            🎯 อัตราปิดงานสำเร็จ (%)
+          </button>
+          <button onclick="applyAnalyticsPreset('time_of_day')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] border border-slate-700 transition cursor-pointer flex items-center gap-1">
+            ⏰ ช่วงเวลาเกิดเหตุบ่อย
+          </button>
+          <button onclick="applyAnalyticsPreset('by_province')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] border border-slate-700 transition cursor-pointer flex items-center gap-1">
+            📍 แยกตามพื้นที่/จังหวัด
+          </button>
+        </div>
+
+        <!-- Dynamic Control Toolbar (X, Y, Breakdown, Chart Type, Time Period) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 bg-slate-900/90 p-3.5 rounded-xl border border-slate-800 text-xs">
+          <!-- 1. แกน X -->
+          <div>
+            <label class="block font-semibold text-sky-400 mb-1 flex items-center gap-1">
+              <i class="fa-solid fa-arrows-left-right text-[11px]"></i> แกน X (จัดกลุ่มมิติข้อมูล)
+            </label>
+            <select id="customChartXAxis" onchange="renderCustomAnalyticsChart()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-white font-medium focus:outline-none focus:border-sky-500 cursor-pointer">
+              <option value="incident_type" selected>🏷️ ประเภทเหตุการณ์</option>
+              <option value="date">📅 วันที่เกิดเหตุ (รายวัน)</option>
+              <option value="month">🗓️ เดือน</option>
+              <option value="day_of_week">📆 วันในสัปดาห์ (จ.-อา.)</option>
+              <option value="time_bucket">⏰ ช่วงเวลาในรอบวัน</option>
+              <option value="urgency">🚨 ระดับความเร่งด่วน</option>
+              <option value="status">📌 สถานะการดำเนินการ</option>
+              <option value="province">📍 จังหวัด / พื้นที่</option>
+              <option value="reporter">👤 ผู้แจ้งเหตุ / แหล่งข่าว</option>
+            </select>
+          </div>
+
+          <!-- 2. แกน Y -->
+          <div>
+            <label class="block font-semibold text-emerald-400 mb-1 flex items-center gap-1">
+              <i class="fa-solid fa-arrows-up-down text-[11px]"></i> แกน Y (ตัวชี้วัด / สถิติ)
+            </label>
+            <select id="customChartYMetric" onchange="renderCustomAnalyticsChart()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-white font-medium focus:outline-none focus:border-emerald-500 cursor-pointer">
+              <option value="count" selected>🔢 จำนวนเหตุการณ์ (เรื่อง)</option>
+              <option value="percentage">📊 สัดส่วนร้อยละ (% Share)</option>
+              <option value="pending">⏳ จำนวนที่ค้างดำเนินการ (เรื่อง)</option>
+              <option value="resolved">🟢 จำนวนที่แก้ไขแล้วเสร็จ (เรื่อง)</option>
+              <option value="resolve_rate">🎯 อัตราปิดงานสำเร็จ (%)</option>
+              <option value="with_media">📸 มีรูปภาพ/คลิปหลักฐาน (เรื่อง)</option>
+            </select>
+          </div>
+
+          <!-- 3. จำแนกสี / ซีรีส์ -->
+          <div>
+            <label class="block font-semibold text-amber-400 mb-1 flex items-center gap-1">
+              <i class="fa-solid fa-layer-group text-[11px]"></i> จำแนกเปรียบเทียบ (Series)
+            </label>
+            <select id="customChartBreakdown" onchange="renderCustomAnalyticsChart()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-white font-medium focus:outline-none focus:border-amber-500 cursor-pointer">
+              <option value="none" selected>➖ รวมกลุ่มเดียว (Single)</option>
+              <option value="urgency">🚨 จำแนกตามความเร่งด่วน</option>
+              <option value="status">📌 จำแนกตามสถานะงาน</option>
+              <option value="incident_type">🏷️ จำแนกตามประเภทเหตุ</option>
+            </select>
+          </div>
+
+          <!-- 4. รูปแบบกราฟ -->
+          <div>
+            <label class="block font-semibold text-purple-400 mb-1 flex items-center gap-1">
+              <i class="fa-solid fa-chart-pie text-[11px]"></i> รูปแบบกราฟ (Chart Type)
+            </label>
+            <select id="customChartType" onchange="renderCustomAnalyticsChart()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-white font-medium focus:outline-none focus:border-purple-500 cursor-pointer">
+              <option value="bar" selected>📊 กราฟแท่งแนวตั้ง (Bar)</option>
+              <option value="horizontalBar">📉 กราฟแท่งแนวนอน (Horizontal Bar)</option>
+              <option value="line">📈 กราฟเส้นแนวโน้ม (Line/Area)</option>
+              <option value="doughnut">🍩 กราฟวงกลมโดนัท (Doughnut)</option>
+              <option value="pie">🥧 กราฟวงกลมพาย (Pie)</option>
+              <option value="stackedBar">📶 กราฟแท่งสะสม (Stacked Bar)</option>
+              <option value="radar">🕸️ กราฟใยแมงมุม (Radar)</option>
+            </select>
+          </div>
+
+          <!-- 5. ช่วงเวลาและปุ่มคำสั่ง -->
+          <div>
+            <label class="block font-semibold text-slate-300 mb-1 flex items-center gap-1">
+              <i class="fa-solid fa-calendar-days text-[11px]"></i> ช่วงเวลา (Filter)
+            </label>
+            <select id="customChartPeriod" onchange="renderCustomAnalyticsChart()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-white font-medium focus:outline-none focus:border-sky-500 cursor-pointer">
+              <option value="ALL" selected>ทั้งหมดในระบบ (All Time)</option>
+              <option value="TODAY">วันนี้ (Today)</option>
+              <option value="7D">7 วันล่าสุด (Last 7 Days)</option>
+              <option value="30D">30 วันล่าสุด (Last 30 Days)</option>
+              <option value="THIS_MONTH">เดือนนี้ (This Month)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Main Custom Chart Display Canvas -->
+        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 md:p-5 shadow-2xl relative">
+          <!-- Chart Header & Toolbar -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-3 border-b border-slate-800/80">
             <div>
-              <h2 class="font-semibold text-white text-sm md:text-base">สัดส่วนประเภทเหตุการณ์ (Incident Distribution)</h2>
-              <p class="text-[11px] text-slate-400">จำแนกตามประเภทของภัยพิบัติและอุบัติเหตุ</p>
+              <div class="flex items-center gap-2">
+                <span id="customChartIconWrap" class="w-7 h-7 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center text-xs">
+                  <i id="customChartTypeIcon" class="fa-solid fa-chart-column"></i>
+                </span>
+                <h3 id="customChartTitle" class="text-sm md:text-base font-bold text-white tracking-wide">
+                  จำนวนเหตุการณ์ จำแนกตาม ประเภทเหตุการณ์
+                </h3>
+              </div>
+              <p id="customChartSubtitle" class="text-[11px] text-slate-400 mt-0.5 ml-9">
+                แสดงผลข้อมูลทางสถิติแบบ Real-Time จากฐานข้อมูลส่วนกลาง RTSD
+              </p>
+            </div>
+            <!-- Action Buttons: Save Image, Export CSV, Refresh -->
+            <div class="flex items-center gap-2 text-xs">
+              <button onclick="saveCustomChartAsImage()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="บันทึกภาพกราฟนี้เป็นไฟล์ PNG">
+                <i class="fa-solid fa-camera text-sky-400"></i>
+                <span class="hidden sm:inline">บันทึกรูปกราฟ</span>
+              </button>
+              <button onclick="exportCustomAnalyticsCSV()" class="px-2.5 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/30 transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="ส่งออกตารางสรุปข้อมูลตามแกนที่เลือกเป็น CSV">
+                <i class="fa-solid fa-file-csv text-emerald-300"></i>
+                <span class="hidden sm:inline">ส่งออก CSV</span>
+              </button>
+              <button onclick="renderCustomAnalyticsChart()" class="px-2.5 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-medium transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="รีเฟรชการคำนวณกราฟ">
+                <i class="fa-solid fa-arrows-rotate"></i>
+                <span class="hidden sm:inline">รีเฟรช</span>
+              </button>
             </div>
           </div>
-          <span class="text-xs px-2.5 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700">สัดส่วน %</span>
+
+          <!-- Canvas Container -->
+          <div class="h-[360px] md:h-[400px] w-full relative">
+            <canvas id="customAnalyticsCanvas"></canvas>
+          </div>
+
+          <!-- Dynamic KPI Metric Strips Below Chart -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-4 mt-3 border-t border-slate-800/80 text-xs">
+            <div class="bg-slate-800/60 rounded-xl p-2.5 border border-slate-700/50">
+              <span class="text-[10px] text-slate-400 block">📌 ผลรวมตามตัวชี้วัด (Total Metric)</span>
+              <span id="customStatMetricTotal" class="text-base md:text-lg font-bold text-white mt-0.5 block">0</span>
+            </div>
+            <div class="bg-slate-800/60 rounded-xl p-2.5 border border-slate-700/50">
+              <span class="text-[10px] text-slate-400 block">🏆 กลุ่มที่พบสูงสุด (Peak Category)</span>
+              <span id="customStatPeakCategory" class="text-base md:text-lg font-bold text-amber-400 truncate mt-0.5 block">-</span>
+            </div>
+            <div class="bg-slate-800/60 rounded-xl p-2.5 border border-slate-700/50">
+              <span class="text-[10px] text-slate-400 block">📊 ค่าเฉลี่ยต่อกลุ่ม (Average per Bucket)</span>
+              <span id="customStatAvgValue" class="text-base md:text-lg font-bold text-cyan-400 mt-0.5 block">0</span>
+            </div>
+            <div class="bg-slate-800/60 rounded-xl p-2.5 border border-slate-700/50">
+              <span class="text-[10px] text-slate-400 block">🗂️ จำนวนกลุ่มข้อมูลที่พล็อต (Categories)</span>
+              <span id="customStatCategoryCount" class="text-base md:text-lg font-bold text-indigo-400 mt-0.5 block">0 กลุ่ม</span>
+            </div>
+          </div>
         </div>
-        <div class="flex-1 min-h-[240px] relative">
-          <canvas id="typeChart"></canvas>
+
+        <!-- Summary Pivot & Breakdown Table -->
+        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <i class="fa-solid fa-table-cells text-sky-400"></i>
+              <h4 class="font-bold text-white text-xs md:text-sm">ตารางแจกแจงสถิติเชิงลึกตามมิติที่เลือก (Data Breakdown Matrix)</h4>
+            </div>
+            <span id="customBreakdownCountBadge" class="text-[11px] text-slate-400">แสดงผล 0 กลุ่มข้อมูล</span>
+          </div>
+
+          <div class="overflow-x-auto custom-scrollbar rounded-xl border border-slate-800">
+            <table class="w-full text-left text-xs text-slate-300">
+              <thead class="bg-slate-950/90 uppercase text-[10px] text-slate-400 border-b border-slate-800 tracking-wider">
+                <tr>
+                  <th class="px-3 py-2.5 text-center w-12">ลำดับ</th>
+                  <th class="px-3 py-2.5">มิติข้อมูล (แกน X)</th>
+                  <th class="px-3 py-2.5 text-right">ค่าสถิติ (แกน Y)</th>
+                  <th class="px-3 py-2.5 text-right w-24">สัดส่วน (%)</th>
+                  <th class="px-3 py-2.5 text-center">สถานะการดำเนินงาน</th>
+                  <th class="px-3 py-2.5 w-36">กราฟสัดส่วน</th>
+                </tr>
+              </thead>
+              <tbody id="customBreakdownTableBody" class="divide-y divide-slate-800/60 font-light">
+                <tr>
+                  <td colspan="6" class="text-center py-6 text-slate-500">กำลังประมวลผลข้อมูลสถิติ...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
+
       </div>
 
-      <!-- Chart 3: Urgency Level Breakdown (Bar Chart) -->
-      <div class="bg-rtsd-card border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col">
-        <div class="flex items-center justify-between mb-4">
-          <div class="flex items-center space-x-2">
-            <div class="w-7 h-7 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center text-sm">
-              <i class="fa-solid fa-chart-simple"></i>
-            </div>
-            <div>
-              <h2 class="font-semibold text-white text-sm md:text-base">ระดับความเร่งด่วนของสถานการณ์ (Urgency Severity)</h2>
-              <p class="text-[11px] text-slate-400">จำแนกความรุนแรงเพื่อจัดลำดับทรัพยากร</p>
-            </div>
-          </div>
-          <span class="text-xs px-2.5 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700">จำนวนเรื่อง</span>
-        </div>
-        <div class="flex-1 min-h-[240px] relative">
-          <canvas id="urgencyChart"></canvas>
-        </div>
-      </div>
+      <!-- ===================================================================== -->
+      <!-- VIEW 2: 📊 STANDARD 4-GRID OVERVIEW (CLASSIC DASHBOARD) -->
+      <!-- ===================================================================== -->
+      <div id="analyticsOverviewSection" class="hidden space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-      <!-- Chart 4: Incident Handling Status (Horizontal Stacked Bar / Polar) -->
-      <div class="bg-rtsd-card border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col">
-        <div class="flex items-center justify-between mb-4">
-          <div class="flex items-center space-x-2">
-            <div class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-sm">
-              <i class="fa-solid fa-bars-progress"></i>
+          <!-- Chart 1: Timeline Trend of Incidents (Line / Area Chart) -->
+          <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center space-x-2">
+                <div class="w-7 h-7 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center text-sm">
+                  <i class="fa-solid fa-arrow-trend-up"></i>
+                </div>
+                <div>
+                  <h2 class="font-semibold text-white text-sm md:text-base">แนวโน้มการแจ้งเหตุการณ์ (Timeline Trend)</h2>
+                  <p class="text-[11px] text-slate-400">สถิติความถี่การแจ้งเหตุการณ์ตามลำดับวัน</p>
+                </div>
+              </div>
+              <span class="text-xs px-2.5 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700">รายวัน</span>
             </div>
-            <div>
-              <h2 class="font-semibold text-white text-sm md:text-base">สถานะการเข้าปฏิบัติการ (Response Status)</h2>
-              <p class="text-[11px] text-slate-400">ความคืบหน้าของกำลังพลในการแก้ไขเหตุการณ์</p>
+            <div class="flex-1 min-h-[240px] relative">
+              <canvas id="trendChart"></canvas>
             </div>
           </div>
-          <span class="text-xs px-2.5 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700">สถานะงาน</span>
-        </div>
-        <div class="flex-1 min-h-[240px] relative">
-          <canvas id="statusChart"></canvas>
+
+          <!-- Chart 2: Incident Type Breakdown (Doughnut Chart) -->
+          <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center space-x-2">
+                <div class="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-sm">
+                  <i class="fa-solid fa-chart-pie"></i>
+                </div>
+                <div>
+                  <h2 class="font-semibold text-white text-sm md:text-base">สัดส่วนประเภทเหตุการณ์ (Incident Distribution)</h2>
+                  <p class="text-[11px] text-slate-400">จำแนกตามประเภทของภัยพิบัติและอุบัติเหตุ</p>
+                </div>
+              </div>
+              <span class="text-xs px-2.5 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700">สัดส่วน %</span>
+            </div>
+            <div class="flex-1 min-h-[240px] relative">
+              <canvas id="typeChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Chart 3: Urgency Level Breakdown (Bar Chart) -->
+          <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center space-x-2">
+                <div class="w-7 h-7 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center text-sm">
+                  <i class="fa-solid fa-chart-simple"></i>
+                </div>
+                <div>
+                  <h2 class="font-semibold text-white text-sm md:text-base">ระดับความเร่งด่วนของสถานการณ์ (Urgency Severity)</h2>
+                  <p class="text-[11px] text-slate-400">จำแนกความรุนแรงเพื่อจัดลำดับทรัพยากร</p>
+                </div>
+              </div>
+              <span class="text-xs px-2.5 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700">จำนวนเรื่อง</span>
+            </div>
+            <div class="flex-1 min-h-[240px] relative">
+              <canvas id="urgencyChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Chart 4: Incident Handling Status (Horizontal Stacked Bar / Polar) -->
+          <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center space-x-2">
+                <div class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-sm">
+                  <i class="fa-solid fa-bars-progress"></i>
+                </div>
+                <div>
+                  <h2 class="font-semibold text-white text-sm md:text-base">สถานะการเข้าปฏิบัติการ (Response Status)</h2>
+                  <p class="text-[11px] text-slate-400">ความคืบหน้าของกำลังพลในการแก้ไขเหตุการณ์</p>
+                </div>
+              </div>
+              <span class="text-xs px-2.5 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700">สถานะงาน</span>
+            </div>
+            <div class="flex-1 min-h-[240px] relative">
+              <canvas id="statusChart"></canvas>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -3046,6 +3286,7 @@
 
       // Render Charts & Table
       renderStatisticalCharts(typeCounts, urgencyCounts, statusCounts, dateCounts);
+      renderCustomAnalyticsChart();
       renderTable(rawIncidents);
 
       // Render Right Panel Incident Feed, Map Markers, and Quick Stats
@@ -3175,6 +3416,601 @@
           }
         }
       });
+    }
+
+    // =========================================================================
+    // 🎛️ CUSTOM ANALYTICS BI STUDIO CONTROLLER (DYNAMIC X / Y BUILDER)
+    // =========================================================================
+    let customAnalyticsChartInstance = null;
+    let currentAnalyticsSubView = 'studio';
+    let customAnalyticsLastBreakdownData = [];
+
+    // Switch between 'studio' and 'overview'
+    function switchAnalyticsSubView(mode) {
+      currentAnalyticsSubView = mode;
+      const studioSec = document.getElementById('analyticsStudioSection');
+      const overviewSec = document.getElementById('analyticsOverviewSection');
+      const studioTabBtn = document.getElementById('btnAnalyticsStudioTab');
+      const overviewTabBtn = document.getElementById('btnAnalyticsOverviewTab');
+
+      if (mode === 'studio') {
+        if (studioSec) studioSec.classList.remove('hidden');
+        if (overviewSec) overviewSec.classList.add('hidden');
+        if (studioTabBtn) studioTabBtn.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-sky-600 text-white shadow-md flex items-center gap-1.5 cursor-pointer";
+        if (overviewTabBtn) overviewTabBtn.className = "px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer";
+        setTimeout(() => {
+          renderCustomAnalyticsChart();
+        }, 50);
+      } else {
+        if (studioSec) studioSec.classList.add('hidden');
+        if (overviewSec) overviewSec.classList.remove('hidden');
+        if (studioTabBtn) studioTabBtn.className = "px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer";
+        if (overviewTabBtn) overviewTabBtn.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-sky-600 text-white shadow-md flex items-center gap-1.5 cursor-pointer";
+        if (trendChartInstance) trendChartInstance.resize();
+        if (typeChartInstance) typeChartInstance.resize();
+        if (urgencyChartInstance) urgencyChartInstance.resize();
+        if (statusChartInstance) statusChartInstance.resize();
+      }
+    }
+
+    // Quick Presets
+    function applyAnalyticsPreset(presetKey) {
+      const xEl = document.getElementById('customChartXAxis');
+      const yEl = document.getElementById('customChartYMetric');
+      const bEl = document.getElementById('customChartBreakdown');
+      const tEl = document.getElementById('customChartType');
+      const pEl = document.getElementById('customChartPeriod');
+
+      if (!xEl || !yEl || !bEl || !tEl || !pEl) return;
+
+      if (presetKey === 'trend_daily') {
+        xEl.value = 'date';
+        yEl.value = 'count';
+        bEl.value = 'none';
+        tEl.value = 'line';
+      } else if (presetKey === 'top_types') {
+        xEl.value = 'incident_type';
+        yEl.value = 'count';
+        bEl.value = 'none';
+        tEl.value = 'horizontalBar';
+      } else if (presetKey === 'urgency_by_type') {
+        xEl.value = 'incident_type';
+        yEl.value = 'count';
+        bEl.value = 'urgency';
+        tEl.value = 'stackedBar';
+      } else if (presetKey === 'status_by_type') {
+        xEl.value = 'incident_type';
+        yEl.value = 'count';
+        bEl.value = 'status';
+        tEl.value = 'stackedBar';
+      } else if (presetKey === 'resolution_rate') {
+        xEl.value = 'incident_type';
+        yEl.value = 'resolve_rate';
+        bEl.value = 'none';
+        tEl.value = 'bar';
+      } else if (presetKey === 'time_of_day') {
+        xEl.value = 'time_bucket';
+        yEl.value = 'count';
+        bEl.value = 'none';
+        tEl.value = 'radar';
+      } else if (presetKey === 'by_province') {
+        xEl.value = 'province';
+        yEl.value = 'count';
+        bEl.value = 'status';
+        tEl.value = 'horizontalBar';
+      }
+
+      renderCustomAnalyticsChart();
+      showToast(`ปรับการแสดงผลเป็น: ${presetKey}`);
+    }
+
+    // Data Parsing Helpers
+    function extractProvince(addr) {
+      if (!addr || typeof addr !== 'string') return 'ไม่ระบุพื้นที่';
+      const clean = addr.trim();
+      const m = clean.match(/(?:จ\.|จังหวัด)\s*([^\s,]+)/);
+      if (m) {
+        let p = m[1].replace(/[0-9]/g, '').trim();
+        if (p) return p;
+      }
+      const provinces = [
+        'กรุงเทพ', 'กทม', 'นนทบุรี', 'ปทุมธานี', 'สมุทรปราการ', 'สมุทรสาคร', 'สมุทรสงคราม', 'นครปฐม',
+        'เชียงใหม่', 'เชียงราย', 'ลำปาง', 'ลำพูน', 'แม่ฮ่องสอน', 'น่าน', 'พะเยา', 'แพร่',
+        'สงขลา', 'ยะลา', 'ปัตตานี', 'นราธิวาส', 'สุราษฎร์ธานี', 'นครศรีธรรมราช', 'กระบี่', 'พังงา',
+        'ภูเก็ต', 'ตรัง', 'พัทลุง', 'สตูล', 'ชุมพร', 'ระนอง', 'ชลบุรี', 'ระยอง', 'จันทบุรี', 'ตราด',
+        'นครราชสีมา', 'ขอนแก่น', 'อุบลราชธานี', 'อุดรธานี', 'ร้อยเอ็ด', 'สกลนคร', 'หนองคาย',
+        'พิษณุโลก', 'นครสวรรค์', 'ลพบุรี', 'สระบุรี', 'พระนครศรีอยุธยา', 'กาญจนบุรี', 'ราชบุรี', 'เพชรบุรี', 'ประจวบคีรีขันธ์'
+      ];
+      for (const prov of provinces) {
+        if (clean.includes(prov)) {
+          if (prov === 'กทม') return 'กรุงเทพมหานคร';
+          return prov;
+        }
+      }
+      return 'พื้นที่อื่นๆ / ไม่ระบุ';
+    }
+
+    function extractDayOfWeek(ts) {
+      if (!ts) return 'ไม่ระบุ';
+      try {
+        const d = new Date(ts);
+        if (isNaN(d.getTime())) return 'ไม่ระบุ';
+        const days = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
+        return days[d.getDay()];
+      } catch (e) {
+        return 'ไม่ระบุ';
+      }
+    }
+
+    function extractTimeBucket(ts) {
+      if (!ts) return 'ไม่ระบุเวลา';
+      try {
+        let hour = -1;
+        if (ts.includes('T')) {
+          hour = parseInt(ts.split('T')[1].split(':')[0], 10);
+        } else if (ts.includes(':')) {
+          const m = ts.match(/(\d{1,2}):\d{2}/);
+          if (m) hour = parseInt(m[1], 10);
+        }
+        if (hour >= 0 && hour <= 23) {
+          if (hour >= 0 && hour < 6) return '00:00 - 05:59 น. (ดึก/เช้ามืด)';
+          if (hour >= 6 && hour < 12) return '06:00 - 11:59 น. (เช้า)';
+          if (hour >= 12 && hour < 18) return '12:00 - 17:59 น. (บ่าย)';
+          return '18:00 - 23:59 น. (ค่ำ/ดึก)';
+        }
+        return 'ไม่ระบุเวลา';
+      } catch (e) {
+        return 'ไม่ระบุเวลา';
+      }
+    }
+
+    function extractMonth(ts) {
+      if (!ts) return 'ไม่ระบุ';
+      try {
+        const d = new Date(ts);
+        if (!isNaN(d.getTime())) {
+          const thMonths = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+          const yr = (d.getFullYear() + 543).toString().slice(-2);
+          return `${thMonths[d.getMonth()]} ${yr}`;
+        }
+        return ts.slice(0, 7);
+      } catch (e) {
+        return 'ไม่ระบุ';
+      }
+    }
+
+    function extractDailyDate(ts) {
+      if (!ts) return 'ไม่ระบุวัน';
+      const dPart = ts.split('T')[0].split(' ')[0];
+      return dPart.substring(5); // MM-DD
+    }
+
+    function filterIncidentsByPeriod(list, period) {
+      if (!period || period === 'ALL') return list;
+      const now = new Date();
+      return list.filter(item => {
+        if (!item.timestamp) return false;
+        const d = new Date(item.timestamp);
+        if (isNaN(d.getTime())) return true;
+        const diffDays = (now.getTime() - d.getTime()) / (1000 * 3600 * 24);
+        if (period === 'TODAY') {
+          return d.toDateString() === now.toDateString();
+        } else if (period === '7D') {
+          return diffDays <= 7 && diffDays >= 0;
+        } else if (period === '30D') {
+          return diffDays <= 30 && diffDays >= 0;
+        } else if (period === 'THIS_MONTH') {
+          return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        }
+        return true;
+      });
+    }
+
+    // Main Custom Chart Renderer
+    function renderCustomAnalyticsChart() {
+      const canvas = document.getElementById('customAnalyticsCanvas');
+      if (!canvas) return;
+
+      const xAxis = document.getElementById('customChartXAxis') ? document.getElementById('customChartXAxis').value : 'incident_type';
+      const yMetric = document.getElementById('customChartYMetric') ? document.getElementById('customChartYMetric').value : 'count';
+      const breakdown = document.getElementById('customChartBreakdown') ? document.getElementById('customChartBreakdown').value : 'none';
+      const chartType = document.getElementById('customChartType') ? document.getElementById('customChartType').value : 'bar';
+      const period = document.getElementById('customChartPeriod') ? document.getElementById('customChartPeriod').value : 'ALL';
+
+      const filtered = filterIncidentsByPeriod(rawIncidents, period);
+
+      // Labels mapping
+      const xLabelsMap = {
+        'incident_type': 'ประเภทเหตุการณ์',
+        'date': 'วันที่เกิดเหตุ (รายวัน)',
+        'month': 'เดือนที่เกิดเหตุ',
+        'day_of_week': 'วันในสัปดาห์',
+        'time_bucket': 'ช่วงเวลาในรอบวัน',
+        'urgency': 'ระดับความเร่งด่วน',
+        'status': 'สถานะการดำเนินการ',
+        'province': 'จังหวัด/พื้นที่',
+        'reporter': 'ผู้แจ้งเหตุ/แหล่งข่าว'
+      };
+
+      const yLabelsMap = {
+        'count': { label: 'จำนวนเหตุการณ์', unit: 'เรื่อง' },
+        'percentage': { label: 'สัดส่วนร้อยละ', unit: '%' },
+        'pending': { label: 'จำนวนที่ค้างดำเนินการ', unit: 'เรื่อง' },
+        'resolved': { label: 'จำนวนที่แก้ไขแล้วเสร็จ', unit: 'เรื่อง' },
+        'resolve_rate': { label: 'อัตราปิดงานสำเร็จ', unit: '%' },
+        'with_media': { label: 'มีภาพถ่าย/คลิปหลักฐาน', unit: 'เรื่อง' }
+      };
+
+      const breakdownLabelsMap = {
+        'none': '',
+        'urgency': ' (จำแนกตามความเร่งด่วน)',
+        'status': ' (จำแนกตามสถานะ)',
+        'incident_type': ' (จำแนกตามประเภทเหตุ)'
+      };
+
+      // Update Chart Titles
+      const titleEl = document.getElementById('customChartTitle');
+      const subtitleEl = document.getElementById('customChartSubtitle');
+      const iconWrapEl = document.getElementById('customChartIconWrap');
+      const iconEl = document.getElementById('customChartTypeIcon');
+
+      if (titleEl) {
+        titleEl.innerText = `${yLabelsMap[yMetric].label} จำแนกตาม ${xLabelsMap[xAxis]}${breakdownLabelsMap[breakdown]}`;
+      }
+      if (subtitleEl) {
+        const periodStr = period === 'TODAY' ? 'วันนี้' : period === '7D' ? '7 วันล่าสุด' : period === '30D' ? '30 วันล่าสุด' : period === 'THIS_MONTH' ? 'เดือนนี้' : 'ข้อมูลทั้งหมด';
+        subtitleEl.innerText = `ช่วงเวลา: ${periodStr} | ข้อมูลที่นำมาประมวลผล: ${filtered.length} รายการ`;
+      }
+
+      // Update icon based on chart type
+      if (iconEl) {
+        let iconClass = 'fa-solid fa-chart-column';
+        if (chartType === 'horizontalBar') iconClass = 'fa-solid fa-bars-staggered';
+        else if (chartType === 'line') iconClass = 'fa-solid fa-chart-line';
+        else if (chartType === 'doughnut') iconClass = 'fa-solid fa-chart-pie';
+        else if (chartType === 'pie') iconClass = 'fa-solid fa-pizza-slice';
+        else if (chartType === 'radar') iconClass = 'fa-solid fa-hexagon-nodes';
+        else if (chartType === 'stackedBar') iconClass = 'fa-solid fa-layer-group';
+        iconEl.className = iconClass;
+      }
+
+      // Grouping logic
+      const getXKey = (item) => {
+        if (xAxis === 'incident_type') return item.incident_type || item.raw_type || 'อื่นๆ';
+        if (xAxis === 'date') return extractDailyDate(item.timestamp);
+        if (xAxis === 'month') return extractMonth(item.timestamp);
+        if (xAxis === 'day_of_week') return extractDayOfWeek(item.timestamp);
+        if (xAxis === 'time_bucket') return extractTimeBucket(item.timestamp);
+        if (xAxis === 'urgency') return item.urgency || '🟢 เฝ้าระวัง';
+        if (xAxis === 'status') {
+          if (item.status.includes('เสร็จ') || item.status.includes('เรียบร้อย')) return '🟢 แก้ไขแล้วเสร็จ';
+          if (item.status.includes('ดำเนิน')) return '🟡 กำลังดำเนินการ';
+          if (item.status.includes('ยกเลิก')) return '❌ ยกเลิก';
+          return '⏳ รอดำเนินการ';
+        }
+        if (xAxis === 'province') return extractProvince(item.address);
+        if (xAxis === 'reporter') return item.reporter || 'ประชาชน/ไม่ระบุ';
+        return 'ไม่ระบุ';
+      };
+
+      const getBreakdownKey = (item) => {
+        if (breakdown === 'urgency') {
+          if (item.urgency.includes('วิกฤต')) return '🔴 วิกฤต';
+          if (item.urgency.includes('ปานกลาง')) return '🟡 ปานกลาง';
+          return '🟢 เฝ้าระวัง';
+        }
+        if (breakdown === 'status') {
+          if (item.status.includes('เสร็จ') || item.status.includes('เรียบร้อย')) return '🟢 แก้ไขแล้วเสร็จ';
+          if (item.status.includes('ดำเนิน')) return '🟡 กำลังดำเนินการ';
+          if (item.status.includes('ยกเลิก')) return '❌ ยกเลิก';
+          return '⏳ รอดำเนินการ';
+        }
+        if (breakdown === 'incident_type') return item.incident_type || item.raw_type || 'อื่นๆ';
+        return 'ทั้งหมด';
+      };
+
+      // Aggregation maps
+      const groupData = {}; // key -> { total: 0, pending: 0, resolved: 0, withMedia: 0, items: [] }
+      const matrixData = {}; // breakdownKey -> { [xKey]: value }
+
+      filtered.forEach(item => {
+        const xKey = getXKey(item);
+        if (!groupData[xKey]) {
+          groupData[xKey] = { total: 0, pending: 0, resolved: 0, withMedia: 0, items: [] };
+        }
+        groupData[xKey].total++;
+        groupData[xKey].items.push(item);
+
+        const isResolved = item.status.includes('เสร็จ') || item.status.includes('เรียบร้อย');
+        const isPending = !isResolved && !item.status.includes('ยกเลิก');
+        if (isResolved) groupData[xKey].resolved++;
+        if (isPending) groupData[xKey].pending++;
+        if (item.media_url && item.media_url !== '-') groupData[xKey].withMedia++;
+
+        if (breakdown !== 'none') {
+          const bKey = getBreakdownKey(item);
+          if (!matrixData[bKey]) matrixData[bKey] = {};
+          matrixData[bKey][xKey] = (matrixData[bKey][xKey] || 0) + 1;
+        }
+      });
+
+      // Sort categories
+      let categories = Object.keys(groupData);
+      if (xAxis === 'day_of_week') {
+        const weekOrder = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์', 'ไม่ระบุ'];
+        categories.sort((a, b) => weekOrder.indexOf(a) - weekOrder.indexOf(b));
+      } else if (xAxis === 'time_bucket') {
+        const timeOrder = ['00:00 - 05:59 น. (ดึก/เช้ามืด)', '06:00 - 11:59 น. (เช้า)', '12:00 - 17:59 น. (บ่าย)', '18:00 - 23:59 น. (ค่ำ/ดึก)', 'ไม่ระบุเวลา'];
+        categories.sort((a, b) => timeOrder.indexOf(a) - timeOrder.indexOf(b));
+      } else if (xAxis === 'date' || xAxis === 'month') {
+        categories.sort();
+      } else {
+        // Sort by metric descending
+        categories.sort((a, b) => {
+          const valA = calculateMetricValue(groupData[a], yMetric, filtered.length);
+          const valB = calculateMetricValue(groupData[b], yMetric, filtered.length);
+          return valB - valA;
+        });
+      }
+
+      function calculateMetricValue(g, metric, totalCount) {
+        if (!g) return 0;
+        if (metric === 'count') return g.total;
+        if (metric === 'percentage') return totalCount > 0 ? Math.round((g.total / totalCount) * 1000) / 10 : 0;
+        if (metric === 'pending') return g.pending;
+        if (metric === 'resolved') return g.resolved;
+        if (metric === 'resolve_rate') return g.total > 0 ? Math.round((g.resolved / g.total) * 100) : 0;
+        if (metric === 'with_media') return g.withMedia;
+        return g.total;
+      }
+
+      const totalFilteredCount = filtered.length;
+      const palette = ['#38bdf8', '#818cf8', '#34d399', '#fbbf24', '#f87171', '#c084fc', '#f472b6', '#38bdf8', '#2dd4bf', '#fb923c'];
+
+      let chartConfigType = chartType === 'horizontalBar' ? 'bar' : chartType === 'stackedBar' ? 'bar' : chartType;
+      let datasets = [];
+
+      if (breakdown === 'none' || chartType === 'doughnut' || chartType === 'pie') {
+        const dataValues = categories.map(cat => calculateMetricValue(groupData[cat], yMetric, totalFilteredCount));
+        
+        let bgColors = palette;
+        if (chartType === 'line') {
+          bgColors = 'rgba(56, 189, 248, 0.2)';
+        } else if (chartType === 'bar' || chartType === 'horizontalBar') {
+          bgColors = categories.map((_, i) => palette[i % palette.length]);
+        }
+
+        datasets.push({
+          label: yLabelsMap[yMetric].label,
+          data: dataValues,
+          backgroundColor: bgColors,
+          borderColor: chartType === 'line' ? '#38bdf8' : '#0f172a',
+          borderWidth: chartType === 'line' ? 2 : 1,
+          fill: chartType === 'line',
+          tension: 0.35,
+          borderRadius: (chartType === 'bar' || chartType === 'horizontalBar') ? 6 : 0
+        });
+      } else {
+        // Multi-series breakdown
+        const breakdownKeys = Object.keys(matrixData);
+        // Predefined colors for urgency / status
+        const urgencyColorMap = {
+          '🔴 วิกฤต': '#ef4444',
+          '🟡 ปานกลาง': '#f59e0b',
+          '🟢 เฝ้าระวัง': '#10b981'
+        };
+        const statusColorMap = {
+          '⏳ รอดำเนินการ': '#38bdf8',
+          '🟡 กำลังดำเนินการ': '#f59e0b',
+          '🟢 แก้ไขแล้วเสร็จ': '#10b981',
+          '❌ ยกเลิก': '#94a3b8'
+        };
+
+        breakdownKeys.forEach((bKey, idx) => {
+          const values = categories.map(cat => (matrixData[bKey] && matrixData[bKey][cat]) ? matrixData[bKey][cat] : 0);
+          let color = urgencyColorMap[bKey] || statusColorMap[bKey] || palette[idx % palette.length];
+
+          datasets.push({
+            label: bKey,
+            data: values,
+            backgroundColor: color,
+            borderColor: '#0f172a',
+            borderWidth: 1,
+            borderRadius: 4
+          });
+        });
+      }
+
+      // Destroy old instance
+      if (customAnalyticsChartInstance) {
+        customAnalyticsChartInstance.destroy();
+        customAnalyticsChartInstance = null;
+      }
+
+      const chartFont = { family: 'Prompt', size: 11 };
+      const isHorizontal = chartType === 'horizontalBar';
+      const isStacked = chartType === 'stackedBar' || (breakdown !== 'none' && chartType === 'bar');
+
+      customAnalyticsChartInstance = new Chart(canvas.getContext('2d'), {
+        type: chartConfigType,
+        data: {
+          labels: categories.length > 0 ? categories : ['ไม่มีข้อมูล'],
+          datasets: datasets.length > 0 ? datasets : [{ label: 'ไม่มีข้อมูล', data: [0] }]
+        },
+        options: {
+          indexAxis: isHorizontal ? 'y' : 'x',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: breakdown !== 'none' || chartType === 'doughnut' || chartType === 'pie' || chartType === 'radar',
+              position: (chartType === 'doughnut' || chartType === 'pie') ? 'bottom' : 'top',
+              labels: { color: '#cbd5e1', font: chartFont, boxWidth: 12 }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  let val = context.raw || 0;
+                  let unit = yLabelsMap[yMetric].unit;
+                  return ` ${context.dataset.label || ''}: ${val} ${unit}`;
+                }
+              }
+            }
+          },
+          scales: (chartType === 'doughnut' || chartType === 'pie' || chartType === 'radar') ? {} : {
+            x: {
+              stacked: isStacked,
+              ticks: { color: '#94a3b8', font: chartFont },
+              grid: { color: isHorizontal ? '#1e293b' : 'transparent' }
+            },
+            y: {
+              stacked: isStacked,
+              ticks: { color: '#94a3b8', font: chartFont },
+              grid: { color: isHorizontal ? 'transparent' : '#1e293b' }
+            }
+          }
+        }
+      });
+
+      // Update KPI strip below chart
+      let totalMetricVal = 0;
+      let peakCat = '-';
+      let peakVal = -1;
+
+      categories.forEach(cat => {
+        const v = calculateMetricValue(groupData[cat], yMetric, totalFilteredCount);
+        totalMetricVal += v;
+        if (v > peakVal) {
+          peakVal = v;
+          peakCat = `${cat} (${v} ${yLabelsMap[yMetric].unit})`;
+        }
+      });
+
+      const avgVal = categories.length > 0 ? (totalMetricVal / categories.length).toFixed(1) : 0;
+      const unit = yLabelsMap[yMetric].unit;
+
+      const statTotalEl = document.getElementById('customStatMetricTotal');
+      if (statTotalEl) statTotalEl.innerText = `${yMetric === 'percentage' || yMetric === 'resolve_rate' ? (categories.length > 0 ? (totalMetricVal / categories.length).toFixed(1) : 0) : totalMetricVal} ${unit}`;
+      
+      const statPeakEl = document.getElementById('customStatPeakCategory');
+      if (statPeakEl) statPeakEl.innerText = peakCat;
+
+      const statAvgEl = document.getElementById('customStatAvgValue');
+      if (statAvgEl) statAvgEl.innerText = `${avgVal} ${unit}/กลุ่ม`;
+
+      const statCountEl = document.getElementById('customStatCategoryCount');
+      if (statCountEl) statCountEl.innerText = `${categories.length} กลุ่มข้อมูล`;
+
+      // Update Breakdown Matrix Table
+      renderCustomBreakdownTable(categories, groupData, yMetric, totalMetricVal, yLabelsMap[yMetric].unit, totalFilteredCount);
+    }
+
+    // Render Breakdown Matrix Table
+    function renderCustomBreakdownTable(categories, groupData, yMetric, totalVal, unit, totalCount) {
+      const tbody = document.getElementById('customBreakdownTableBody');
+      const badgeCount = document.getElementById('customBreakdownCountBadge');
+      if (!tbody) return;
+
+      if (badgeCount) badgeCount.innerText = `แสดงผล ${categories.length} กลุ่มข้อมูล`;
+
+      if (categories.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-500">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</td></tr>`;
+        return;
+      }
+
+      customAnalyticsLastBreakdownData = [];
+      let html = '';
+
+      categories.forEach((cat, idx) => {
+        const g = groupData[cat];
+        let val = 0;
+        if (yMetric === 'count') val = g.total;
+        else if (yMetric === 'percentage') val = totalCount > 0 ? Math.round((g.total / totalCount) * 1000) / 10 : 0;
+        else if (yMetric === 'pending') val = g.pending;
+        else if (yMetric === 'resolved') val = g.resolved;
+        else if (yMetric === 'resolve_rate') val = g.total > 0 ? Math.round((g.resolved / g.total) * 100) : 0;
+        else if (yMetric === 'with_media') val = g.withMedia;
+
+        const sharePercent = totalCount > 0 ? Math.round((g.total / totalCount) * 100) : 0;
+
+        customAnalyticsLastBreakdownData.push({
+          rank: idx + 1,
+          category: cat,
+          value: val,
+          unit: unit,
+          percentage: sharePercent,
+          pending: g.pending,
+          resolved: g.resolved,
+          total: g.total
+        });
+
+        html += `
+          <tr class="hover:bg-slate-800/40 transition-colors">
+            <td class="px-3 py-2 text-center text-slate-500 font-mono text-xs">${idx + 1}</td>
+            <td class="px-3 py-2 font-medium text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+              <span>${cat}</span>
+            </td>
+            <td class="px-3 py-2 text-right font-bold text-sky-300 font-mono">${val} <span class="text-[10px] text-slate-400 font-normal">${unit}</span></td>
+            <td class="px-3 py-2 text-right text-slate-300 font-mono">${sharePercent}%</td>
+            <td class="px-3 py-2 text-center whitespace-nowrap">
+              <span class="px-1.5 py-0.5 rounded text-[10px] bg-sky-500/10 text-sky-400 border border-sky-500/20 mr-1" title="รอดำเนินการ/กำลังทำ">⏳ ${g.pending}</span>
+              <span class="px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" title="แก้ไขเสร็จ">🟢 ${g.resolved}</span>
+            </td>
+            <td class="px-3 py-2">
+              <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                <div class="bg-gradient-to-r from-sky-500 to-indigo-500 h-1.5 rounded-full" style="width: ${Math.min(100, Math.max(5, sharePercent))}%"></div>
+              </div>
+            </td>
+          </tr>
+        `;
+      });
+
+      tbody.innerHTML = html;
+    }
+
+    // Save Chart as PNG Image
+    function saveCustomChartAsImage() {
+      if (!customAnalyticsChartInstance) {
+        alert("ไม่มีกราฟที่เปิดใช้งานอยู่ในขณะนี้");
+        return;
+      }
+      try {
+        const imgData = customAnalyticsChartInstance.toBase64Image('image/png', 1.0);
+        const link = document.createElement('a');
+        link.download = `rtsd_chart_analysis_${new Date().toISOString().slice(0, 10)}.png`;
+        link.href = imgData;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showToast("บันทึกภาพกราฟเป็น PNG เรียบร้อยแล้ว");
+      } catch (e) {
+        console.error("Save chart error:", e);
+        alert("เกิดข้อผิดพลาดในการบันทึกภาพกราฟ");
+      }
+    }
+
+    // Export Breakdown Table to CSV
+    function exportCustomAnalyticsCSV() {
+      if (!customAnalyticsLastBreakdownData || customAnalyticsLastBreakdownData.length === 0) {
+        alert("ไม่มีข้อมูลสำหรับส่งออกเป็น CSV");
+        return;
+      }
+
+      let csv = "\uFEFFลำดับ,มิติข้อมูล(แกน X),ค่าสถิติ(แกน Y),หน่วย,สัดส่วนร้อยละ(%),ค้างดำเนินการ(เรื่อง),แก้ไขแล้วเสร็จ(เรื่อง),รวมเหตุการณ์ทั้งหมด(เรื่อง)\n";
+      customAnalyticsLastBreakdownData.forEach(row => {
+        csv += `"${row.rank}","${row.category.replace(/"/g, '""')}","${row.value}","${row.unit}","${row.percentage}%","${row.pending}","${row.resolved}","${row.total}"\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `rtsd_analytics_breakdown_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast("ส่งออกตารางสรุปสถิติเป็น CSV เรียบร้อยแล้ว");
     }
 
     // 5. Render Incidents Table
@@ -6760,6 +7596,9 @@
           viewStatsBtn.className = "flex items-center justify-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-lg bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white font-bold text-xs shadow-md shadow-sky-900/40 transition-all cursor-pointer shrink-0";
         }
         fetchData();
+        setTimeout(() => {
+          renderCustomAnalyticsChart();
+        }, 120);
       }
     }
 
