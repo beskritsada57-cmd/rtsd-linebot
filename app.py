@@ -1349,12 +1349,17 @@ def api_get_dwr_cctv_stations():
 def api_cctv_proxy_mjpeg(station_code):
     """Proxy live MJPEG stream from DWR Telemetry with cross-origin headers"""
     import urllib.request
+    import base64
     from flask import Response
     clean_code = re.sub(r'[^A-Za-z0-9]', '', station_code)
     target_url = f"https://telemetry.dwr.go.th/cctv/mjpeg/{clean_code}"
+    auth_header = 'Basic ' + base64.b64encode(b'live:Live2025!').decode('ascii')
 
     def generate():
-        req = urllib.request.Request(target_url, headers={'User-Agent': 'Mozilla/5.0'})
+        req = urllib.request.Request(target_url, headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Authorization': auth_header
+        })
         try:
             with urllib.request.urlopen(req, timeout=15) as stream:
                 while True:
@@ -1378,11 +1383,16 @@ def api_cctv_proxy_mjpeg(station_code):
 def api_cctv_snapshot_frame(station_code):
     """Grab a crisp single JPEG frame from DWR stream for instant display & fallback"""
     import urllib.request
+    import base64
     from flask import Response
     clean_code = re.sub(r'[^A-Za-z0-9]', '', station_code)
     target_url = f"https://telemetry.dwr.go.th/cctv/mjpeg/{clean_code}"
+    auth_header = 'Basic ' + base64.b64encode(b'live:Live2025!').decode('ascii')
     try:
-        req = urllib.request.Request(target_url, headers={'User-Agent': 'Mozilla/5.0'})
+        req = urllib.request.Request(target_url, headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Authorization': auth_header
+        })
         with urllib.request.urlopen(req, timeout=8) as stream:
             buf = bytearray()
             max_read = 1024 * 1024  # 1MB max
