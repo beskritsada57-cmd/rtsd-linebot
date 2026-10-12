@@ -1345,6 +1345,34 @@ def api_get_dwr_cctv_stations():
     return jsonify([]), 200
 
 
+@app.route("/api/cctv/rtsd", methods=['GET'])
+def api_get_rtsd_hls_cctv():
+    """ดึงข้อมูลกล้องวงจรปิด RTSD GeoPortal HLS 314 สถานี (item: b8b872b1146e410b82791dcb08ad66cb)"""
+    import json
+    json_path = os.path.join(os.path.dirname(__file__), 'rtsd_hls_cctv.json')
+    if os.path.exists(json_path):
+        try:
+            with open(json_path, 'r', encoding='utf-8') as f:
+                return jsonify(json.load(f)), 200
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 500
+    return jsonify([]), 200
+
+
+@app.route("/api/cctv/all", methods=['GET'])
+def api_get_all_cctv_stations():
+    """ดึงข้อมูลกล้องวงจรปิดทั้งหมด 432 สถานี (DWR 118 + RTSD GeoPortal HLS 314)"""
+    import json
+    json_path = os.path.join(os.path.dirname(__file__), 'all_cctv_stations.json')
+    if os.path.exists(json_path):
+        try:
+            with open(json_path, 'r', encoding='utf-8') as f:
+                return jsonify(json.load(f)), 200
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 500
+    return jsonify([]), 200
+
+
 @app.route("/api/cctv/proxy/<station_code>", methods=['GET'])
 def api_cctv_proxy_mjpeg(station_code):
     """Proxy live MJPEG stream from DWR Telemetry with cross-origin headers"""
