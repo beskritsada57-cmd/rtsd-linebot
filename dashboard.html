@@ -953,7 +953,26 @@
             <div id="cctvPlayerStage" class="flex-1 min-h-0 relative bg-black flex items-center justify-center overflow-hidden">
               <!-- Single Camera View Container -->
               <div id="cctvSingleViewWrap" class="w-full h-full relative flex items-center justify-center bg-black">
-                <img id="cctvActiveMjpegPlayer" src="" alt="DWR CCTV Stream" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://telemetry.dwr.go.th/static/images/image-placeholder.png';">
+                <img id="cctvActiveMjpegPlayer" src="" alt="DWR CCTV Stream" class="w-full h-full object-cover">
+                <!-- Fallback / Standby Screen when stream is loading or blocked by same-origin -->
+                <div id="cctvStreamFallbackNotice" class="hidden absolute inset-0 bg-gradient-to-b from-slate-950 via-[#071322] to-slate-950 flex flex-col items-center justify-center p-6 text-center z-10">
+                  <div class="w-16 h-16 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 text-2xl mb-3 shadow-lg shadow-cyan-950/50">
+                    <i class="fa-solid fa-water animate-pulse"></i>
+                  </div>
+                  <h4 id="cctvFbStationTitle" class="text-base font-bold text-white mb-1">[TA054502] อุบลราชธานี</h4>
+                  <p id="cctvFbStationSub" class="text-xs text-cyan-300 font-mono mb-2">ลุ่มน้ำโขง-ชี-มูล • ลำน้ำ: แม่น้ำมูล • ต.ในเมือง อ.เมือง จ.อุบลราชธานี</p>
+                  <p class="text-[11px] text-slate-400 max-w-md leading-relaxed mb-4">
+                    สัญญาณสถานีโทรมาตรออนไลน์ปกติ หากเบราว์เซอร์บล็อกการแสดงผลข้ามโดเมน (CORP Same-Origin) สามารถคลิกเปิดดูสตรีมสดทางการได้ทันที
+                  </p>
+                  <div class="flex items-center gap-2">
+                    <a id="cctvFbDirectBtn" href="https://telemetry.dwr.go.th/reportCctv" target="_blank" rel="noopener noreferrer" class="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs shadow-lg shadow-cyan-950/50 flex items-center gap-2 transition cursor-pointer">
+                      <i class="fa-solid fa-play"></i> เปิดดูภาพสดทางการ (ระบบ DWR)
+                    </a>
+                    <button onclick="retryActiveCctvStream()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-medium flex items-center gap-1.5 transition cursor-pointer">
+                      <i class="fa-solid fa-rotate-right"></i> โหลดสตรีมซ้ำ
+                    </button>
+                  </div>
+                </div>
                 <video id="cctvActiveVideoPlayer" class="w-full h-full object-cover hidden" autoplay loop muted playsinline poster=""></video>
                 <!-- HUD Tactical Overlay -->
                 <div class="absolute inset-0 pointer-events-none p-3 flex flex-col justify-between">
@@ -11190,10 +11209,21 @@
           popupAnchor: [0, -22]
         });
 
+        const proxyStreamUrl = (typeof API_BASE !== 'undefined' && API_BASE) ? `${API_BASE}/api/cctv/proxy/${cam.code}` : cam.streamUrl;
         const popupContent = `
           <div style="min-width: 280px; max-width: 330px; font-family: ui-sans-serif, system-ui, sans-serif;" class="text-slate-100 p-0.5">
-            <div class="relative rounded-lg overflow-hidden border border-cyan-500/50 bg-black aspect-video mb-2 shadow-lg group">
-              <img src="${cam.streamUrl}" alt="${cam.name}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.src='https://telemetry.dwr.go.th/static/images/image-placeholder.png';" loading="lazy">
+            <div class="relative rounded-lg overflow-hidden border border-cyan-500/50 bg-[#081528] aspect-video mb-2 shadow-lg flex items-center justify-center group">
+              <img src="${proxyStreamUrl}" alt="${cam.name}" class="w-full h-full object-cover" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.classList.remove('hidden');" loading="lazy">
+              <div class="hidden absolute inset-0 bg-gradient-to-br from-slate-900 via-[#071322] to-slate-950 flex flex-col items-center justify-center p-2.5 text-center">
+                <div class="w-8 h-8 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-sm mb-1 border border-cyan-500/30">
+                  <i class="fa-solid fa-water animate-pulse"></i>
+                </div>
+                <div class="text-[11px] font-bold text-white leading-tight mb-0.5">${cam.name} (${cam.code})</div>
+                <div class="text-[9px] text-cyan-300 font-mono mb-1.5">ลำน้ำ: ${cam.stream} • ลุ่มน้ำ${cam.basinShort}</div>
+                <a href="https://telemetry.dwr.go.th/reportCctv" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 rounded bg-cyan-600 hover:bg-cyan-500 text-white text-[9px] font-bold shadow flex items-center gap-1 cursor-pointer">
+                  <i class="fa-solid fa-arrow-up-right-from-square"></i> เปิดดูสดในระบบ DWR
+                </a>
+              </div>
               <div class="absolute top-1.5 left-1.5 px-2 py-0.5 rounded bg-black/80 backdrop-blur-xs text-[10px] font-mono text-cyan-300 flex items-center gap-1.5 border border-cyan-500/30">
                 <span class="w-2 h-2 rounded-full ${statusDot}"></span>
                 <span class="font-bold">${isOnline ? 'LIVE MJPEG' : 'OFFLINE'}</span>
@@ -11309,11 +11339,36 @@
       const hudCoords = document.getElementById('cctvHudCoords');
       if (hudCoords) hudCoords.innerText = `LAT: ${cam.lat.toFixed(4)}° N • LON: ${cam.lng.toFixed(4)}° E • จ.${cam.province}`;
 
-      // Update Active Video / MJPEG Player
+      // Update Fallback labels
+      const fbTitle = document.getElementById('cctvFbStationTitle');
+      const fbSub = document.getElementById('cctvFbStationSub');
+      const fbBtn = document.getElementById('cctvFbDirectBtn');
+      const fbNotice = document.getElementById('cctvStreamFallbackNotice');
+      if (fbTitle) fbTitle.innerText = `[${cam.code}] ${cam.name}`;
+      if (fbSub) fbSub.innerText = `ลุ่มน้ำ: ${cam.basin} • ลำน้ำ: ${cam.stream} • ${cam.location}`;
+      if (fbBtn) fbBtn.href = cam.dwrUrl || 'https://telemetry.dwr.go.th/reportCctv';
+
+      // Update Active Video / MJPEG Player with proxy support
       const mjpegImg = document.getElementById('cctvActiveMjpegPlayer');
       if (mjpegImg) {
-        if (mjpegImg.src !== cam.streamUrl) {
-          mjpegImg.src = cam.streamUrl;
+        const streamSrc = (typeof API_BASE !== 'undefined' && API_BASE)
+          ? `${API_BASE}/api/cctv/proxy/${cam.code}`
+          : cam.streamUrl;
+
+        mjpegImg.style.display = 'block';
+        if (fbNotice) fbNotice.classList.add('hidden');
+
+        mjpegImg.onerror = function() {
+          this.style.display = 'none';
+          if (fbNotice) fbNotice.classList.remove('hidden');
+        };
+        mjpegImg.onload = function() {
+          this.style.display = 'block';
+          if (fbNotice) fbNotice.classList.add('hidden');
+        };
+
+        if (mjpegImg.src !== streamSrc) {
+          mjpegImg.src = streamSrc;
         }
       }
 
@@ -11585,13 +11640,13 @@
         return `
           <div class="cctv-right-card rounded-xl border p-2.5 transition-all hover:border-cyan-500/60 shadow-sm ${borderClass}" data-cctv-code="${cam.code}">
             <div class="flex items-start gap-2.5">
-              <!-- Video / MJPEG Live Thumbnail -->
-              <div class="w-24 h-16 rounded-lg bg-black overflow-hidden relative shrink-0 border border-slate-800 cursor-pointer group" onclick="openCctvCameraInDrawer(${originalIndex})">
-                <img src="${cam.streamUrl}" alt="${cam.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.onerror=null; this.src='https://telemetry.dwr.go.th/static/images/image-placeholder.png';" loading="lazy">
-                <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <i class="fa-solid fa-expand text-white text-xs"></i>
+              <!-- Tactical Telemetry Water Sensor Badge -->
+              <div class="w-20 h-16 rounded-lg bg-gradient-to-br from-slate-900 to-cyan-950/60 flex flex-col items-center justify-center relative shrink-0 border border-cyan-500/30 cursor-pointer group shadow-inner" onclick="openCctvCameraInDrawer(${originalIndex})">
+                <div class="w-7 h-7 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs mb-0.5 group-hover:scale-110 group-hover:bg-cyan-500/30 transition-transform">
+                  <i class="fa-solid fa-water"></i>
                 </div>
-                <div class="absolute bottom-1 right-1 px-1 rounded bg-black/80 text-[8px] font-mono text-emerald-400">
+                <span class="text-[9px] font-mono font-bold text-cyan-300 leading-none">${cam.code}</span>
+                <div class="absolute bottom-1 right-1 px-1 rounded bg-black/80 text-[7px] font-mono text-emerald-400 border border-emerald-500/40">
                   LIVE
                 </div>
               </div>
@@ -11599,14 +11654,16 @@
               <!-- Metadata -->
               <div class="flex-1 min-w-0">
                 <div class="flex items-start justify-between gap-1 mb-0.5">
-                  <span class="text-xs font-bold text-white truncate block">[${cam.code}]</span>
+                  <span class="text-xs font-bold text-white truncate block">${cam.name}</span>
                   <span class="px-1.5 py-0.2 rounded text-[9px] font-mono border shrink-0 bg-cyan-950 text-cyan-300 border-cyan-500/40">
                     ${cam.province}
                   </span>
                 </div>
-                <h5 class="text-[11px] text-slate-200 font-medium truncate mb-0.5" title="${cam.name}">${cam.name}</h5>
-                <p class="text-[10px] text-cyan-300/80 truncate mb-1">
-                  <i class="fa-solid fa-water text-[9px]"></i> ลำน้ำ: ${cam.stream} • ลุ่มน้ำ${cam.basinShort}
+                <p class="text-[10px] text-cyan-300/80 truncate mb-0.5">
+                  <i class="fa-solid fa-droplet text-[9px] text-cyan-400"></i> ลำน้ำ: <span class="text-slate-200 font-medium">${cam.stream}</span> • ${cam.basinShort}
+                </p>
+                <p class="text-[9px] text-slate-400 truncate mb-1">
+                  <i class="fa-solid fa-location-dot text-[8px]"></i> ${cam.location}
                 </p>
 
                 <!-- Actions -->
@@ -11624,6 +11681,7 @@
               </div>
             </div>
           </div>
+          </div>
         `;
       }).join('');
     }
@@ -11631,6 +11689,11 @@
     function flyToCctvCamera(idx) {
       setActiveCctvCamera(idx);
       flyToCurrentCctvOnMap();
+    }
+
+    function retryActiveCctvStream() {
+      setActiveCctvCamera(activeCctvIndex);
+      showToast('🔄 กำลังเชื่อมต่อสตรีมกล้องโทรมาตร DWR ใหม่...');
     }
 
     function initTacticalMap() {

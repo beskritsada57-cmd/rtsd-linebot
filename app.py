@@ -1345,6 +1345,34 @@ def api_get_dwr_cctv_stations():
     return jsonify([]), 200
 
 
+@app.route("/api/cctv/proxy/<station_code>", methods=['GET'])
+def api_cctv_proxy_mjpeg(station_code):
+    """Proxy live MJPEG stream from DWR Telemetry with cross-origin headers"""
+    import urllib.request
+    from flask import Response
+    clean_code = re.sub(r'[^A-Za-z0-9]', '', station_code)
+    target_url = f"https://telemetry.dwr.go.th/cctv/mjpeg/{clean_code}"
+
+    def generate():
+        req = urllib.request.Request(target_url, headers={'User-Agent': 'Mozilla/5.0'})
+        try:
+            with urllib.request.urlopen(req, timeout=15) as stream:
+                while True:
+                    chunk = stream.read(4096)
+                    if not chunk:
+                        break
+                    yield chunk
+        except Exception:
+            return
+
+    resp = Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    resp.headers["Cross-Origin-Resource-Policy"] = "cross-origin"
+    resp.headers["Cache-Control"] = "no-cache, private"
+    return resp
+
+
+
 
 # =========================================================================
 # 🚨 5.3 ศูนย์สั่งการกำลังพล & แจ้งเตือนไประงับเหตุ (Incident Dispatch Center)
