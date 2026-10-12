@@ -1309,7 +1309,8 @@
   <!-- ========================================================================= -->
   <!-- 📊 2. STATS & ANALYTICS CONTAINER (INNER SCROLLABLE) -->
   <!-- ========================================================================= -->
-  <div id="statsContainer" class="hidden flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-4 pr-1">
+  <div id="statsContainer" class="hidden flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1 relative">
+    <div id="statsContentWrapper" class="space-y-4 transition-all duration-300">
 
     <!-- KPI STATS CARDS (6 CARDS) -->
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
@@ -1794,9 +1795,53 @@
         <span id="tableSummary">แสดงผล 0 รายการ</span>
         <span>ระบบอัปเดตอัตโนมัติทุก 30 วินาที</span>
       </div>
+    </div> <!-- Close table card -->
+    </div> <!-- Close statsContentWrapper -->
+
+    <!-- 🔒 STATS RESTRICTED ACCESS OVERLAY (SHOWN WHEN NOT LOGGED IN) -->
+    <div id="statsAuthLockOverlay" class="hidden absolute inset-0 z-[50] bg-slate-950/60 backdrop-blur-[4px] flex items-center justify-center p-4">
+      <div class="max-w-md w-full bg-slate-900/95 border border-sky-500/40 rounded-2xl p-6 md:p-8 shadow-2xl shadow-black/90 text-center flex flex-col items-center animate-in fade-in zoom-in-95 duration-200">
+        <div class="w-16 h-16 rounded-2xl bg-sky-500/15 border border-sky-500/30 text-sky-400 flex items-center justify-center text-3xl shadow-lg shadow-sky-500/20 mb-3.5">
+          <i class="fa-solid fa-chart-line"></i>
+        </div>
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-500/15 border border-sky-500/40 text-sky-400 text-xs font-mono font-bold uppercase tracking-wider mb-2">
+          <i class="fa-solid fa-lock text-[10px]"></i> RESTRICTED ACCESS
+        </span>
+        <h3 class="text-base md:text-lg font-bold text-white mb-2">พื้นที่ข้อมูลสถิติและการวิเคราะห์เฉพาะเจ้าหน้าที่</h3>
+        <p class="text-xs md:text-sm text-slate-300 leading-relaxed mb-6 max-w-sm">
+          กรุณาเข้าสู่ระบบเจ้าหน้าที่ RTSD เพื่อเข้าถึงข้อมูลสถิติรายงาน ผลวิเคราะห์ BI อัจฉริยะ และฐานข้อมูลเหตุการณ์ทั้งหมด
+        </p>
+        <div class="flex flex-col sm:flex-row items-center gap-2.5 w-full justify-center">
+          <button onclick="openAuthModal()" class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white font-bold text-xs md:text-sm shadow-lg shadow-sky-600/30 flex items-center justify-center gap-2 transition-all cursor-pointer transform hover:scale-[1.02]">
+            <i class="fa-solid fa-right-to-bracket text-sky-200"></i>
+            <span>เข้าสู่ระบบเจ้าหน้าที่</span>
+          </button>
+          <button onclick="switchMainView('register')" class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer">
+            <i class="fa-solid fa-user-plus text-cyan-400"></i>
+            <span>สมัครสมาชิก</span>
+          </button>
+        </div>
+      </div>
     </div>
 
-    </div> <!-- Close statsContainer -->
+    <script>
+      (function() {
+        try {
+          var token = localStorage.getItem('rtsd_auth_token') || sessionStorage.getItem('rtsd_auth_token');
+          var user = localStorage.getItem('rtsd_user') || sessionStorage.getItem('rtsd_user');
+          if (!token || !user) {
+            var sw = document.getElementById('statsContentWrapper');
+            var so = document.getElementById('statsAuthLockOverlay');
+            var sc = document.getElementById('statsContainer');
+            if (sw) sw.classList.add('tactical-auth-blurred');
+            if (so) { so.classList.remove('hidden'); so.classList.add('flex'); }
+            if (sc) { sc.classList.add('overflow-hidden'); sc.classList.remove('overflow-y-auto'); }
+          }
+        } catch(e) {}
+      })();
+    </script>
+
+  </div> <!-- Close statsContainer -->
 
     <!-- ========================================================================= -->
     <!-- 📝 3. USER REGISTRATION PORTAL (หน้าสมัครสมาชิก / ยื่นขอใช้งาน) -->
@@ -6414,6 +6459,9 @@
       const mapPanel = document.getElementById('tacticalMapPanel');
       const rightPanel = document.getElementById('tacticalRightPanel');
       const lockOverlay = document.getElementById('tacticalAuthLockOverlay');
+      const statsWrapper = document.getElementById('statsContentWrapper');
+      const statsLockOverlay = document.getElementById('statsAuthLockOverlay');
+      const statsContainer = document.getElementById('statsContainer');
       const guestBtn = document.getElementById('guestLoginBtnContainer');
       const userBadge = document.getElementById('userBadge');
 
@@ -6423,6 +6471,15 @@
         if (lockOverlay) {
           lockOverlay.classList.add('hidden');
           lockOverlay.classList.remove('flex');
+        }
+        if (statsWrapper) statsWrapper.classList.remove('tactical-auth-blurred');
+        if (statsLockOverlay) {
+          statsLockOverlay.classList.add('hidden');
+          statsLockOverlay.classList.remove('flex');
+        }
+        if (statsContainer) {
+          statsContainer.classList.remove('overflow-hidden');
+          statsContainer.classList.add('overflow-y-auto');
         }
         if (guestBtn) guestBtn.classList.add('hidden');
         if (userBadge) {
@@ -6440,6 +6497,16 @@
         if (lockOverlay) {
           lockOverlay.classList.remove('hidden');
           lockOverlay.classList.add('flex');
+        }
+        if (statsWrapper) statsWrapper.classList.add('tactical-auth-blurred');
+        if (statsLockOverlay) {
+          statsLockOverlay.classList.remove('hidden');
+          statsLockOverlay.classList.add('flex');
+        }
+        if (statsContainer) {
+          statsContainer.scrollTop = 0;
+          statsContainer.classList.add('overflow-hidden');
+          statsContainer.classList.remove('overflow-y-auto');
         }
         if (guestBtn) guestBtn.classList.remove('hidden');
         if (userBadge) {
@@ -8018,6 +8085,10 @@
           viewTacticalBtn.className = "flex items-center justify-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-lg bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white font-bold text-xs shadow-md shadow-red-900/40 transition-all cursor-pointer shrink-0";
         }
 
+        const token = localStorage.getItem('rtsd_auth_token') || sessionStorage.getItem('rtsd_auth_token');
+        const user = localStorage.getItem('rtsd_user') || sessionStorage.getItem('rtsd_user');
+        updateTacticalAuthBlur(!!(token && user));
+
         if (!tacticalMap) {
           initTacticalMap();
         } else {
@@ -8033,6 +8104,9 @@
         if (viewStatsBtn) {
           viewStatsBtn.className = "flex items-center justify-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-lg bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white font-bold text-xs shadow-md shadow-sky-900/40 transition-all cursor-pointer shrink-0";
         }
+        const token = localStorage.getItem('rtsd_auth_token') || sessionStorage.getItem('rtsd_auth_token');
+        const user = localStorage.getItem('rtsd_user') || sessionStorage.getItem('rtsd_user');
+        updateTacticalAuthBlur(!!(token && user));
         fetchData();
         setTimeout(() => {
           renderCustomAnalyticsChart();
