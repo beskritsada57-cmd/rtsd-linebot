@@ -844,185 +844,7 @@
           </div>
         </div>
 
-        <!-- =================================================================== -->
-        <!-- 🎥 DOCKED EXPANDABLE CCTV SURVEILLANCE DRAWER (แถบมอนิเตอร์กล้อง CCTV ขยายได้) -->
-        <!-- =================================================================== -->
-        <div id="cctvMonitoringDrawer" class="absolute left-2.5 right-2.5 bottom-8 z-30 transition-all duration-300 ease-in-out pointer-events-auto">
-          
-          <!-- State 1: Collapsed Pill / Bar (แถบย่อกะทัดรัด) -->
-          <div id="cctvDrawerCollapsed" class="flex items-center justify-between px-3 py-1.5 rounded-xl bg-slate-950/95 backdrop-blur-md border border-cyan-500/40 shadow-2xl text-xs">
-            <div class="flex items-center gap-2.5 min-w-0">
-              <div class="w-7 h-7 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0 border border-cyan-500/40">
-                <i class="fa-solid fa-video animate-pulse"></i>
-              </div>
-              <div class="min-w-0">
-                <div class="flex items-center gap-2">
-                  <span class="font-bold text-white text-xs flex items-center gap-1.5">
-                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                    <span>กล้องโทรมาตร กรมทรัพยากรน้ำ (DWR CCTV Telemetry)</span>
-                  </span>
-                  <span id="cctvDrawerBadgeCount" class="px-1.5 py-0.2 rounded text-[9px] bg-cyan-950 text-cyan-300 border border-cyan-500/30 font-mono hidden sm:inline">118 สถานีออนไลน์</span>
-                </div>
-                <p id="cctvCollapsedCurrentCam" class="text-[11px] text-cyan-300/80 truncate">
-                  [TC020106] โรงสูบน้ำแรงต่ำแม่ข่าย หัวฝาย • สตรีมสด DWR Telemetry
-                </p>
-              </div>
-            </div>
 
-            <!-- Controls -->
-            <div class="flex items-center gap-1.5 shrink-0">
-              <button onclick="prevCctvCamera()" class="p-1 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition cursor-pointer text-[11px]" title="กล้องก่อนหน้า">
-                <i class="fa-solid fa-chevron-left"></i>
-              </button>
-              <button onclick="nextCctvCamera()" class="p-1 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition cursor-pointer text-[11px]" title="กล้องถัดไป">
-                <i class="fa-solid fa-chevron-right"></i>
-              </button>
-              <button onclick="expandCctvDrawer()" class="px-2.5 py-1 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-bold transition flex items-center gap-1.5 shadow-md shadow-cyan-950/50 cursor-pointer text-[11px]">
-                <i class="fa-solid fa-expand"></i>
-                <span>ขยายดูกล้องสด</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- State 2: Expanded Theater Surveillance Bar (แถบขยายจอใหญ่เต็มประสิทธิภาพ) -->
-          <div id="cctvDrawerExpanded" class="hidden flex-col rounded-2xl bg-[#080e1d]/98 backdrop-blur-xl border border-cyan-500/50 shadow-2xl overflow-hidden h-[420px] max-h-[75vh]">
-            <!-- Header Bar -->
-            <div class="shrink-0 flex items-center justify-between px-3.5 py-2 bg-slate-900/90 border-b border-slate-800">
-              <div class="flex items-center gap-2.5">
-                <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-cyan-600 to-blue-600 flex items-center justify-center text-white text-xs shadow">
-                  <i class="fa-solid fa-video"></i>
-                </div>
-                <div>
-                  <h3 id="cctvExpandedTitle" class="font-bold text-white text-xs sm:text-sm flex items-center gap-2">
-                    <span>[TC020106] โรงสูบน้ำแรงต่ำแม่ข่าย หัวฝาย</span>
-                    <span class="px-1.5 py-0.2 rounded text-[9px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">🟢 LIVE MJPEG</span>
-                  </h3>
-                  <p id="cctvExpandedSubtitle" class="text-[10px] text-slate-400">
-                    ต.เวียงพางคำ อ.แม่สาย จ.เชียงราย • ลุ่มน้ำโขงเหนือ • ลำน้ำ: รวก • กรมทรัพยากรน้ำ (DWR Telemetry)
-                  </p>
-                </div>
-              </div>
-
-              <!-- Top Actions: Grid / Single, Patrol, Snapshot, Fullscreen, Collapse, Zoom -->
-              <div class="flex items-center gap-1.5 text-xs">
-                <!-- Digital Zoom Button for Camera View -->
-                <button id="btnCctvDigitalZoom" onclick="cycleCctvDigitalZoom()" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 transition flex items-center gap-1 cursor-pointer text-[11px]" title="ปรับซูมภาพกล้อง (1x / 1.5x / 2x / 3x)">
-                  <i class="fa-solid fa-magnifying-glass-plus text-cyan-400"></i>
-                  <span id="labelCctvDigitalZoom">ซูม 1x</span>
-                </button>
-
-                <!-- Map Zoom Level Setting -->
-                <div class="hidden sm:flex items-center gap-1 bg-slate-950/80 px-2 py-0.5 rounded-lg border border-slate-800 text-[10px]">
-                  <span class="text-slate-400">ซูมแผนที่:</span>
-                  <button onclick="setCctvMapZoomLevel(12)" class="px-1.5 py-0.5 rounded text-slate-400 hover:text-white cursor-pointer" id="btnZoomLevel12">12</button>
-                  <button onclick="setCctvMapZoomLevel(14)" class="px-1.5 py-0.5 rounded bg-cyan-600 text-white font-bold cursor-pointer" id="btnZoomLevel14">14</button>
-                  <button onclick="setCctvMapZoomLevel(16)" class="px-1.5 py-0.5 rounded text-slate-400 hover:text-white cursor-pointer" id="btnZoomLevel16">16</button>
-                </div>
-
-                <a id="btnCctvOfficialLink" href="https://telemetry.dwr.go.th/reportCctv" target="_blank" rel="noopener noreferrer" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 transition flex items-center gap-1 cursor-pointer text-[11px]" title="เปิดดูต้นฉบับใน telemetry.dwr.go.th">
-                  <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                  <span class="hidden sm:inline">เว็บ DWR</span>
-                </a>
-                <button id="btnCctvPatrol" onclick="toggleCctvAutoPatrol()" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1 cursor-pointer text-[11px]" title="โหมดหมุนเวียนกล้องอัตโนมัติทุก 8 วินาที">
-                  <i id="iconCctvPatrol" class="fa-solid fa-repeat text-cyan-400"></i>
-                  <span class="hidden sm:inline">หมุนเวียนกล้อง</span>
-                </button>
-                <button id="btnCctvMultiView" onclick="toggleCctvMultiViewMode()" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1 cursor-pointer text-[11px]" title="สลับโหมดจอเดี่ยว / 4 จอ">
-                  <i class="fa-solid fa-table-cells-large text-cyan-400"></i>
-                  <span id="textCctvMultiView" class="hidden sm:inline">4 จอ (Quad)</span>
-                </button>
-                <button onclick="captureCctvSnapshot()" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1 cursor-pointer text-[11px]" title="บันทึกภาพถ่าย (Snapshot)">
-                  <i class="fa-solid fa-camera text-amber-400"></i>
-                  <span class="hidden sm:inline">แคปภาพ</span>
-                </button>
-                <button onclick="flyToCurrentCctvOnMap()" class="px-2 py-1 rounded-lg bg-sky-600/30 hover:bg-sky-600 text-sky-300 hover:text-white border border-sky-500/40 transition flex items-center gap-1 cursor-pointer text-[11px]" title="ซูมแผนที่ไปที่ตำแหน่งกล้องนี้">
-                  <i class="fa-solid fa-crosshairs"></i>
-                  <span class="hidden sm:inline">ล็อคเป้า</span>
-                </button>
-                <button onclick="collapseCctvDrawer()" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-rose-900/60 text-slate-400 hover:text-rose-400 border border-slate-700 transition flex items-center justify-center cursor-pointer text-xs" title="ย่อแถบกลับ">
-                  <i class="fa-solid fa-xmark"></i>
-                </button>
-              </div>
-            </div>
-
-            <!-- Video Player Stage (Single View or Quad Multi-View) -->
-            <div id="cctvPlayerStage" class="flex-1 min-h-0 relative bg-black flex items-center justify-center overflow-hidden">
-              <!-- Single Camera View Container -->
-              <div id="cctvSingleViewWrap" class="w-full h-full relative flex items-center justify-center bg-black overflow-hidden">
-                <img id="cctvActiveMjpegPlayer" src="" alt="" class="w-full h-full object-cover transition-transform duration-300 origin-center" crossorigin="anonymous">
-                <!-- Fallback / Standby Screen when stream is loading or blocked by same-origin -->
-                <div id="cctvStreamFallbackNotice" class="hidden absolute inset-0 bg-gradient-to-b from-slate-950 via-[#071322] to-slate-950 flex flex-col items-center justify-center p-6 text-center z-10">
-                  <div class="w-16 h-16 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 text-2xl mb-3 shadow-lg shadow-cyan-950/50">
-                    <i class="fa-solid fa-water animate-pulse"></i>
-                  </div>
-                  <h4 id="cctvFbStationTitle" class="text-base font-bold text-white mb-1">[TA054502] อุบลราชธานี</h4>
-                  <p id="cctvFbStationSub" class="text-xs text-cyan-300 font-mono mb-2">ลุ่มน้ำโขง-ชี-มูล • ลำน้ำ: แม่น้ำมูล • ต.ในเมือง อ.เมือง จ.อุบลราชธานี</p>
-                  <p class="text-[11px] text-slate-400 max-w-md leading-relaxed mb-4">
-                    สัญญาณสถานีโทรมาตรออนไลน์ปกติ หากเบราว์เซอร์บล็อกการแสดงผลข้ามโดเมน (CORP Same-Origin) สามารถคลิกเปิดดูสตรีมสดทางการได้ทันที
-                  </p>
-                  <div class="flex items-center gap-2">
-                    <a id="cctvFbDirectBtn" href="https://telemetry.dwr.go.th/reportCctv" target="_blank" rel="noopener noreferrer" class="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs shadow-lg shadow-cyan-950/50 flex items-center gap-2 transition cursor-pointer">
-                      <i class="fa-solid fa-play"></i> เปิดดูภาพสดทางการ (ระบบ DWR)
-                    </a>
-                    <button onclick="retryActiveCctvStream()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-medium flex items-center gap-1.5 transition cursor-pointer">
-                      <i class="fa-solid fa-rotate-right"></i> โหลดสตรีมซ้ำ
-                    </button>
-                  </div>
-                </div>
-                <video id="cctvActiveVideoPlayer" class="w-full h-full object-cover hidden" autoplay loop muted playsinline poster=""></video>
-                <!-- HUD Tactical Overlay -->
-                <div class="absolute inset-0 pointer-events-none p-3 flex flex-col justify-between">
-                  <!-- HUD Top -->
-                  <div class="flex items-center justify-between text-[11px] font-mono text-cyan-300 bg-black/40 backdrop-blur-xs p-1.5 rounded-lg border border-cyan-500/20">
-                    <div class="flex items-center gap-2">
-                      <span class="flex items-center gap-1 text-red-500 font-bold animate-pulse">
-                        <i class="fa-solid fa-circle text-[8px]"></i> REC LIVE
-                      </span>
-                      <span class="text-slate-400">|</span>
-                      <span id="cctvHudCameraCode" class="font-bold text-white">CCTV-BMA-01</span>
-                      <span class="text-slate-400">|</span>
-                      <span id="cctvHudResolution">1920x1080 @ 30FPS</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                      <span id="cctvHudTimecode" class="text-amber-300 font-bold">2026-10-12 10:05:00 ICT</span>
-                      <span class="px-1 py-0.2 rounded bg-cyan-900/80 text-cyan-200 text-[10px]">4,250 Kbps</span>
-                    </div>
-                  </div>
-
-                  <!-- Tactical Center Crosshair -->
-                  <div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40">
-                    <div class="w-12 h-12 border border-cyan-400 rounded-full flex items-center justify-center">
-                      <div class="w-2 h-2 bg-cyan-400 rounded-full"></div>
-                    </div>
-                  </div>
-
-                  <!-- HUD Bottom Bar -->
-                  <div class="flex items-center justify-between text-[10px] font-mono text-slate-300 bg-black/50 backdrop-blur-xs p-1 rounded border border-slate-700/60">
-                    <span id="cctvHudCoords">LAT: 13.7443° N • LON: 100.5404° E</span>
-                    <span>PTZ: 045° / -12° • ZOOM: 1.0X</span>
-                    <span id="cctvHudPatrolStatus" class="text-emerald-400">STATUS: STABLE</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Quad Multi-View (4 จอ พร้อมกัน) -->
-              <div id="cctvQuadViewWrap" class="hidden w-full h-full grid grid-cols-2 grid-rows-2 gap-1 p-1 bg-slate-950">
-                <!-- 4 Video Viewports dynamically populated -->
-              </div>
-            </div>
-
-            <!-- Bottom Carousel Strip (All 12 Cameras) -->
-            <div class="shrink-0 bg-slate-950/95 border-t border-slate-800 p-2 flex items-center gap-2 overflow-x-auto custom-scrollbar">
-              <span class="text-[10px] font-bold text-slate-400 shrink-0 px-1 flex items-center gap-1">
-                <i class="fa-solid fa-list-check text-cyan-400"></i> เลือกกล้อง:
-              </span>
-              <div id="cctvCarouselStrip" class="flex items-center gap-2">
-                <!-- Dynamic thumbnail pills -->
-              </div>
-            </div>
-          </div>
-
-        </div>
 
         <!-- Bottom Telemetry Bar -->
         <div class="shrink-0 mt-1.5 pt-1.5 border-t border-slate-800/80 flex flex-wrap items-center justify-between text-[11px] text-slate-400 font-mono">
@@ -1327,8 +1149,8 @@
 
           <!-- Bottom Action Bar -->
           <div class="shrink-0 pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs">
-            <button onclick="expandCctvDrawer()" class="px-3 py-1.5 rounded-lg bg-cyan-600/30 hover:bg-cyan-600/50 text-cyan-300 border border-cyan-500/40 font-semibold cursor-pointer transition flex items-center gap-1.5 shadow-sm">
-              <i class="fa-solid fa-expand"></i> ขยายจอเฝ้าระวังรวม
+            <button onclick="fitAllCctvMarkersOnMap()" class="px-3 py-1.5 rounded-lg bg-cyan-600/30 hover:bg-cyan-600/50 text-cyan-300 border border-cyan-500/40 font-semibold cursor-pointer transition flex items-center gap-1.5 shadow-sm">
+              <i class="fa-solid fa-map-location-dot"></i> ดูภาพรวมทุกสถานี
             </button>
             <button onclick="toggleCctvAutoPatrol()" id="btnRightPatrolToggle" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium cursor-pointer transition flex items-center gap-1.5 border border-slate-700">
               <i class="fa-solid fa-rotate text-cyan-400"></i> ตระเวนสด
@@ -11208,60 +11030,83 @@
         const proxySnapshotUrl = (typeof API_BASE !== 'undefined' && API_BASE) ? `${API_BASE}/api/cctv/snapshot/${cam.code}` : '';
         const popupImgSrc = proxySnapshotUrl || proxyStreamUrl;
         const popupContent = `
-          <div style="min-width: 280px; max-width: 330px; font-family: ui-sans-serif, system-ui, sans-serif;" class="text-slate-100 p-0.5">
-            <div class="relative rounded-lg overflow-hidden border border-cyan-500/50 bg-[#081528] aspect-video mb-2 shadow-lg flex items-center justify-center group">
-              <img src="${popupImgSrc}" alt="${cam.name}" class="w-full h-full object-cover" onerror="if (this.src !== '${proxyStreamUrl}') { this.src = '${proxyStreamUrl}'; } else { this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.classList.remove('hidden'); }" loading="lazy">
-              <div class="hidden absolute inset-0 bg-gradient-to-br from-slate-900 via-[#071322] to-slate-950 flex flex-col items-center justify-center p-2.5 text-center">
-                <div class="w-8 h-8 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-sm mb-1 border border-cyan-500/30">
-                  <i class="fa-solid fa-video animate-pulse"></i>
+          <div style="min-width: 310px; max-width: 350px; font-family: ui-sans-serif, system-ui, sans-serif;" class="text-slate-100 p-1">
+            <!-- Header Station Info -->
+            <div class="flex items-start justify-between gap-2 mb-2 pb-1.5 border-b border-cyan-500/30">
+              <div class="min-w-0">
+                <div class="flex items-center gap-1.5 mb-0.5">
+                  <span class="w-2 h-2 rounded-full ${statusDot}"></span>
+                  <span class="font-mono font-bold text-xs text-cyan-300">[${cam.code}]</span>
+                  <span class="text-xs font-bold text-white truncate">${cam.name}</span>
                 </div>
-                <div class="text-[11px] font-bold text-white leading-tight mb-0.5">${cam.name} (${cam.code})</div>
-                <div class="text-[9px] text-cyan-300 font-mono mb-1.5">ลำน้ำ: ${cam.stream} • ลุ่มน้ำ${cam.basinShort}</div>
-                <a href="https://telemetry.dwr.go.th/reportCctv" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 rounded bg-cyan-600 hover:bg-cyan-500 text-white text-[9px] font-bold shadow flex items-center gap-1 cursor-pointer">
-                  <i class="fa-solid fa-arrow-up-right-from-square"></i> เปิดดูสดในระบบ DWR
-                </a>
-              </div>
-              <div class="absolute top-1.5 left-1.5 px-2 py-0.5 rounded bg-black/80 backdrop-blur-xs text-[10px] font-mono text-cyan-300 flex items-center gap-1.5 border border-cyan-500/30">
-                <span class="w-2 h-2 rounded-full ${statusDot}"></span>
-                <span class="font-bold">${isOnline ? 'LIVE MJPEG' : 'OFFLINE'}</span>
-                <span class="text-slate-400">•</span>
-                <span>${cam.code}</span>
-              </div>
-              <div class="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded bg-black/80 text-[9px] font-mono text-emerald-400 border border-emerald-500/30">
-                DWR โทรมาตร
-              </div>
-              <div class="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/80 text-[9px] font-mono text-slate-300">
-                ลุ่มน้ำ${cam.basinShort}
-              </div>
-            </div>
-
-            <div class="flex items-start justify-between gap-1 mb-1">
-              <div>
-                <h4 class="text-xs font-bold text-white leading-tight">${cam.name}</h4>
-                <p class="text-[10px] text-cyan-300/90 flex items-center gap-1 mt-0.5">
-                  <i class="fa-solid fa-location-dot text-[9px]"></i> ${cam.location}
+                <p class="text-[10px] text-slate-300 truncate">
+                  <i class="fa-solid fa-location-dot text-[9px] text-cyan-400"></i> ${cam.location}
                 </p>
               </div>
-              <span class="px-1.5 py-0.5 rounded text-[9px] font-mono shrink-0 border bg-cyan-950 text-cyan-300 border-cyan-500/40">
-                ${cam.province}
+              <span class="px-2 py-0.5 rounded text-[9px] font-mono border shrink-0 bg-cyan-950 text-cyan-300 border-cyan-500/40">
+                จ.${cam.province}
               </span>
             </div>
 
-            <div class="grid grid-cols-2 gap-1 py-1 mb-1.5 text-[9px] text-slate-400 border-y border-slate-800/80">
-              <div><span class="text-slate-500">ลำน้ำ:</span> <span class="text-slate-200 font-medium">${cam.stream}</span></div>
-              <div><span class="text-slate-500">สังกัด:</span> <span class="text-slate-200 font-medium">กรมทรัพยากรน้ำ</span></div>
+            <!-- Video Player Box (16:9 Aspect) -->
+            <div class="relative rounded-xl overflow-hidden border border-cyan-500/50 bg-[#071322] aspect-video mb-2 shadow-2xl flex items-center justify-center group">
+              <img id="cctvPopupImg_${idx}" src="${popupImgSrc}" alt="${cam.name}" class="w-full h-full object-cover transition-transform duration-300 origin-center" onerror="if (this.src !== '${proxyStreamUrl}') { this.src = '${proxyStreamUrl}'; } else { this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.classList.remove('hidden'); }" loading="lazy">
+
+              <!-- Fallback screen if stream fails -->
+              <div class="hidden absolute inset-0 bg-gradient-to-br from-slate-900 via-[#071322] to-slate-950 flex flex-col items-center justify-center p-3 text-center">
+                <div class="w-9 h-9 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-sm mb-1.5 border border-cyan-500/30">
+                  <i class="fa-solid fa-video animate-pulse"></i>
+                </div>
+                <div class="text-[11px] font-bold text-white mb-0.5">${cam.name}</div>
+                <div class="text-[9px] text-cyan-300 font-mono mb-2">ลำน้ำ: ${cam.stream} • ลุ่มน้ำ${cam.basinShort}</div>
+                <a href="${cam.dwrUrl || 'https://telemetry.dwr.go.th/reportCctv'}" target="_blank" rel="noopener noreferrer" class="px-3 py-1 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-[10px] font-bold shadow flex items-center gap-1 cursor-pointer">
+                  <i class="fa-solid fa-arrow-up-right-from-square"></i> เปิดดูสดในระบบ DWR
+                </a>
+              </div>
+
+              <!-- Top Left: Live Status -->
+              <div class="absolute top-1.5 left-1.5 px-2 py-0.5 rounded bg-black/80 backdrop-blur-xs text-[9px] font-mono text-cyan-300 flex items-center gap-1.5 border border-cyan-500/30 pointer-events-none">
+                <span class="w-1.5 h-1.5 rounded-full ${statusDot}"></span>
+                <span class="font-bold">${isOnline ? 'LIVE DWR' : 'OFFLINE'}</span>
+              </div>
+
+              <!-- Top Right: Interactive Controls (Zoom & Refresh) -->
+              <div class="absolute top-1.5 right-1.5 flex items-center gap-1">
+                <button onclick="zoomPopupCctvImg(${idx}, event)" class="px-1.5 py-0.5 rounded bg-black/80 hover:bg-cyan-600 text-cyan-300 hover:text-white border border-cyan-500/30 text-[9px] font-mono flex items-center gap-1 cursor-pointer transition shadow" title="ปรับซูมภาพกล้อง (1x / 1.5x / 2x)">
+                  <i class="fa-solid fa-magnifying-glass-plus"></i>
+                  <span id="popupZoomTxt_${idx}">1x</span>
+                </button>
+                <button onclick="refreshPopupCctvImg(${idx}, event)" class="p-1 rounded bg-black/80 hover:bg-cyan-600 text-cyan-300 hover:text-white border border-cyan-500/30 text-[9px] flex items-center justify-center cursor-pointer transition shadow" title="โหลดภาพสดใหม่">
+                  <i class="fa-solid fa-rotate"></i>
+                </button>
+              </div>
+
+              <!-- Bottom HUD Overlay -->
+              <div class="absolute bottom-1 left-1.5 right-1.5 flex items-center justify-between pointer-events-none text-[8px] font-mono text-slate-300 bg-black/60 px-1.5 py-0.5 rounded">
+                <span>ลำน้ำ: ${cam.stream}</span>
+                <span class="text-emerald-400">ลุ่มน้ำ${cam.basinShort}</span>
+              </div>
             </div>
 
-            <div class="grid grid-cols-3 gap-1 pt-0.5 text-[10px]">
-              <button onclick="openCctvCameraInDrawer(${idx})" class="py-1 px-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white font-bold transition flex items-center justify-center gap-1 shadow cursor-pointer">
-                <i class="fa-solid fa-expand"></i> ขยายดูสด
-              </button>
-              <button onclick="lockCctvCameraTarget(${idx})" class="py-1 px-1.5 rounded bg-slate-800 hover:bg-slate-700 text-sky-300 hover:text-white transition flex items-center justify-center gap-1 border border-slate-700 cursor-pointer">
-                <i class="fa-solid fa-crosshairs"></i> ล็อคเป้า
-              </button>
-              <a href="https://telemetry.dwr.go.th/reportCctv" target="_blank" rel="noopener noreferrer" class="py-1 px-1.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-white transition flex items-center justify-center gap-1 border border-slate-700 cursor-pointer text-center">
+            <!-- River & Basin Info -->
+            <div class="grid grid-cols-2 gap-1 py-1 mb-2 text-[9px] text-slate-300 bg-slate-900/60 p-1.5 rounded-lg border border-slate-800">
+              <div><span class="text-slate-400">ลำน้ำ:</span> <span class="font-bold text-white">${cam.stream}</span></div>
+              <div><span class="text-slate-400">ลุ่มน้ำ:</span> <span class="font-bold text-cyan-300">${cam.basin}</span></div>
+              <div><span class="text-slate-400">พิกัด:</span> <span class="font-mono text-slate-300">${cam.lat.toFixed(3)}°, ${cam.lng.toFixed(3)}°</span></div>
+              <div><span class="text-slate-400">สังกัด:</span> <span class="font-medium text-slate-200">กรมทรัพยากรน้ำ</span></div>
+            </div>
+
+            <!-- Footer Action Buttons -->
+            <div class="grid grid-cols-3 gap-1.5 pt-0.5 text-[10px]">
+              <a href="${cam.dwrUrl || 'https://telemetry.dwr.go.th/reportCctv'}" target="_blank" rel="noopener noreferrer" class="py-1 px-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-bold transition flex items-center justify-center gap-1 shadow cursor-pointer text-center">
                 <i class="fa-solid fa-arrow-up-right-from-square"></i> เว็บ DWR
               </a>
+              <button onclick="lockCctvCameraTarget(${idx})" class="py-1 px-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-300 hover:text-white transition flex items-center justify-center gap-1 border border-slate-700 cursor-pointer">
+                <i class="fa-solid fa-crosshairs"></i> ล็อคเป้า
+              </button>
+              <button onclick="captureCctvSnapshotCamera(${idx})" class="py-1 px-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-white transition flex items-center justify-center gap-1 border border-slate-700 cursor-pointer">
+                <i class="fa-solid fa-camera"></i> แคปภาพ
+              </button>
             </div>
           </div>
         `;
@@ -11269,12 +11114,12 @@
         const marker = L.marker([cam.lat, cam.lng], { icon: customIcon });
         marker.bindPopup(popupContent, {
           className: 'rtsd-custom-popup',
-          maxWidth: 350,
+          maxWidth: 360,
           closeButton: true
         });
 
         marker.on('click', () => {
-          setActiveCctvCamera(idx);
+          activeCctvIndex = idx;
         });
 
         cctvMapMarkers[cam.id] = marker;
@@ -11285,286 +11130,91 @@
       });
     }
 
-    function expandCctvDrawer() {
-      const col = document.getElementById('cctvDrawerCollapsed');
-      const exp = document.getElementById('cctvDrawerExpanded');
-      if (col) col.classList.add('hidden');
-      if (exp) exp.classList.remove('hidden');
+    const popupCctvZoomStates = {};
 
-      setActiveCctvCamera(activeCctvIndex);
-      updateCctvHudClock();
+    function zoomPopupCctvImg(idx, e) {
+      if (e) e.stopPropagation();
+      const img = document.getElementById(`cctvPopupImg_${idx}`);
+      const txt = document.getElementById(`popupZoomTxt_${idx}`);
+      if (!img) return;
+
+      const levels = [1, 1.5, 2];
+      const cur = popupCctvZoomStates[idx] || 1;
+      const next = levels[(levels.indexOf(cur) + 1) % levels.length];
+      popupCctvZoomStates[idx] = next;
+
+      img.style.transform = `scale(${next})`;
+      if (txt) txt.innerText = `${next}x`;
+      showToast(`🔎 ซูมภาพกล้องเป็น ${next}x`);
     }
 
-    let currentCctvMapZoom = 14;
-    let cctvDigitalZoom = 1;
-    let cctvSnapshotRefreshTimer = null;
-    let cctvStreamWatchdogTimer = null;
-
-    function setCctvMapZoomLevel(lvl) {
-      currentCctvMapZoom = lvl;
-      ['12', '14', '16'].forEach(z => {
-        const el = document.getElementById(`btnZoomLevel${z}`);
-        if (el) {
-          if (parseInt(z) === lvl) {
-            el.className = 'px-1.5 py-0.5 rounded bg-cyan-600 text-white font-bold cursor-pointer';
-          } else {
-            el.className = 'px-1.5 py-0.5 rounded text-slate-400 hover:text-white cursor-pointer';
-          }
-        }
-      });
-      showToast(`🔍 ตั้งค่าระดับซูมแผนที่สำหรับกล้องเป็น ${lvl}x`);
-    }
-
-    function cycleCctvDigitalZoom() {
-      const levels = [1, 1.5, 2, 3];
-      const curIdx = levels.indexOf(cctvDigitalZoom);
-      cctvDigitalZoom = levels[(curIdx + 1) % levels.length];
-      
-      const img = document.getElementById('cctvActiveMjpegPlayer');
-      if (img) {
-        img.style.transform = `scale(${cctvDigitalZoom})`;
-      }
-      const lbl = document.getElementById('labelCctvDigitalZoom');
-      if (lbl) {
-        lbl.innerText = `ซูม ${cctvDigitalZoom}x`;
-      }
-      showToast(`🔎 ปรับซูมภาพกล้องเป็น ${cctvDigitalZoom}x`);
-    }
-
-    function collapseCctvDrawer() {
-      const col = document.getElementById('cctvDrawerCollapsed');
-      const exp = document.getElementById('cctvDrawerExpanded');
-      if (exp) exp.classList.add('hidden');
-      if (col) col.classList.remove('hidden');
-    }
-
-    function setActiveCctvCamera(idx) {
-      if (idx < 0 || idx >= publicCctvCameras.length) return;
-      activeCctvIndex = idx;
+    function refreshPopupCctvImg(idx, e) {
+      if (e) e.stopPropagation();
       const cam = publicCctvCameras[idx];
+      const img = document.getElementById(`cctvPopupImg_${idx}`);
+      if (!cam || !img) return;
 
-      // Update Collapsed Pill text
-      const colCamText = document.getElementById('cctvCollapsedCurrentCam');
-      if (colCamText) {
-        colCamText.innerHTML = `<span class="font-semibold text-white">[${cam.code}]</span> ${cam.name} (${cam.province}) • สตรีมสด DWR Telemetry`;
-      }
+      const proxySnapshotUrl = (typeof API_BASE !== 'undefined' && API_BASE)
+        ? `${API_BASE}/api/cctv/snapshot/${cam.code}?t=${Date.now()}`
+        : `${cam.streamUrl}?t=${Date.now()}`;
 
-      // Update Expanded Title & Subtitle
-      const expTitle = document.getElementById('cctvExpandedTitle');
-      if (expTitle) {
-        expTitle.innerHTML = `
-          <span>[${cam.code}] ${cam.name}</span>
-          <span class="px-1.5 py-0.2 rounded text-[9px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">🟢 LIVE MJPEG</span>
-        `;
-      }
-      const expSub = document.getElementById('cctvExpandedSubtitle');
-      if (expSub) {
-        expSub.innerText = `${cam.location} • ลุ่มน้ำ: ${cam.basin} • ลำน้ำ: ${cam.stream} • กรมทรัพยากรน้ำ (DWR Telemetry)`;
-      }
+      img.src = proxySnapshotUrl;
+      showToast(`🔄 โหลดภาพกล้องสถานี ${cam.code} ใหม่เรียบร้อย`);
+    }
 
-      // Update HUD text
-      const hudCode = document.getElementById('cctvHudCameraCode');
-      if (hudCode) hudCode.innerText = cam.code;
+    function openCctvCameraPopup(idx) {
+      if (idx < 0 || idx >= publicCctvCameras.length || !tacticalMap) return;
+      const cam = publicCctvCameras[idx];
+      activeCctvIndex = idx;
 
-      const hudRes = document.getElementById('cctvHudResolution');
-      if (hudRes) hudRes.innerText = `ลุ่มน้ำ${cam.basinShort} • ลำน้ำ: ${cam.stream}`;
-
-      const hudCoords = document.getElementById('cctvHudCoords');
-      if (hudCoords) hudCoords.innerText = `LAT: ${cam.lat.toFixed(4)}° N • LON: ${cam.lng.toFixed(4)}° E • จ.${cam.province}`;
-
-      // Update Fallback labels
-      const fbTitle = document.getElementById('cctvFbStationTitle');
-      const fbSub = document.getElementById('cctvFbStationSub');
-      const fbBtn = document.getElementById('cctvFbDirectBtn');
-      const fbNotice = document.getElementById('cctvStreamFallbackNotice');
-      if (fbTitle) fbTitle.innerText = `[${cam.code}] ${cam.name}`;
-      if (fbSub) fbSub.innerText = `ลุ่มน้ำ: ${cam.basin} • ลำน้ำ: ${cam.stream} • ${cam.location}`;
-      if (fbBtn) fbBtn.href = cam.dwrUrl || 'https://telemetry.dwr.go.th/reportCctv';
-
-      // Clear previous timers
-      if (cctvSnapshotRefreshTimer) {
-        clearInterval(cctvSnapshotRefreshTimer);
-        cctvSnapshotRefreshTimer = null;
-      }
-      if (cctvStreamWatchdogTimer) {
-        clearTimeout(cctvStreamWatchdogTimer);
-        cctvStreamWatchdogTimer = null;
-      }
-
-      // Update Active Video / MJPEG Player with proxy & snapshot support
-      const mjpegImg = document.getElementById('cctvActiveMjpegPlayer');
-      if (mjpegImg) {
-        const proxyStreamUrl = (typeof API_BASE !== 'undefined' && API_BASE)
-          ? `${API_BASE}/api/cctv/proxy/${cam.code}`
-          : cam.streamUrl;
-        const proxySnapshotUrl = (typeof API_BASE !== 'undefined' && API_BASE)
-          ? `${API_BASE}/api/cctv/snapshot/${cam.code}`
-          : null;
-
-        mjpegImg.style.display = 'block';
-        mjpegImg.style.transform = `scale(${cctvDigitalZoom})`;
-        if (fbNotice) fbNotice.classList.add('hidden');
-
-        let isFrameActive = false;
-
-        const startSnapshotPolling = () => {
-          if (!proxySnapshotUrl) {
-            mjpegImg.style.display = 'none';
-            if (fbNotice) fbNotice.classList.remove('hidden');
-            return;
-          }
-          const testImg = new Image();
-          testImg.crossOrigin = 'anonymous';
-          testImg.onload = function() {
-            isFrameActive = true;
-            mjpegImg.src = testImg.src;
-            mjpegImg.style.display = 'block';
-            if (fbNotice) fbNotice.classList.add('hidden');
-
-            if (!cctvSnapshotRefreshTimer) {
-              cctvSnapshotRefreshTimer = setInterval(() => {
-                if (activeCctvIndex === idx) {
-                  const pollImg = new Image();
-                  pollImg.crossOrigin = 'anonymous';
-                  pollImg.onload = () => { mjpegImg.src = pollImg.src; };
-                  pollImg.src = `${proxySnapshotUrl}?t=${Date.now()}`;
-                }
-              }, 2500);
-            }
-          };
-          testImg.onerror = function() {
-            mjpegImg.style.display = 'none';
-            if (fbNotice) fbNotice.classList.remove('hidden');
-          };
-          testImg.src = `${proxySnapshotUrl}?t=${Date.now()}`;
-        };
-
-        mjpegImg.onerror = function() {
-          startSnapshotPolling();
-        };
-
-        // Watchdog: If MJPEG stream doesn't render visual dimensions within 3 seconds, activate snapshot polling
-        cctvStreamWatchdogTimer = setTimeout(() => {
-          if (!isFrameActive && (mjpegImg.naturalWidth === 0 || mjpegImg.style.display === 'none')) {
-            startSnapshotPolling();
-          }
-        }, 3000);
-
-        mjpegImg.crossOrigin = 'anonymous';
-        mjpegImg.src = `${proxyStreamUrl}?t=${Date.now()}`;
-      }
-
-      // Update active highlight in bottom carousel
-      renderCctvCarouselStrip();
-
-      // Update active card highlight in Right Panel list
-      const cards = document.querySelectorAll('.cctv-right-card');
-      cards.forEach((c) => {
-        const cCode = c.getAttribute('data-cctv-code');
-        if (cCode === cam.code) {
-          c.classList.add('border-cyan-500', 'bg-cyan-950/20');
-        } else {
-          c.classList.remove('border-cyan-500', 'bg-cyan-950/20');
-        }
+      const targetZoom = Math.max(tacticalMap.getZoom(), 14);
+      tacticalMap.flyTo([cam.lat, cam.lng], targetZoom, {
+        animate: true,
+        duration: 1.0
       });
+
+      if (cctvMapMarkers[cam.id]) {
+        setTimeout(() => {
+          cctvMapMarkers[cam.id].openPopup();
+        }, 1050);
+      }
+      showToast(`📹 เปิดกล้องสถานีโทรมาตร ${cam.code} (${cam.name}) บนแผนที่`);
     }
 
-    function openCctvCameraInDrawer(idx) {
-      setActiveCctvCamera(idx);
-      expandCctvDrawer();
-    }
-
-    function prevCctvCamera() {
-      const newIdx = (activeCctvIndex - 1 + publicCctvCameras.length) % publicCctvCameras.length;
-      setActiveCctvCamera(newIdx);
-    }
-
-    function nextCctvCamera() {
-      const newIdx = (activeCctvIndex + 1) % publicCctvCameras.length;
-      setActiveCctvCamera(newIdx);
+    function fitAllCctvMarkersOnMap() {
+      if (!tacticalMap || !publicCctvCameras || publicCctvCameras.length === 0) return;
+      const bounds = L.latLngBounds(publicCctvCameras.map(c => [c.lat, c.lng]));
+      tacticalMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 12 });
+      showToast('🗺️ ปรับมุมมองแสดงสถานีโทรมาตรกล้อง CCTV ทั้งหมดทั่วประเทศ');
     }
 
     function toggleCctvAutoPatrol() {
       isCctvPatrolActive = !isCctvPatrolActive;
-      const btn = document.getElementById('btnCctvPatrol');
-      const icon = document.getElementById('iconCctvPatrol');
-      const hudStatus = document.getElementById('cctvHudPatrolStatus');
-      const rightPatrolBtn = document.getElementById('btnRightPatrolToggle');
+      const btn = document.getElementById('btnRightPatrolToggle');
 
       if (isCctvPatrolActive) {
-        if (btn) btn.className = 'px-2 py-1 rounded-lg bg-cyan-600 text-white font-bold transition flex items-center gap-1 cursor-pointer text-[11px] shadow';
-        if (icon) icon.className = 'fa-solid fa-repeat text-white animate-spin';
-        if (hudStatus) hudStatus.innerHTML = '<span class="text-amber-400 font-bold">STATUS: AUTO PATROL (8s)</span>';
-        if (rightPatrolBtn) rightPatrolBtn.className = 'px-3 py-1.5 rounded-lg bg-cyan-600 text-white font-bold cursor-pointer transition flex items-center gap-1.5 shadow-sm';
-
-        showToast('🔄 เปิดโหมดตระเวนกล้องอัตโนมัติ (Auto-Patrol ทุก 8 วินาที)');
+        if (btn) {
+          btn.className = 'px-3 py-1.5 rounded-lg bg-cyan-600 text-white font-bold cursor-pointer transition flex items-center gap-1.5 shadow-sm';
+          btn.innerHTML = '<i class="fa-solid fa-rotate animate-spin"></i> กำลังตระเวน';
+        }
+        showToast('🔄 เปิดโหมดตระเวนกล้องอัตโนมัติ (สลับเปิดดูทุก 6 วินาที)');
 
         if (cctvPatrolTimer) clearInterval(cctvPatrolTimer);
         cctvPatrolTimer = setInterval(() => {
-          nextCctvCamera();
-        }, 8000);
+          const nextIdx = (activeCctvIndex + 1) % publicCctvCameras.length;
+          openCctvCameraPopup(nextIdx);
+        }, 6000);
       } else {
-        if (btn) btn.className = 'px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1 cursor-pointer text-[11px]';
-        if (icon) icon.className = 'fa-solid fa-repeat text-cyan-400';
-        if (hudStatus) hudStatus.innerText = 'STATUS: STABLE';
-        if (rightPatrolBtn) rightPatrolBtn.className = 'px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium cursor-pointer transition flex items-center gap-1.5 border border-slate-700';
-
+        if (btn) {
+          btn.className = 'px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium cursor-pointer transition flex items-center gap-1.5 border border-slate-700';
+          btn.innerHTML = '<i class="fa-solid fa-rotate text-cyan-400"></i> ตระเวนสด';
+        }
         if (cctvPatrolTimer) {
           clearInterval(cctvPatrolTimer);
           cctvPatrolTimer = null;
         }
         showToast('⏹️ ปิดโหมดตระเวนกล้องอัตโนมัติแล้ว');
       }
-    }
-
-    function toggleCctvMultiViewMode() {
-      isCctvMultiView = !isCctvMultiView;
-      const singleWrap = document.getElementById('cctvSingleViewWrap');
-      const quadWrap = document.getElementById('cctvQuadViewWrap');
-      const btn = document.getElementById('btnCctvMultiView');
-      const txt = document.getElementById('textCctvMultiView');
-
-      if (isCctvMultiView) {
-        if (singleWrap) singleWrap.classList.add('hidden');
-        if (quadWrap) {
-          quadWrap.classList.remove('hidden');
-          // Take 4 stations around activeCctvIndex
-          const quadCams = [
-            publicCctvCameras[activeCctvIndex % publicCctvCameras.length],
-            publicCctvCameras[(activeCctvIndex + 1) % publicCctvCameras.length],
-            publicCctvCameras[(activeCctvIndex + 2) % publicCctvCameras.length],
-            publicCctvCameras[(activeCctvIndex + 3) % publicCctvCameras.length]
-          ];
-          quadWrap.innerHTML = quadCams.map((c, i) => {
-            const actualIdx = (activeCctvIndex + i) % publicCctvCameras.length;
-            return `
-              <div class="relative bg-black rounded-lg overflow-hidden border border-slate-800 hover:border-cyan-500/80 transition-all cursor-pointer group" onclick="setActiveCctvCamera(${actualIdx}); toggleCctvMultiViewMode();">
-                <img src="${c.streamUrl}" alt="${c.name}" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://telemetry.dwr.go.th/static/images/image-placeholder.png';">
-                <div class="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-black/70 text-[9px] font-mono text-cyan-300 flex items-center gap-1">
-                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                  <span>${c.code}</span>
-                </div>
-                <div class="absolute bottom-1 left-1 right-1 px-1.5 py-0.5 rounded bg-black/70 text-[9px] text-white truncate">
-                  ${c.name} (${c.province})
-                </div>
-              </div>
-            `;
-          }).join('');
-        }
-        if (btn) btn.className = 'px-2 py-1 rounded-lg bg-cyan-600 text-white font-bold transition flex items-center gap-1 cursor-pointer text-[11px] shadow';
-        if (txt) txt.innerText = 'จอเดี่ยว (Single)';
-        showToast('🔲 สลับสู่โหมดเฝ้าระวัง 4 จอพร้อมกัน (Quad Multi-View)');
-      } else {
-        if (quadWrap) quadWrap.classList.add('hidden');
-        if (singleWrap) singleWrap.classList.remove('hidden');
-        if (btn) btn.className = 'px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1 cursor-pointer text-[11px]';
-        if (txt) txt.innerText = '4 จอ (Quad)';
-        setActiveCctvCamera(activeCctvIndex);
-      }
-    }
-
-    function captureCctvSnapshot() {
-      captureCctvSnapshotCamera(activeCctvIndex);
     }
 
     function captureCctvSnapshotCamera(idx) {
@@ -11588,16 +11238,14 @@
       const cam = publicCctvCameras[idx];
       if (!cam || !tacticalMap) return;
 
-      collapseCctvDrawer();
-
       lockedTargetUnitId = cam.id;
       lockedTargetCoords = [cam.lat, cam.lng];
       isAutoFollowTarget = true;
 
-      const targetZoom = currentCctvMapZoom || 14;
+      const targetZoom = Math.max(tacticalMap.getZoom(), 14);
       tacticalMap.flyTo([cam.lat, cam.lng], targetZoom, {
         animate: true,
-        duration: 1.2
+        duration: 1.0
       });
 
       const hudTarget = document.getElementById('radarTargetHud');
@@ -11611,61 +11259,9 @@
       if (hudCoords) hudCoords.innerText = `${cam.lat.toFixed(4)}° N, ${cam.lng.toFixed(4)}° E`;
 
       updateRadarSweepPosition();
-      showToast(`🎯 ล็อคเป้าเรดาร์ที่สถานีโทรมาตร ${cam.code} (${cam.name}) ซูม ${targetZoom}x`);
+      showToast(`🎯 ล็อคเป้าเรดาร์ที่สถานีโทรมาตร ${cam.code} (${cam.name})`);
     }
 
-    function flyToCurrentCctvOnMap() {
-      const cam = publicCctvCameras[activeCctvIndex];
-      if (!cam || !tacticalMap) return;
-
-      collapseCctvDrawer();
-
-      const targetZoom = currentCctvMapZoom || 14;
-      tacticalMap.flyTo([cam.lat, cam.lng], targetZoom, {
-        animate: true,
-        duration: 1.2
-      });
-
-      if (cctvMapMarkers[cam.id]) {
-        setTimeout(() => {
-          cctvMapMarkers[cam.id].openPopup();
-        }, 1300);
-      }
-      showToast(`🗺️ ซูมแผนที่ระดับ ${targetZoom}x ไปที่ตำแหน่งสถานี ${cam.code} (${cam.name})`);
-    }
-
-    function renderCctvCarouselStrip() {
-      const strip = document.getElementById('cctvCarouselStrip');
-      if (!strip) return;
-
-      // Show nearby 15 cameras around activeCctvIndex or current filtered list
-      const startIdx = Math.max(0, activeCctvIndex - 5);
-      const displayCams = publicCctvCameras.slice(startIdx, startIdx + 20);
-
-      strip.innerHTML = displayCams.map((cam) => {
-        const idx = publicCctvCameras.findIndex(c => c.id === cam.id);
-        const isActive = idx === activeCctvIndex;
-        const activeClass = isActive 
-          ? 'bg-cyan-600/40 border-cyan-400 text-white shadow-md' 
-          : 'bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-300 hover:text-white';
-        return `
-          <button onclick="setActiveCctvCamera(${idx})" class="px-2.5 py-1 rounded-lg border text-xs flex items-center gap-1.5 shrink-0 transition-all cursor-pointer ${activeClass}">
-            <span class="w-2 h-2 rounded-full ${isActive ? 'bg-cyan-400 animate-ping' : 'bg-emerald-400'}"></span>
-            <span class="font-mono font-bold text-[11px]">${cam.code}</span>
-            <span class="text-[10px] text-slate-400 max-w-[100px] truncate hidden md:inline">${cam.name}</span>
-          </button>
-        `;
-      }).join('');
-    }
-
-    function updateCctvHudClock() {
-      const el = document.getElementById('cctvHudTimecode');
-      if (!el) return;
-      const now = new Date();
-      const pad = (n) => String(n).padStart(2, '0');
-      const str = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())} ICT`;
-      el.innerText = str;
-    }
 
     // =========================================================================
     // 🎛️ RIGHT PANEL CCTV TAB VIEW & SEARCH CONTROLS
@@ -11729,7 +11325,7 @@
           <div class="cctv-right-card rounded-xl border p-2.5 transition-all hover:border-cyan-500/60 shadow-sm ${borderClass}" data-cctv-code="${cam.code}">
             <div class="flex items-start gap-2.5">
               <!-- Tactical Telemetry Water Sensor Badge -->
-              <div class="w-20 h-16 rounded-lg bg-gradient-to-br from-slate-900 to-cyan-950/60 flex flex-col items-center justify-center relative shrink-0 border border-cyan-500/30 cursor-pointer group shadow-inner" onclick="openCctvCameraInDrawer(${originalIndex})">
+              <div class="w-20 h-16 rounded-lg bg-gradient-to-br from-slate-900 to-cyan-950/60 flex flex-col items-center justify-center relative shrink-0 border border-cyan-500/30 cursor-pointer group shadow-inner" onclick="openCctvCameraPopup(${originalIndex})">
                 <div class="w-7 h-7 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs mb-0.5 group-hover:scale-110 group-hover:bg-cyan-500/30 transition-transform">
                   <i class="fa-solid fa-water"></i>
                 </div>
@@ -11756,10 +11352,10 @@
 
                 <!-- Actions -->
                 <div class="flex items-center gap-1.5 pt-0.5 text-[10px]">
-                  <button onclick="openCctvCameraInDrawer(${originalIndex})" class="px-2 py-0.5 rounded bg-cyan-600/30 hover:bg-cyan-600 text-cyan-300 hover:text-white transition font-medium cursor-pointer border border-cyan-500/30 flex items-center gap-1">
-                    <i class="fa-solid fa-expand"></i> ดูสด
+                  <button onclick="openCctvCameraPopup(${originalIndex})" class="px-2 py-0.5 rounded bg-cyan-600/30 hover:bg-cyan-600 text-cyan-300 hover:text-white transition font-medium cursor-pointer border border-cyan-500/30 flex items-center gap-1">
+                    <i class="fa-solid fa-video"></i> เปิดดู
                   </button>
-                  <button onclick="flyToCctvCamera(${originalIndex})" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition font-medium cursor-pointer border border-slate-700 flex items-center gap-1">
+                  <button onclick="openCctvCameraPopup(${originalIndex})" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition font-medium cursor-pointer border border-slate-700 flex items-center gap-1">
                     <i class="fa-solid fa-map-location-dot text-sky-400"></i> แผนที่
                   </button>
                   <button onclick="lockCctvCameraTarget(${originalIndex})" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition font-medium cursor-pointer border border-slate-700 flex items-center gap-1">
@@ -11772,16 +11368,6 @@
           </div>
         `;
       }).join('');
-    }
-
-    function flyToCctvCamera(idx) {
-      setActiveCctvCamera(idx);
-      flyToCurrentCctvOnMap();
-    }
-
-    function retryActiveCctvStream() {
-      setActiveCctvCamera(activeCctvIndex);
-      showToast('🔄 กำลังเชื่อมต่อสตรีมกล้องโทรมาตร DWR ใหม่...');
     }
 
     function initTacticalMap() {
@@ -11903,12 +11489,6 @@
 
       // Initialize Open-Source CCTV Camera points on Tactical Map
       renderCctvMarkersOnMap();
-      renderCctvCarouselStrip();
-      updateCctvHudClock();
-      if (!cctvHudTimer) {
-        cctvHudTimer = setInterval(updateCctvHudClock, 1000);
-      }
-      setActiveCctvCamera(0);
 
       // Ensure Leaflet recalculates layout across screen sizes
       setTimeout(() => {
