@@ -1201,14 +1201,14 @@
           </button>
         </div>
 
-        <!-- Dynamic Control Toolbar (X, Y, Breakdown, Chart Type, Time Period) -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 bg-slate-900/90 p-3.5 rounded-xl border border-slate-800 text-xs">
+        <!-- Dynamic Control Toolbar (X, Y, Breakdown, Chart Type, Sort Order, Time Period) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5 bg-slate-900/90 p-3.5 rounded-xl border border-slate-800 text-xs">
           <!-- 1. แกน X -->
           <div>
             <label class="block font-semibold text-sky-400 mb-1 flex items-center gap-1">
-              <i class="fa-solid fa-arrows-left-right text-[11px]"></i> แกน X (จัดกลุ่มมิติข้อมูล)
+              <i class="fa-solid fa-arrows-left-right text-[11px]"></i> แกน X (จัดกลุ่มข้อมูล)
             </label>
-            <select id="customChartXAxis" onchange="renderCustomAnalyticsChart()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-white font-medium focus:outline-none focus:border-sky-500 cursor-pointer">
+            <select id="customChartXAxis" onchange="renderCustomAnalyticsChart()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-medium focus:outline-none focus:border-sky-500 cursor-pointer text-xs">
               <option value="incident_type" selected>🏷️ ประเภทเหตุการณ์</option>
               <option value="date">📅 วันที่เกิดเหตุ (รายวัน)</option>
               <option value="month">🗓️ เดือน</option>
@@ -1226,7 +1226,7 @@
             <label class="block font-semibold text-emerald-400 mb-1 flex items-center gap-1">
               <i class="fa-solid fa-arrows-up-down text-[11px]"></i> แกน Y (ตัวชี้วัด / สถิติ)
             </label>
-            <select id="customChartYMetric" onchange="renderCustomAnalyticsChart()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-white font-medium focus:outline-none focus:border-emerald-500 cursor-pointer">
+            <select id="customChartYMetric" onchange="renderCustomAnalyticsChart()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-medium focus:outline-none focus:border-emerald-500 cursor-pointer text-xs">
               <option value="count" selected>🔢 จำนวนเหตุการณ์ (เรื่อง)</option>
               <option value="percentage">📊 สัดส่วนร้อยละ (% Share)</option>
               <option value="pending">⏳ จำนวนที่ค้างดำเนินการ (เรื่อง)</option>
@@ -1241,7 +1241,7 @@
             <label class="block font-semibold text-amber-400 mb-1 flex items-center gap-1">
               <i class="fa-solid fa-layer-group text-[11px]"></i> จำแนกเปรียบเทียบ (Series)
             </label>
-            <select id="customChartBreakdown" onchange="renderCustomAnalyticsChart()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-white font-medium focus:outline-none focus:border-amber-500 cursor-pointer">
+            <select id="customChartBreakdown" onchange="renderCustomAnalyticsChart()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-medium focus:outline-none focus:border-amber-500 cursor-pointer text-xs">
               <option value="none" selected>➖ รวมกลุ่มเดียว (Single)</option>
               <option value="urgency">🚨 จำแนกตามความเร่งด่วน</option>
               <option value="status">📌 จำแนกตามสถานะงาน</option>
@@ -1254,7 +1254,7 @@
             <label class="block font-semibold text-purple-400 mb-1 flex items-center gap-1">
               <i class="fa-solid fa-chart-pie text-[11px]"></i> รูปแบบกราฟ (Chart Type)
             </label>
-            <select id="customChartType" onchange="renderCustomAnalyticsChart()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-white font-medium focus:outline-none focus:border-purple-500 cursor-pointer">
+            <select id="customChartType" onchange="renderCustomAnalyticsChart()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-medium focus:outline-none focus:border-purple-500 cursor-pointer text-xs">
               <option value="bar" selected>📊 กราฟแท่งแนวตั้ง (Bar)</option>
               <option value="horizontalBar">📉 กราฟแท่งแนวนอน (Horizontal Bar)</option>
               <option value="line">📈 กราฟเส้นแนวโน้ม (Line/Area)</option>
@@ -1265,18 +1265,35 @@
             </select>
           </div>
 
-          <!-- 5. ช่วงเวลาและปุ่มคำสั่ง -->
+          <!-- 5. จัดเรียงลำดับ -->
+          <div>
+            <label class="block font-semibold text-cyan-400 mb-1 flex items-center gap-1">
+              <i class="fa-solid fa-arrow-down-wide-short text-[11px]"></i> จัดเรียงข้อมูล (Sort)
+            </label>
+            <select id="customChartSortOrder" onchange="renderCustomAnalyticsChart()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-medium focus:outline-none focus:border-cyan-500 cursor-pointer text-xs">
+              <option value="desc" selected>⬇️ มาก ➔ น้อย (ยอดสูงสุดก่อน)</option>
+              <option value="asc">⬆️ น้อย ➔ มาก</option>
+              <option value="alpha">🔤 ตามชื่อ / ลำดับเวลา</option>
+            </select>
+          </div>
+
+          <!-- 6. ช่วงเวลาและตัวกรอง -->
           <div>
             <label class="block font-semibold text-slate-300 mb-1 flex items-center gap-1">
               <i class="fa-solid fa-calendar-days text-[11px]"></i> ช่วงเวลา (Filter)
             </label>
-            <select id="customChartPeriod" onchange="renderCustomAnalyticsChart()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-white font-medium focus:outline-none focus:border-sky-500 cursor-pointer">
+            <select id="customChartPeriod" onchange="onCustomChartPeriodChange()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-medium focus:outline-none focus:border-sky-500 cursor-pointer text-xs">
               <option value="ALL" selected>ทั้งหมดในระบบ (All Time)</option>
               <option value="TODAY">วันนี้ (Today)</option>
               <option value="7D">7 วันล่าสุด (Last 7 Days)</option>
               <option value="30D">30 วันล่าสุด (Last 30 Days)</option>
               <option value="THIS_MONTH">เดือนนี้ (This Month)</option>
+              <option value="CUSTOM">📅 กำหนดช่วงวันเอง...</option>
             </select>
+            <div id="customDateRangeBox" class="hidden grid grid-cols-2 gap-1 mt-1.5">
+              <input type="date" id="customChartStartDate" onchange="renderCustomAnalyticsChart()" class="w-full bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 text-white text-[10px] focus:outline-none focus:border-sky-500" title="ตั้งแต่วันที่">
+              <input type="date" id="customChartEndDate" onchange="renderCustomAnalyticsChart()" class="w-full bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 text-white text-[10px] focus:outline-none focus:border-sky-500" title="ถึงวันที่">
+            </div>
           </div>
         </div>
 
@@ -3585,9 +3602,33 @@
       return dPart.substring(5); // MM-DD
     }
 
+    function onCustomChartPeriodChange() {
+      const p = document.getElementById('customChartPeriod') ? document.getElementById('customChartPeriod').value : 'ALL';
+      const box = document.getElementById('customDateRangeBox');
+      if (box) {
+        if (p === 'CUSTOM') box.classList.remove('hidden');
+        else box.classList.add('hidden');
+      }
+      renderCustomAnalyticsChart();
+    }
+
     function filterIncidentsByPeriod(list, period) {
       if (!period || period === 'ALL') return list;
       const now = new Date();
+      if (period === 'CUSTOM') {
+        const sEl = document.getElementById('customChartStartDate');
+        const eEl = document.getElementById('customChartEndDate');
+        const start = sEl && sEl.value ? new Date(sEl.value + 'T00:00:00') : null;
+        const end = eEl && eEl.value ? new Date(eEl.value + 'T23:59:59') : null;
+        return list.filter(item => {
+          if (!item.timestamp) return false;
+          const d = new Date(item.timestamp);
+          if (isNaN(d.getTime())) return true;
+          if (start && d < start) return false;
+          if (end && d > end) return false;
+          return true;
+        });
+      }
       return list.filter(item => {
         if (!item.timestamp) return false;
         const d = new Date(item.timestamp);
@@ -3615,6 +3656,7 @@
       const yMetric = document.getElementById('customChartYMetric') ? document.getElementById('customChartYMetric').value : 'count';
       const breakdown = document.getElementById('customChartBreakdown') ? document.getElementById('customChartBreakdown').value : 'none';
       const chartType = document.getElementById('customChartType') ? document.getElementById('customChartType').value : 'bar';
+      const sortOrder = document.getElementById('customChartSortOrder') ? document.getElementById('customChartSortOrder').value : 'desc';
       const period = document.getElementById('customChartPeriod') ? document.getElementById('customChartPeriod').value : 'ALL';
 
       const filtered = filterIncidentsByPeriod(rawIncidents, period);
@@ -3658,8 +3700,8 @@
         titleEl.innerText = `${yLabelsMap[yMetric].label} จำแนกตาม ${xLabelsMap[xAxis]}${breakdownLabelsMap[breakdown]}`;
       }
       if (subtitleEl) {
-        const periodStr = period === 'TODAY' ? 'วันนี้' : period === '7D' ? '7 วันล่าสุด' : period === '30D' ? '30 วันล่าสุด' : period === 'THIS_MONTH' ? 'เดือนนี้' : 'ข้อมูลทั้งหมด';
-        subtitleEl.innerText = `ช่วงเวลา: ${periodStr} | ข้อมูลที่นำมาประมวลผล: ${filtered.length} รายการ`;
+        const periodStr = period === 'TODAY' ? 'วันนี้' : period === '7D' ? '7 วันล่าสุด' : period === '30D' ? '30 วันล่าสุด' : period === 'THIS_MONTH' ? 'เดือนนี้' : period === 'CUSTOM' ? 'กำหนดช่วงวันเอง' : 'ข้อมูลทั้งหมด';
+        subtitleEl.innerText = `ช่วงเวลา: ${periodStr} | ข้อมูลที่นำมาประมวลผล: ${filtered.length} รายการ (แตะกราฟเพื่อกรองตารางด้านล่าง)`;
       }
 
       // Update icon based on chart type
@@ -3734,25 +3776,6 @@
         }
       });
 
-      // Sort categories
-      let categories = Object.keys(groupData);
-      if (xAxis === 'day_of_week') {
-        const weekOrder = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์', 'ไม่ระบุ'];
-        categories.sort((a, b) => weekOrder.indexOf(a) - weekOrder.indexOf(b));
-      } else if (xAxis === 'time_bucket') {
-        const timeOrder = ['00:00 - 05:59 น. (ดึก/เช้ามืด)', '06:00 - 11:59 น. (เช้า)', '12:00 - 17:59 น. (บ่าย)', '18:00 - 23:59 น. (ค่ำ/ดึก)', 'ไม่ระบุเวลา'];
-        categories.sort((a, b) => timeOrder.indexOf(a) - timeOrder.indexOf(b));
-      } else if (xAxis === 'date' || xAxis === 'month') {
-        categories.sort();
-      } else {
-        // Sort by metric descending
-        categories.sort((a, b) => {
-          const valA = calculateMetricValue(groupData[a], yMetric, filtered.length);
-          const valB = calculateMetricValue(groupData[b], yMetric, filtered.length);
-          return valB - valA;
-        });
-      }
-
       function calculateMetricValue(g, metric, totalCount) {
         if (!g) return 0;
         if (metric === 'count') return g.total;
@@ -3762,6 +3785,43 @@
         if (metric === 'resolve_rate') return g.total > 0 ? Math.round((g.resolved / g.total) * 100) : 0;
         if (metric === 'with_media') return g.withMedia;
         return g.total;
+      }
+
+      // Sort categories
+      let categories = Object.keys(groupData);
+      if (sortOrder === 'alpha') {
+        if (xAxis === 'day_of_week') {
+          const weekOrder = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์', 'ไม่ระบุ'];
+          categories.sort((a, b) => weekOrder.indexOf(a) - weekOrder.indexOf(b));
+        } else if (xAxis === 'time_bucket') {
+          const timeOrder = ['00:00 - 05:59 น. (ดึก/เช้ามืด)', '06:00 - 11:59 น. (เช้า)', '12:00 - 17:59 น. (บ่าย)', '18:00 - 23:59 น. (ค่ำ/ดึก)', 'ไม่ระบุเวลา'];
+          categories.sort((a, b) => timeOrder.indexOf(a) - timeOrder.indexOf(b));
+        } else if (xAxis === 'date' || xAxis === 'month') {
+          categories.sort();
+        } else {
+          categories.sort((a, b) => a.localeCompare(b, 'th'));
+        }
+      } else if (sortOrder === 'asc') {
+        categories.sort((a, b) => {
+          const valA = calculateMetricValue(groupData[a], yMetric, filtered.length);
+          const valB = calculateMetricValue(groupData[b], yMetric, filtered.length);
+          return valA - valB;
+        });
+      } else {
+        // default: desc (มากไปน้อย)
+        if (xAxis === 'day_of_week' && sortOrder !== 'desc') {
+          const weekOrder = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์', 'ไม่ระบุ'];
+          categories.sort((a, b) => weekOrder.indexOf(a) - weekOrder.indexOf(b));
+        } else if (xAxis === 'time_bucket' && sortOrder !== 'desc') {
+          const timeOrder = ['00:00 - 05:59 น. (ดึก/เช้ามืด)', '06:00 - 11:59 น. (เช้า)', '12:00 - 17:59 น. (บ่าย)', '18:00 - 23:59 น. (ค่ำ/ดึก)', 'ไม่ระบุเวลา'];
+          categories.sort((a, b) => timeOrder.indexOf(a) - timeOrder.indexOf(b));
+        } else {
+          categories.sort((a, b) => {
+            const valA = calculateMetricValue(groupData[a], yMetric, filtered.length);
+            const valB = calculateMetricValue(groupData[b], yMetric, filtered.length);
+            return valB - valA;
+          });
+        }
       }
 
       const totalFilteredCount = filtered.length;
@@ -3841,6 +3901,19 @@
           indexAxis: isHorizontal ? 'y' : 'x',
           responsive: true,
           maintainAspectRatio: false,
+          onClick: (e, elements) => {
+            if (!elements || elements.length === 0) return;
+            const idx = elements[0].index;
+            const clickedLabel = categories[idx];
+            if (clickedLabel) {
+              drillDownToCategory(clickedLabel);
+            }
+          },
+          onHover: (event, chartElement) => {
+            if (event && event.native && event.native.target) {
+              event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+            }
+          },
           plugins: {
             legend: {
               display: breakdown !== 'none' || chartType === 'doughnut' || chartType === 'pie' || chartType === 'radar',
@@ -3905,6 +3978,38 @@
       renderCustomBreakdownTable(categories, groupData, yMetric, totalMetricVal, yLabelsMap[yMetric].unit, totalFilteredCount);
     }
 
+    // Drill-Down Helper: filters incidents table below and scrolls to it
+    function drillDownToCategory(clickedLabel) {
+      if (!clickedLabel) return;
+      const xAxis = document.getElementById('customChartXAxis') ? document.getElementById('customChartXAxis').value : 'incident_type';
+
+      if (xAxis === 'incident_type') {
+        const tf = document.getElementById('typeFilter');
+        if (tf) tf.value = clickedLabel;
+      } else if (xAxis === 'urgency') {
+        const uf = document.getElementById('urgencyFilter');
+        if (uf) {
+          if (clickedLabel.includes('วิกฤต')) uf.value = 'วิกฤต';
+          else if (clickedLabel.includes('ปานกลาง')) uf.value = 'ปานกลาง';
+          else uf.value = 'เฝ้าระวัง';
+        }
+      } else if (xAxis === 'status') {
+        const sf = document.getElementById('statusFilter');
+        if (sf) {
+          if (clickedLabel.includes('เสร็จ')) sf.value = 'เสร็จ';
+          else if (clickedLabel.includes('ดำเนิน')) sf.value = 'ดำเนินการ';
+          else sf.value = 'รอดำเนินการ';
+        }
+      } else {
+        const si = document.getElementById('searchInput');
+        if (si) si.value = clickedLabel;
+      }
+      filterTable();
+      showToast(`🎯 Drill-Down กรองตารางตาม: ${clickedLabel}`);
+      const tbl = document.getElementById('incidentsTableBody');
+      if (tbl) tbl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
     // Render Breakdown Matrix Table
     function renderCustomBreakdownTable(categories, groupData, yMetric, totalVal, unit, totalCount) {
       const tbody = document.getElementById('customBreakdownTableBody');
@@ -3944,12 +4049,16 @@
           total: g.total
         });
 
+        const safeCat = cat.replace(/'/g, "\\'");
+
         html += `
           <tr class="hover:bg-slate-800/40 transition-colors">
             <td class="px-3 py-2 text-center text-slate-500 font-mono text-xs">${idx + 1}</td>
-            <td class="px-3 py-2 font-medium text-white flex items-center gap-2">
-              <span class="w-2 h-2 rounded-full bg-sky-400"></span>
-              <span>${cat}</span>
+            <td class="px-3 py-2 font-medium text-white">
+              <button onclick="drillDownToCategory('${safeCat}')" class="flex items-center gap-2 hover:text-sky-400 cursor-pointer text-left transition-colors" title="แตะเพื่อกรองตารางรายการด้านล่างตามกลุ่มนี้">
+                <span class="w-2 h-2 rounded-full bg-sky-400 shrink-0"></span>
+                <span class="underline decoration-slate-700 hover:decoration-sky-400">${cat}</span>
+              </button>
             </td>
             <td class="px-3 py-2 text-right font-bold text-sky-300 font-mono">${val} <span class="text-[10px] text-slate-400 font-normal">${unit}</span></td>
             <td class="px-3 py-2 text-right text-slate-300 font-mono">${sharePercent}%</td>
