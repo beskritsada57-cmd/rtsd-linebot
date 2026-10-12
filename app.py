@@ -1368,8 +1368,45 @@ def api_cctv_proxy_mjpeg(station_code):
     resp = Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
     resp.headers["Access-Control-Allow-Origin"] = "*"
     resp.headers["Cross-Origin-Resource-Policy"] = "cross-origin"
-    resp.headers["Cache-Control"] = "no-cache, private"
+    resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["X-Accel-Buffering"] = "no"
     return resp
+
+
+@app.route("/api/cctv/snapshot/<station_code>", methods=['GET'])
+def api_cctv_snapshot_frame(station_code):
+    """Grab a crisp single JPEG frame from DWR stream for instant display & fallback"""
+    import urllib.request
+    from flask import Response
+    clean_code = re.sub(r'[^A-Za-z0-9]', '', station_code)
+    target_url = f"https://telemetry.dwr.go.th/cctv/mjpeg/{clean_code}"
+    try:
+        req = urllib.request.Request(target_url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=8) as stream:
+            buf = bytearray()
+            max_read = 1024 * 1024  # 1MB max
+            while len(buf) < max_read:
+                chunk = stream.read(8192)
+                if not chunk:
+                    break
+                buf.extend(chunk)
+                start = buf.find(b'\xff\xd8')
+                if start != -1:
+                    end = buf.find(b'\xff\xd9', start + 2)
+                    if end != -1:
+                        jpeg_bytes = bytes(buf[start:end + 2])
+                        resp = Response(jpeg_bytes, mimetype='image/jpeg')
+                        resp.headers["Access-Control-Allow-Origin"] = "*"
+                        resp.headers["Cross-Origin-Resource-Policy"] = "cross-origin"
+                        resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+                        resp.headers["Pragma"] = "no-cache"
+                        return resp
+    except Exception as e:
+        logger.warning(f"CCTV snapshot error for {clean_code}: {e}")
+
+    return jsonify({"error": "snapshot_unavailable"}), 502
+
 
 
 
