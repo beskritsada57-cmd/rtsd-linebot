@@ -21147,8 +21147,17 @@
         marker.on('click', (e) => {
           if (e && e.originalEvent) {
             e.originalEvent.stopPropagation();
+            e.originalEvent.preventDefault();
           }
           activeCctvIndex = idx;
+          marker.openPopup();
+        });
+
+        marker.on('dblclick', (e) => {
+          if (e && e.originalEvent) {
+            e.originalEvent.stopPropagation();
+            e.originalEvent.preventDefault();
+          }
         });
 
         marker.on('popupopen', () => {
@@ -21548,6 +21557,17 @@
         zoomControl: false,
         attributionControl: false
       });
+      window.tacticalMap = tacticalMap;
+
+      // Auto-sync Leaflet dimensions smoothly whenever container size changes
+      if (window.ResizeObserver && mapContainer) {
+        const mapResizeObserver = new ResizeObserver(() => {
+          if (tacticalMap) {
+            tacticalMap.invalidateSize(false);
+          }
+        });
+        mapResizeObserver.observe(mapContainer);
+      }
 
       L.control.zoom({ position: 'bottomright' }).addTo(tacticalMap);
 
