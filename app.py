@@ -1329,6 +1329,24 @@ def api_clear_all_tactical_pins():
 
 
 # =========================================================================
+# 📹 5.2.5 ระบบกล้องวงจรปิดโทรมาตร กรมทรัพยากรน้ำ (DWR CCTV Telemetry)
+# =========================================================================
+@app.route("/api/cctv/dwr", methods=['GET'])
+def api_get_dwr_cctv_stations():
+    """ดึงข้อมูลกล้องวงจรปิดโทรมาตร กรมทรัพยากรน้ำ 118 สถานี"""
+    import json
+    json_path = os.path.join(os.path.dirname(__file__), 'dwr_cctv_stations.json')
+    if os.path.exists(json_path):
+        try:
+            with open(json_path, 'r', encoding='utf-8') as f:
+                return jsonify(json.load(f)), 200
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 500
+    return jsonify([]), 200
+
+
+
+# =========================================================================
 # 🚨 5.3 ศูนย์สั่งการกำลังพล & แจ้งเตือนไประงับเหตุ (Incident Dispatch Center)
 # =========================================================================
 DISPATCHED_INCIDENTS = {}  # { incident_id: { "dispatched_units": [...], "timestamp": ..., "directive": ... } }

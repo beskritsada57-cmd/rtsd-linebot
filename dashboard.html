@@ -672,8 +672,8 @@
                 <label class="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-800/80 cursor-pointer select-none">
                   <div class="flex items-center gap-2">
                     <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
-                    <span class="text-cyan-300 font-medium">🎥 กล้องวงจรปิด CCTV</span>
-                    <span id="dropdownCctvCount" class="text-[10px] text-cyan-400 font-mono">(12)</span>
+                    <span class="text-cyan-300 font-medium">🎥 โทรมาตร CCTV กรมทรัพยากรน้ำ (DWR)</span>
+                    <span id="dropdownCctvCount" class="text-[10px] text-cyan-400 font-mono">(118)</span>
                   </div>
                   <input type="checkbox" id="chkFilterCctv" checked onchange="toggleLayerFilter('cctv', this.checked)" class="accent-cyan-500 rounded cursor-pointer">
                 </label>
@@ -877,12 +877,12 @@
                 <div class="flex items-center gap-2">
                   <span class="font-bold text-white text-xs flex items-center gap-1.5">
                     <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                    <span>มอนิเตอร์กล้องวงจรปิด (Live CCTV Feeds)</span>
+                    <span>กล้องโทรมาตร กรมทรัพยากรน้ำ (DWR CCTV Telemetry)</span>
                   </span>
-                  <span class="px-1.5 py-0.2 rounded text-[9px] bg-cyan-950 text-cyan-300 border border-cyan-500/30 font-mono hidden sm:inline">12 จุดออนไลน์</span>
+                  <span id="cctvDrawerBadgeCount" class="px-1.5 py-0.2 rounded text-[9px] bg-cyan-950 text-cyan-300 border border-cyan-500/30 font-mono hidden sm:inline">118 สถานีออนไลน์</span>
                 </div>
                 <p id="cctvCollapsedCurrentCam" class="text-[11px] text-cyan-300/80 truncate">
-                  [CCTV-BMA-01] แยกราชประสงค์ • สตรีมสด 1080p
+                  [TC020106] โรงสูบน้ำแรงต่ำแม่ข่าย หัวฝาย • สตรีมสด DWR Telemetry
                 </p>
               </div>
             </div>
@@ -912,17 +912,21 @@
                 </div>
                 <div>
                   <h3 id="cctvExpandedTitle" class="font-bold text-white text-xs sm:text-sm flex items-center gap-2">
-                    <span>[CCTV-BMA-01] แยกราชประสงค์ (Ratchaprasong Intersection)</span>
-                    <span class="px-1.5 py-0.2 rounded text-[9px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">🟢 LIVE 30 FPS</span>
+                    <span>[TC020106] โรงสูบน้ำแรงต่ำแม่ข่าย หัวฝาย</span>
+                    <span class="px-1.5 py-0.2 rounded text-[9px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">🟢 LIVE MJPEG</span>
                   </h3>
                   <p id="cctvExpandedSubtitle" class="text-[10px] text-slate-400">
-                    เขตปทุมวัน กรุงเทพฯ • ถ.พระราม 1 / ถ.ราชดำริ • BMA Traffic Control / Open Source
+                    ต.เวียงพางคำ อ.แม่สาย จ.เชียงราย • ลุ่มน้ำโขงเหนือ • ลำน้ำ: รวก • กรมทรัพยากรน้ำ (DWR Telemetry)
                   </p>
                 </div>
               </div>
 
               <!-- Top Actions: Grid / Single, Patrol, Snapshot, Fullscreen, Collapse -->
               <div class="flex items-center gap-1.5 text-xs">
+                <a id="btnCctvOfficialLink" href="https://telemetry.dwr.go.th/reportCctv" target="_blank" rel="noopener noreferrer" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 transition flex items-center gap-1 cursor-pointer text-[11px]" title="เปิดดูต้นฉบับใน telemetry.dwr.go.th">
+                  <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                  <span class="hidden sm:inline">เว็บ DWR</span>
+                </a>
                 <button id="btnCctvPatrol" onclick="toggleCctvAutoPatrol()" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1 cursor-pointer text-[11px]" title="โหมดหมุนเวียนกล้องอัตโนมัติทุก 8 วินาที">
                   <i id="iconCctvPatrol" class="fa-solid fa-repeat text-cyan-400"></i>
                   <span class="hidden sm:inline">หมุนเวียนกล้อง</span>
@@ -949,9 +953,8 @@
             <div id="cctvPlayerStage" class="flex-1 min-h-0 relative bg-black flex items-center justify-center overflow-hidden">
               <!-- Single Camera View Container -->
               <div id="cctvSingleViewWrap" class="w-full h-full relative flex items-center justify-center bg-black">
-                <video id="cctvActiveVideoPlayer" class="w-full h-full object-cover" autoplay loop muted playsinline poster="">
-                  <source id="cctvActiveVideoSource" src="https://vjs.zencdn.net/v/oceans.mp4" type="video/mp4">
-                </video>
+                <img id="cctvActiveMjpegPlayer" src="" alt="DWR CCTV Stream" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://telemetry.dwr.go.th/static/images/image-placeholder.png';">
+                <video id="cctvActiveVideoPlayer" class="w-full h-full object-cover hidden" autoplay loop muted playsinline poster=""></video>
                 <!-- HUD Tactical Overlay -->
                 <div class="absolute inset-0 pointer-events-none p-3 flex flex-col justify-between">
                   <!-- HUD Top -->
@@ -1047,8 +1050,8 @@
             <!-- Tab 4: 📹 Live CCTV Surveillance -->
             <button id="tabFeedCctv" onclick="switchRightPanelTab('cctv')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition-all cursor-pointer text-xs font-semibold">
               <i class="fa-solid fa-video text-cyan-400"></i>
-              <span>กล้อง CCTV</span>
-              <span id="badgeCctvTotal" class="px-1.5 py-0.2 rounded-full bg-slate-800 text-cyan-400 text-[10px] font-mono">12</span>
+              <span>โทรมาตร CCTV</span>
+              <span id="badgeCctvTotal" class="px-1.5 py-0.2 rounded-full bg-slate-800 text-cyan-400 text-[10px] font-mono">118</span>
             </button>
           </div>
 
@@ -1279,17 +1282,26 @@
         <div id="panelCctvView" class="hidden flex-1 min-h-0 flex flex-col">
           <!-- Mini Filter / Search Ribbon -->
           <div class="shrink-0 space-y-2 mb-2">
+            <div class="flex items-center justify-between text-[11px] text-slate-400 px-0.5">
+              <span class="flex items-center gap-1 text-cyan-300 font-semibold">
+                <i class="fa-solid fa-water"></i> โทรมาตร กรมทรัพยากรน้ำ (DWR)
+              </span>
+              <a href="https://telemetry.dwr.go.th/reportCctv" target="_blank" rel="noopener noreferrer" class="text-cyan-400 hover:underline flex items-center gap-1 text-[10px]">
+                <span>telemetry.dwr.go.th</span> <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+              </a>
+            </div>
             <div class="relative">
               <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
-              <input id="inputSearchCctv" type="text" oninput="filterRightPanelCctv()" placeholder="ค้นหากล้อง, จุดติดตั้ง, ถนน, หน่วยงาน..." class="w-full pl-8 pr-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500">
+              <input id="inputSearchCctv" type="text" oninput="filterRightPanelCctv()" placeholder="ค้นหารหัสสถานี, ชื่อสถานี, ลุ่มน้ำ, ลำน้ำ, จังหวัด..." class="w-full pl-8 pr-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500">
             </div>
-            <!-- Agency Filter Pills -->
+            <!-- Region / Basin Filter Pills -->
             <div class="flex items-center gap-1 overflow-x-auto pb-1 text-[11px] custom-scrollbar">
-              <button onclick="setFilterCctvAgency('ALL')" id="btnCctvFilterALL" class="px-2 py-0.5 rounded-md bg-cyan-600 text-white font-medium cursor-pointer shrink-0 shadow-sm">ทั้งหมด (12)</button>
-              <button onclick="setFilterCctvAgency('RTSD')" id="btnCctvFilterRTSD" class="px-2 py-0.5 rounded-md bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800 cursor-pointer shrink-0">RTSD (2)</button>
-              <button onclick="setFilterCctvAgency('BMA')" id="btnCctvFilterBMA" class="px-2 py-0.5 rounded-md bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800 cursor-pointer shrink-0">กทม./BMA (5)</button>
-              <button onclick="setFilterCctvAgency('DOH')" id="btnCctvFilterDOH" class="px-2 py-0.5 rounded-md bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800 cursor-pointer shrink-0">ทางหลวง/DOH (3)</button>
-              <button onclick="setFilterCctvAgency('EXAT')" id="btnCctvFilterEXAT" class="px-2 py-0.5 rounded-md bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800 cursor-pointer shrink-0">กทพ./EXAT (2)</button>
+              <button onclick="setFilterCctvRegion('ALL')" id="btnCctvFilterALL" class="px-2 py-0.5 rounded-md bg-cyan-600 text-white font-medium cursor-pointer shrink-0 shadow-sm">ทั้งหมด (118)</button>
+              <button onclick="setFilterCctvRegion('CENTRAL')" id="btnCctvFilterCENTRAL" class="px-2 py-0.5 rounded-md bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800 cursor-pointer shrink-0">เจ้าพระยา-ป่าสัก (33)</button>
+              <button onclick="setFilterCctvRegion('NORTH')" id="btnCctvFilterNORTH" class="px-2 py-0.5 rounded-md bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800 cursor-pointer shrink-0">ปิง-วัง-น่าน (22)</button>
+              <button onclick="setFilterCctvRegion('NORTHEAST')" id="btnCctvFilterNORTHEAST" class="px-2 py-0.5 rounded-md bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800 cursor-pointer shrink-0">โขง-ชี-มูล (21)</button>
+              <button onclick="setFilterCctvRegion('SOUTH')" id="btnCctvFilterSOUTH" class="px-2 py-0.5 rounded-md bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800 cursor-pointer shrink-0">ภาคใต้ (18)</button>
+              <button onclick="setFilterCctvRegion('EAST_WEST')" id="btnCctvFilterEAST_WEST" class="px-2 py-0.5 rounded-md bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800 cursor-pointer shrink-0">ตอ./แม่กลอง (24)</button>
             </div>
           </div>
 
@@ -8897,238 +8909,2255 @@
     }
 
     // =========================================================================
-    // 📹 LIVE CCTV CAMERA SURVEILLANCE & STREAMING ENGINE (12 OPEN-SOURCE POINTS)
+    // 📹 LIVE CCTV CAMERA SURVEILLANCE & STREAMING ENGINE (DWR TELEMETRY - 118 STATIONS)
+    // Source: https://telemetry.dwr.go.th/reportCctv (กรมทรัพยากรน้ำ กระทรวงทรัพยากรธรรมชาติและสิ่งแวดล้อม)
     // =========================================================================
     const publicCctvCameras = [
-      {
-        id: 'cam-01',
-        code: 'CAM-RTSD-01',
-        name: 'หน้า บก.กรมแผนที่ทหาร (กัลยาณไมตรี / สนามหลวง)',
-        road: 'ถ.กัลยาณไมตรี - สนามหลวง',
-        agency: 'RTSD',
-        agencyName: 'กรมแผนที่ทหาร (RTSD)',
-        agencyBadge: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
-        lat: 13.7523,
-        lng: 100.4947,
-        status: 'ONLINE',
-        fps: 30,
-        resolution: '1920x1080 FHD',
-        bearing: '315° NW',
-        ptz: 'PRESET-01 (HQ PERIMETER)',
-        streamUrl: 'https://vjs.zencdn.net/v/oceans.mp4',
-        poster: 'https://images.unsplash.com/photo-1541888946425-d0fbb18f156b?auto=format&fit=crop&w=600&q=80',
-        desc: 'เฝ้าระวังแนวรั้ว บก.กรมแผนที่ทหาร และเส้นทางเชื่อมต่อสนามหลวง'
-      },
-      {
-        id: 'cam-02',
-        code: 'CAM-RTSD-02',
-        name: 'บก.กรมแผนที่ทหาร ประตูทิศใต้ (พระบรมมหาราชวัง)',
-        road: 'ถ.ท้ายวัง - พระบรมมหาราชวัง',
-        agency: 'RTSD',
-        agencyName: 'กรมแผนที่ทหาร (RTSD)',
-        agencyBadge: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
-        lat: 13.7468,
-        lng: 100.4932,
-        status: 'ONLINE',
-        fps: 30,
-        resolution: '1920x1080 FHD',
-        bearing: '180° S',
-        ptz: 'PRESET-02 (SOUTH GATE)',
-        streamUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-        poster: 'https://images.unsplash.com/photo-1508873696983-2df5293cb32f?auto=format&fit=crop&w=600&q=80',
-        desc: 'เฝ้าระวังทางเข้าออกทิศใต้ และพื้นที่ต่อเนื่องพระบรมมหาราชวัง'
-      },
-      {
-        id: 'cam-03',
-        code: 'CAM-BMA-01',
-        name: 'แยกราชประสงค์ (Ratchaprasong Intersection)',
-        road: 'ถ.พระราม 1 / ถ.ราชดำริ',
-        agency: 'BMA',
-        agencyName: 'กทม. (BMA Traffic)',
-        agencyBadge: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
-        lat: 13.7443,
-        lng: 100.5404,
-        status: 'ONLINE',
-        fps: 30,
-        resolution: '1920x1080 FHD',
-        bearing: '045° NE',
-        ptz: 'PAN-AUTO (45° SWEEP)',
-        streamUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-        poster: 'https://images.unsplash.com/photo-1509099836639-18ba1795216d?auto=format&fit=crop&w=600&q=80',
-        desc: 'ศูนย์กลางคมนาคมแยกราชประสงค์ ศาลท้าวมหาพรหม ห้างเซ็นทรัลเวิลด์'
-      },
-      {
-        id: 'cam-04',
-        code: 'CAM-BMA-02',
-        name: 'อนุสาวรีย์ชัยสมรภูมิ (Victory Monument)',
-        road: 'ถ.พญาไท / ถ.พหลโยธิน',
-        agency: 'BMA',
-        agencyName: 'กทม. (BMA Traffic)',
-        agencyBadge: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
-        lat: 13.7649,
-        lng: 100.5383,
-        status: 'ONLINE',
-        fps: 30,
-        resolution: '1920x1080 FHD',
-        bearing: '360° N',
-        ptz: 'ROTATING 360°',
-        streamUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
-        poster: 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?auto=format&fit=crop&w=600&q=80',
-        desc: 'วงเวียนอนุสาวรีย์ชัยสมรภูมิ เกาะพญาไท เกาะพหลโยธิน'
-      },
-      {
-        id: 'cam-05',
-        code: 'CAM-BMA-03',
-        name: 'แยกอโศก - สุขุมวิท (Asoke Intersection)',
-        road: 'ถ.สุขุมวิท / ถ.รัชดาภิเษก',
-        agency: 'BMA',
-        agencyName: 'กทม. (BMA Traffic)',
-        agencyBadge: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
-        lat: 13.7372,
-        lng: 100.5604,
-        status: 'ONLINE',
-        fps: 30,
-        resolution: '1920x1080 FHD',
-        bearing: '090° E',
-        ptz: 'PRESET-ASOKE-01',
-        streamUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyBlazes.mp4',
-        poster: 'https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=600&q=80',
-        desc: 'ชุมทางเชื่อมต่อสุขุมวิท รถไฟฟ้า BTS อโศก และ MRT สุขุมวิท'
-      },
-      {
-        id: 'cam-06',
-        code: 'CAM-BMA-04',
-        name: 'แยกพระราม 9 - รัชดาภิเษก (Rama IX Junction)',
-        road: 'ถ.รัชดาภิเษก / ถ.พระราม 9',
-        agency: 'BMA',
-        agencyName: 'กทม. (BMA Traffic)',
-        agencyBadge: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
-        lat: 13.7578,
-        lng: 100.5658,
-        status: 'ONLINE',
-        fps: 30,
-        resolution: '1920x1080 FHD',
-        bearing: '000° N',
-        ptz: 'PRESET-RAMA9-02',
-        streamUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4',
-        poster: 'https://images.unsplash.com/photo-1514924013411-cbf25faa35bb?auto=format&fit=crop&w=600&q=80',
-        desc: 'หน้าฟอร์จูนทาวน์ / เซ็นทรัลพระราม 9 ประตูระบายน้ำคลองสามเสน'
-      },
-      {
-        id: 'cam-07',
-        code: 'CAM-BMA-05',
-        name: 'แยกสาทร - นราธิวาส (Sathorn - Naradhiwas)',
-        road: 'ถ.สาทรเหนือ / ถ.นราธิวาสราชนครินทร์',
-        agency: 'BMA',
-        agencyName: 'กทม. (BMA Traffic)',
-        agencyBadge: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
-        lat: 13.7214,
-        lng: 100.5298,
-        status: 'ONLINE',
-        fps: 30,
-        resolution: '1920x1080 FHD',
-        bearing: '220° SW',
-        ptz: 'PRESET-SATHORN-CBD',
-        streamUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WhatCarCanYouGetForAGrand.mp4',
-        poster: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=600&q=80',
-        desc: 'ย่านการเงิน CBD สาทร Skywalk ช่องนนทรี และสถานี BRT'
-      },
-      {
-        id: 'cam-08',
-        code: 'CAM-DOH-01',
-        name: 'ห้าแยกลาดพร้าว (Lat Phrao Intersection)',
-        road: 'ถ.พหลโยธิน / ถ.วิภาวดีรังสิต',
-        agency: 'DOH',
-        agencyName: 'กรมทางหลวง (DOH)',
-        agencyBadge: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
-        lat: 13.8138,
-        lng: 100.5611,
-        status: 'ONLINE',
-        fps: 30,
-        resolution: '1920x1080 FHD',
-        bearing: '015° NNE',
-        ptz: 'PRESET-LADPRAO-01',
-        streamUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
-        poster: 'https://images.unsplash.com/photo-1477959858617-67f30bc75b82?auto=format&fit=crop&w=600&q=80',
-        desc: 'จุดตัดวิภาวดีรังสิต-พหลโยธิน สวนจตุจักร และทางยกระดับดอนเมืองโทลล์เวย์'
-      },
-      {
-        id: 'cam-09',
-        code: 'CAM-DOH-02',
-        name: 'สะพานพระราม 8 (Rama VIII Bridge)',
-        road: 'ถ.วิสุทธิกษัตริย์ - อรุณอมรินทร์ ข้ามแม่น้ำเจ้าพระยา',
-        agency: 'DOH',
-        agencyName: 'กรมทางหลวง (DOH)',
-        agencyBadge: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
-        lat: 13.7691,
-        lng: 100.4984,
-        status: 'ONLINE',
-        fps: 30,
-        resolution: '1920x1080 FHD',
-        bearing: '270° W',
-        ptz: 'PRESET-CHAO-PHRAYA',
-        streamUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackSeeTheWorld.mp4',
-        poster: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=600&q=80',
-        desc: 'การสัญจรทางน้ำแม่น้ำเจ้าพระยาและโครงข่ายสะพานข้ามแม่น้ำยุทธศาสตร์'
-      },
-      {
-        id: 'cam-10',
-        code: 'CAM-DOH-03',
-        name: 'ดอนเมืองโทลล์เวย์ กม.18 (หลักสี่)',
-        road: 'ทางยกระดับอุตราภิมุข - แจ้งวัฒนะ',
-        agency: 'DOH',
-        agencyName: 'กรมทางหลวง (DOH)',
-        agencyBadge: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
-        lat: 13.8856,
-        lng: 100.5828,
-        status: 'ONLINE',
-        fps: 30,
-        resolution: '1920x1080 FHD',
-        bearing: '350° N',
-        ptz: 'PRESET-TOLLWAY-LAKSI',
-        streamUrl: 'https://vjs.zencdn.net/v/oceans.mp4',
-        poster: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=600&q=80',
-        desc: 'เส้นทางยุทธศาสตร์หลักสู่อู่ตะเภาและสนามบินดอนเมือง'
-      },
-      {
-        id: 'cam-11',
-        code: 'CAM-EXAT-01',
-        name: 'ทางพิเศษเฉลิมมหานคร (ด่านเก็บค่าผ่านทางดินแดง)',
-        road: 'ทางพิเศษเฉลิมมหานคร ดินแดง-บางนา',
-        agency: 'EXAT',
-        agencyName: 'กทพ. (EXAT Expressways)',
-        agencyBadge: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
-        lat: 13.7667,
-        lng: 100.5539,
-        status: 'ONLINE',
-        fps: 30,
-        resolution: '1920x1080 FHD',
-        bearing: '135° SE',
-        ptz: 'PRESET-EXAT-DINDANG',
-        streamUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-        poster: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80',
-        desc: 'ด่านตรวจการณ์ทางด่วนดินแดง จุดเชื่อมต่อด่วนขั้นที่ 1 และ 2'
-      },
-      {
-        id: 'cam-12',
-        code: 'CAM-EXAT-02',
-        name: 'สะพานภูมิพล (Bhumibol Mega Bridge)',
-        road: 'ถ.วงแหวนอุตสาหกรรม พระประแดง - ยานนาวา',
-        agency: 'EXAT',
-        agencyName: 'กทพ. (EXAT Expressways)',
-        agencyBadge: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
-        lat: 13.6669,
-        lng: 100.5397,
-        status: 'ONLINE',
-        fps: 30,
-        resolution: '1920x1080 FHD',
-        bearing: '200° SSW',
-        ptz: 'PRESET-BHUMIBOL-SP',
-        streamUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-        poster: 'https://images.unsplash.com/photo-1508873696983-2df5293cb32f?auto=format&fit=crop&w=600&q=80',
-        desc: 'จุดเชื่อมต่อยุทธศาสตร์การคมนาคมขนส่งสินค้าและโลจิสติกส์ปากแม่น้ำเจ้าพระยา'
-      }
-    ];
+  {
+    "id": "a6440c82-2c86-412b-8a45-bdfccfb4b62b",
+    "code": "TC020106",
+    "name": "โรงสูบน้ำแรงต่ำแม่ข่าย หัวฝาย",
+    "nameEn": "Rong Sup Nam Raeng Tam Mae Khai Hua Fai",
+    "location": "ต.เวียงพางคำ อ.แม่สาย จ.เชียงราย",
+    "province": "เชียงราย",
+    "district": "แม่สาย",
+    "subDistrict": "เวียงพางคำ",
+    "basin": "โทรมาตรลุ่มน้ำโขงเหนือ",
+    "basinShort": "โขงเหนือ",
+    "region": "NORTH",
+    "stream": "รวก",
+    "lat": 20.444646,
+    "lng": 99.871731,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TC020106",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "737fcc91-97fd-4ae0-9733-57c4b195059f",
+    "code": "TC020107",
+    "name": "อุทกวิทยาเชียงแสน",
+    "nameEn": "Chiang Saen hydrology",
+    "location": "ต.เวียง อ.แม่สาย จ.เชียงราย",
+    "province": "เชียงราย",
+    "district": "เชียงแสน",
+    "subDistrict": "เวียง",
+    "basin": "โทรมาตรลุ่มน้ำโขงเหนือ",
+    "basinShort": "โขงเหนือ",
+    "region": "NORTH",
+    "stream": "โขง",
+    "lat": 20.274181,
+    "lng": 100.08839,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TC020107",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "98e9fef4-8968-485a-ad69-b7e02fb349b1",
+    "code": "TA030704",
+    "name": "แม่น้ำเลย",
+    "nameEn": "Loei River",
+    "location": "ต.กุดป่อง อ.เมือง จ.เลย",
+    "province": "เลย",
+    "district": "เมืองเลย",
+    "subDistrict": "กุดป่อง",
+    "basin": "โทรมาตรลุ่มน้ำโขง-ชี-มูล",
+    "basinShort": "โขง-ชี-มูล",
+    "region": "NORTHEAST",
+    "stream": "แม่น้ำเลย",
+    "lat": 17.494783,
+    "lng": 101.73438,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA030704",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "8d12a92a-6732-45b4-a9f8-e26ee6b716a0",
+    "code": "TC031106",
+    "name": "วัดศรีชมภูองค์ตื้อ",
+    "nameEn": "Wat Sri Chomphu Ong Tue",
+    "location": "ต.น้ำโมง อ.ท่าบ่อ จ.หนองคาย",
+    "province": "หนองคาย",
+    "district": "ท่าบ่อ",
+    "subDistrict": "น้ำโมง",
+    "basin": "โทรมาตรลุ่มน้ำโขง-ชี-มูล",
+    "basinShort": "โขง-ชี-มูล",
+    "region": "NORTHEAST",
+    "stream": "ห้วยน้ำโมง",
+    "lat": 17.87619,
+    "lng": 102.57563,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TC031106",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "91d6d36a-1b85-4957-89e0-acd868da1554",
+    "code": "TC031203",
+    "name": "สำนักงานส่วนอุทกหนองคาย",
+    "nameEn": "Nong Khai Hydrology Section",
+    "location": "ต.มีชัย อ.เมือง จ.หนองคาย",
+    "province": "หนองคาย",
+    "district": "เมืองหนองคาย",
+    "subDistrict": "มีชัย",
+    "basin": "โทรมาตรลุ่มน้ำโขง-ชี-มูล",
+    "basinShort": "โขง-ชี-มูล",
+    "region": "NORTHEAST",
+    "stream": "โขง",
+    "lat": 17.877537,
+    "lng": 102.71678,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TC031203",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "829096bd-d87b-49fe-b4b1-a6223a2053ba",
+    "code": "TC031506",
+    "name": "บ้านท่าตูม",
+    "nameEn": "Ban Tha Tum",
+    "location": "ต.หมูม่น อ.เมือง จ.อุดรธานี",
+    "province": "อุดรธานี",
+    "district": "เมืองอุดรธานี",
+    "subDistrict": "หมูม่น",
+    "basin": "โทรมาตรลุ่มน้ำโขง-ชี-มูล",
+    "basinShort": "โขง-ชี-มูล",
+    "region": "NORTHEAST",
+    "stream": "แม่น้ำห้วยหลวง",
+    "lat": 17.48222,
+    "lng": 102.79682,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TC031506",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "3454bf35-42b5-43c0-92e2-486ffedcbac1",
+    "code": "TC032103",
+    "name": "บ้านท่าสะอาด",
+    "nameEn": "Ban Tha Sa-at",
+    "location": "ต.ท่าสะอาด อ.เซกา จ.บึงกาฬ",
+    "province": "บึงกาฬ",
+    "district": "เซกา",
+    "subDistrict": "ท่าสะอาด",
+    "basin": "โทรมาตรลุ่มน้ำโขง-ชี-มูล",
+    "basinShort": "โขง-ชี-มูล",
+    "region": "NORTHEAST",
+    "stream": "สงคราม",
+    "lat": 17.955679,
+    "lng": 103.76599,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TC032103",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "ba6fda1b-3d2e-4577-b8f0-dfce9a0cd200",
+    "code": "TC032703",
+    "name": "บ้านตาลปากน้ำ",
+    "nameEn": "Ban Tan Paknam",
+    "location": "ต.ไชยบุรี อ.ท่าอุเทน จ.นครพนม",
+    "province": "นครพนม",
+    "district": "ท่าอุเทน",
+    "subDistrict": "ไชยบุรี",
+    "basin": "โทรมาตรลุ่มน้ำโขง-ชี-มูล",
+    "basinShort": "โขง-ชี-มูล",
+    "region": "NORTHEAST",
+    "stream": "สงคราม",
+    "lat": 17.643558,
+    "lng": 104.46243,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TC032703",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "35023031-938b-4c5a-9e35-9e943d6559e6",
+    "code": "TC032905",
+    "name": "วัดน้ำอัตโนมัตินครพนม",
+    "nameEn": "Wat Nam Attanomat Nakhon Phanom",
+    "location": "ต.ในเมือง อ.เมือง จ.นครพนม",
+    "province": "นครพนม",
+    "district": "เมืองนครพนม",
+    "subDistrict": "ในเมือง",
+    "basin": "โทรมาตรลุ่มน้ำโขง-ชี-มูล",
+    "basinShort": "โขง-ชี-มูล",
+    "region": "NORTHEAST",
+    "stream": "โขง",
+    "lat": 17.425156,
+    "lng": 104.7737,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TC032905",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "f37d5a51-b91f-491f-86ea-72820fe202af",
+    "code": "TA033103",
+    "name": "ลำน้ำก่ำ",
+    "nameEn": "Lam Nam Kam",
+    "location": "ต.นาแก อ.นาแก จ.นครพนม",
+    "province": "นครพนม",
+    "district": "นาแก",
+    "subDistrict": "นาแก",
+    "basin": "โทรมาตรลุ่มน้ำโขง-ชี-มูล",
+    "basinShort": "โขง-ชี-มูล",
+    "region": "NORTHEAST",
+    "stream": "ลำน้ำก่ำ",
+    "lat": 16.957476,
+    "lng": 104.50442,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA033103",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "3d2c973f-3a37-4791-9f84-8c297e1ca424",
+    "code": "TC033612",
+    "name": "วัดน้ำแม่น้ำโขง (MRC) โขงเจียม",
+    "nameEn": "Mekong River Temple (MRC) Khong Chiam",
+    "location": "ต.โขงเจียม อ.โขงเจียม จ.อุบลราชธานี",
+    "province": "อุบลราชธานี",
+    "district": "โขงเจียม",
+    "subDistrict": "โขงเจียม",
+    "basin": "โทรมาตรลุ่มน้ำโขง-ชี-มูล",
+    "basinShort": "โขง-ชี-มูล",
+    "region": "NORTHEAST",
+    "stream": "โขง",
+    "lat": 15.321902,
+    "lng": 105.4932,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TC033612",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "945d746f-bd07-4a38-9581-1f0e0ea8c945",
+    "code": "TA040502",
+    "name": "บ้านโนนเชือก",
+    "nameEn": "Ban Non Chueak",
+    "location": "ต.ส้มป่อย อ.จัตุรัส จ.ชัยภูมิ",
+    "province": "ชัยภูมิ",
+    "district": "จัตุรัส",
+    "subDistrict": "ส้มป่อย",
+    "basin": "โทรมาตรลุ่มน้ำโขง-ชี-มูล",
+    "basinShort": "โขง-ชี-มูล",
+    "region": "NORTHEAST",
+    "stream": "แม่น้ำชี",
+    "lat": 15.732664,
+    "lng": 101.83,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA040502",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "525acafb-e758-4b60-94e3-feceb1e6292a",
+    "code": "TC040905",
+    "name": "สะพานท่าราชไชยศรี",
+    "nameEn": "Tha Ratchachaisri Bridge",
+    "location": "ต.เมืองเก่า อ.เมือง จ.ขอนแก่น",
+    "province": "ขอนแก่น",
+    "district": "เมืองขอนแก่น",
+    "subDistrict": "เมืองเก่า",
+    "basin": "โทรมาตรลุ่มน้ำโขง-ชี-มูล",
+    "basinShort": "โขง-ชี-มูล",
+    "region": "NORTHEAST",
+    "stream": "ชี",
+    "lat": 16.374752,
+    "lng": 102.84694,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TC040905",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "0f6bfb73-a0ef-45f4-bc7e-8925b77ea26c",
+    "code": "TA040905",
+    "name": "วัดป่าประชาราษฎร์",
+    "nameEn": "Wat Pa Pracharat",
+    "location": "ต.กุดเค้า อ.มัญจาคีรี จ.ขอนแก่น",
+    "province": "ขอนแก่น",
+    "district": "มัญจาคีรี",
+    "subDistrict": "กุดเค้า",
+    "basin": "โทรมาตรลุ่มน้ำโขง-ชี-มูล",
+    "basinShort": "โขง-ชี-มูล",
+    "region": "NORTHEAST",
+    "stream": "แม่น้ำชี",
+    "lat": 16.09691,
+    "lng": 102.57006,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA040905",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "d8bf483e-38b8-43bd-9c93-5fb726732a7d",
+    "code": "TA040906",
+    "name": "บ้านเหล่านกชุม",
+    "nameEn": "Lao Nok Chum House",
+    "location": "ต.ดอนหัน อ.เมือง จ.ขอนแก่น",
+    "province": "ขอนแก่น",
+    "district": "เมืองขอนแก่น",
+    "subDistrict": "ดอนหัน",
+    "basin": "โทรมาตรลุ่มน้ำโขง-ชี-มูล",
+    "basinShort": "โขง-ชี-มูล",
+    "region": "NORTHEAST",
+    "stream": "แม่น้ำชี",
+    "lat": 16.36951,
+    "lng": 102.8816,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA040906",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "d0a1bf63-f4cf-44a0-91cc-4aed634c410b",
+    "code": "TA042403",
+    "name": "กมลาไสย",
+    "nameEn": "Kamalasai",
+    "location": "ต.กมลาไสย อ.กมลาไสย จ.กาฬสินธุ์",
+    "province": "กาฬสินธุ์",
+    "district": "กมลาไสย",
+    "subDistrict": "กมลาไสย",
+    "basin": "โทรมาตรลุ่มน้ำโขง-ชี-มูล",
+    "basinShort": "โขง-ชี-มูล",
+    "region": "NORTHEAST",
+    "stream": "คลองปาว",
+    "lat": 16.340751,
+    "lng": 103.57659,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA042403",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "582bfe8a-8597-4f45-82a4-5295e510ff11",
+    "code": "TA042504",
+    "name": "เสลภูมิ",
+    "nameEn": "Selaphum",
+    "location": "ต.กลาง อ.เสลภูมิ จ.ร้อยเอ็ด",
+    "province": "ร้อยเอ็ด",
+    "district": "เสลภูมิ",
+    "subDistrict": "กลาง",
+    "basin": "โทรมาตรลุ่มน้ำโขง-ชี-มูล",
+    "basinShort": "โขง-ชี-มูล",
+    "region": "NORTHEAST",
+    "stream": "แม่น้ำชี",
+    "lat": 16.034122,
+    "lng": 103.90714,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA042504",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "0cf660ef-ba71-4297-9ee2-46112a3eb8ac",
+    "code": "TA042705",
+    "name": "ยโสธร",
+    "nameEn": "Yasothon",
+    "location": "ต.ในเมือง อ.เมือง จ.ยโสธร",
+    "province": "ยโสธร",
+    "district": "เมืองยโสธร",
+    "subDistrict": "ในเมือง",
+    "basin": "โทรมาตรลุ่มน้ำโขง-ชี-มูล",
+    "basinShort": "โขง-ชี-มูล",
+    "region": "NORTHEAST",
+    "stream": "แม่น้ำชี",
+    "lat": 15.79895,
+    "lng": 104.13444,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA042705",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "3c42a6eb-ca39-41b4-b4d6-cea30ef92fc2",
+    "code": "TA042706",
+    "name": "สะพานบ้านแจนแลน",
+    "nameEn": "Ban Jan Lan Bridge",
+    "location": "ต.กุดน้ำใส อ.ค้อวัง จ.ยโสธร",
+    "province": "ยโสธร",
+    "district": "ค้อวัง",
+    "subDistrict": "กุดน้ำใส",
+    "basin": "โทรมาตรลุ่มน้ำโขง-ชี-มูล",
+    "basinShort": "โขง-ชี-มูล",
+    "region": "NORTHEAST",
+    "stream": "แม่น้ำชี",
+    "lat": 15.432223,
+    "lng": 104.3239,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA042706",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "91264cb6-fc0b-4032-b5b5-cd1e4dd0bec2",
+    "code": "TA051303",
+    "name": "ลำปลายมาศ",
+    "nameEn": "Lam Plai Mat",
+    "location": "ต.หนองคู อ.ลำปลายมาศ จ.บุรีรัมย์",
+    "province": "บุรีรัมย์",
+    "district": "ลำปลายมาศ",
+    "subDistrict": "หนองคู",
+    "basin": "โทรมาตรลุ่มน้ำโขง-ชี-มูล",
+    "basinShort": "โขง-ชี-มูล",
+    "region": "NORTHEAST",
+    "stream": "คลองปลายมาศ",
+    "lat": 14.999306,
+    "lng": 102.81715,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA051303",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "d47ce4f5-d0a8-4cd0-a314-04f0e68f4ea0",
+    "code": "TA052203",
+    "name": "สตึก",
+    "nameEn": "Satuek",
+    "location": "ต.สตึก อ.สตึก จ.บุรีรัมย์",
+    "province": "บุรีรัมย์",
+    "district": "สตึก",
+    "subDistrict": "สตึก",
+    "basin": "โทรมาตรลุ่มน้ำโขง-ชี-มูล",
+    "basinShort": "โขง-ชี-มูล",
+    "region": "NORTHEAST",
+    "stream": "แม่น้ำมูล",
+    "lat": 15.299781,
+    "lng": 103.29208,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA052203",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "6066b9d9-8673-4854-92d2-4beac78ec8bc",
+    "code": "TA052303",
+    "name": "ลำชีบ้านละลูน",
+    "nameEn": "Lamchi Ban La Lun",
+    "location": "ต.หนองเต็ง อ.กระสัง จ.บุรีรัมย์",
+    "province": "บุรีรัมย์",
+    "district": "กระสัง",
+    "subDistrict": "หนองเต็ง",
+    "basin": "โทรมาตรลุ่มน้ำโขง-ชี-มูล",
+    "basinShort": "โขง-ชี-มูล",
+    "region": "NORTHEAST",
+    "stream": "แม่น้ำลำชี",
+    "lat": 14.875545,
+    "lng": 103.37886,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA052303",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "eaf127f6-77a4-4415-af5a-c15eb280e1bb",
+    "code": "TA054502",
+    "name": "อุบลราชธานี",
+    "nameEn": "Ubon Ratchathani",
+    "location": "ต.ในเมือง อ.เมือง จ.อุบลราชธานี",
+    "province": "อุบลราชธานี",
+    "district": "เมืองอุบลราชธานี",
+    "subDistrict": "ในเมือง",
+    "basin": "โทรมาตรลุ่มน้ำโขง-ชี-มูล",
+    "basinShort": "โขง-ชี-มูล",
+    "region": "NORTHEAST",
+    "stream": "แม่น้ำมูล",
+    "lat": 15.222944,
+    "lng": 104.85743,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA054502",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "5037139b-443d-4fa7-8bb9-3d2c42697890",
+    "code": "TA060503",
+    "name": "สะพานประชานิมิต",
+    "nameEn": "Prachanimit Bridge",
+    "location": "ต.สันโป่ง อ.แม่ริม จ.เชียงใหม่",
+    "province": "เชียงใหม่",
+    "district": "แม่ริม",
+    "subDistrict": "สันโป่ง",
+    "basin": "โทรมาตรลุ่มน้ำปิง-วัง",
+    "basinShort": "ปิง-วัง",
+    "region": "NORTH",
+    "stream": "แม่น้ำปิง",
+    "lat": 18.945625,
+    "lng": 98.97523,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA060503",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "dd9f962b-b274-4241-93b8-22460ea94487",
+    "code": "TA060810",
+    "name": "น้ำแม่กวงที่ลำพูน",
+    "nameEn": "Mae Kuang River at Lamphun",
+    "location": "ต.เวียงยอง อ.เมืองลำพูน จ.ลำพูน",
+    "province": "ลำพูน",
+    "district": "เมืองลำพูน",
+    "subDistrict": "เวียงยอง",
+    "basin": "โทรมาตรลุ่มน้ำปิง-วัง",
+    "basinShort": "ปิง-วัง",
+    "region": "NORTH",
+    "stream": "น้ำแม่กวง",
+    "lat": 18.582861,
+    "lng": 99.017,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA060810",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "c14fae72-5023-4f62-8744-dca2d845bdf0",
+    "code": "TA061016",
+    "name": "น้ำแม่ขานที่บ้านท่าเดื่อ",
+    "nameEn": "Mae Khan River at Ban Tha Duea",
+    "location": "ต.บ้านแม อ.สันป่าตอง จ.เชียงใหม่",
+    "province": "เชียงใหม่",
+    "district": "สันป่าตอง",
+    "subDistrict": "บ้านแม",
+    "basin": "โทรมาตรลุ่มน้ำปิง-วัง",
+    "basinShort": "ปิง-วัง",
+    "region": "NORTH",
+    "stream": "น้ำแม่ขาน",
+    "lat": 18.611986,
+    "lng": 98.851049,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA061016",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "9902f895-df9d-4032-abfd-ce591e780fb0",
+    "code": "TA061206",
+    "name": "น้ำแม่ลี้ที่ อ.ลี้",
+    "nameEn": "Mae Lee River in Li District",
+    "location": "ต.ลี้ อ.ลี้ จ.ลำพูน",
+    "province": "ลำพูน",
+    "district": "ลี้",
+    "subDistrict": "ลี้",
+    "basin": "โทรมาตรลุ่มน้ำปิง-วัง",
+    "basinShort": "ปิง-วัง",
+    "region": "NORTH",
+    "stream": "น้ำแม่ลี้",
+    "lat": 17.805222,
+    "lng": 98.953139,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA061206",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "acc67a4e-a1b1-44bf-b2be-70803dd4a040",
+    "code": "TA061802",
+    "name": "น้ำแม่หาดที่บ้านโป่ง",
+    "nameEn": "Mae Hat River at Ban Pong",
+    "location": "ต.โปงทุ่ง อ.ดอยเต่า จ.เชียงใหม่",
+    "province": "เชียงใหม่",
+    "district": "ดอยเต่า",
+    "subDistrict": "โปงทุ่ง",
+    "basin": "โทรมาตรลุ่มน้ำปิง-วัง",
+    "basinShort": "ปิง-วัง",
+    "region": "NORTH",
+    "stream": "น้ำแม่หาด",
+    "lat": 17.851028,
+    "lng": 98.746611,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA061802",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "732f0bc7-7d51-4da8-ad3f-ff9b96b614dd",
+    "code": "TA063006",
+    "name": "บ้านหาดเสลา",
+    "nameEn": "Ban Hat Salao",
+    "location": "ต.หัวดง อ.เก้าเลี้ยว จ.นครสวรรค์",
+    "province": "นครสวรรค์",
+    "district": "เก้าเลี้ยว",
+    "subDistrict": "หัวดง",
+    "basin": "โทรมาตรลุ่มน้ำปิง-วัง",
+    "basinShort": "ปิง-วัง",
+    "region": "NORTH",
+    "stream": "แม่น้ำปิง",
+    "lat": 15.850749,
+    "lng": 100.05339,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA063006",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "c735c9c1-cec7-4f02-9450-4a2513ee3f22",
+    "code": "TA063008",
+    "name": "แม่น้ำปิงที่บ้านบางแก้ว",
+    "nameEn": "Ping River at Ban Bang Kaeo",
+    "location": "ต.บางแก้ว อ.บรรพตพิสัย จ.นครสวรรค์",
+    "province": "นครสวรรค์",
+    "district": "บรรพตพิสัย",
+    "subDistrict": "บางแก้ว",
+    "basin": "โทรมาตรลุ่มน้ำปิง-วัง",
+    "basinShort": "ปิง-วัง",
+    "region": "NORTH",
+    "stream": "แม่น้ำปิง",
+    "lat": 16.00075,
+    "lng": 99.865917,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA063008",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "f215c0f2-8a6b-4d3b-b84a-69ad3f431fdc",
+    "code": "TC070301",
+    "name": "วัดเกาะวาลุการาม",
+    "nameEn": "Ko Walukaram Temple",
+    "location": "ต.สวนดอก อ.เมือง จ.ลำปาง",
+    "province": "ลำปาง",
+    "district": "เมืองลำปาง",
+    "subDistrict": "สวนดอก",
+    "basin": "โทรมาตรลุ่มน้ำปิง-วัง",
+    "basinShort": "ปิง-วัง",
+    "region": "NORTH",
+    "stream": "วัง",
+    "lat": 18.292024,
+    "lng": 99.497634,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TC070301",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "6f8c1db3-cd00-42c6-b044-50e07138d349",
+    "code": "TA070301",
+    "name": "แม่น้ำวังที่บ้านแป้นโป่งชัย",
+    "nameEn": "Wang River at Ban Paen Pong Chai",
+    "location": "ต.บ้านสา อ.แจ้ห่ม จ.ลำปาง",
+    "province": "ลำปาง",
+    "district": "แจ้ห่ม",
+    "subDistrict": "บ้านสา",
+    "basin": "โทรมาตรลุ่มน้ำปิง-วัง",
+    "basinShort": "ปิง-วัง",
+    "region": "NORTH",
+    "stream": "แม่น้ำวัง",
+    "lat": 18.669611,
+    "lng": 99.553917,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA070301",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "88f3e599-43f7-4f14-8b8f-e8926407fd49",
+    "code": "TA070502",
+    "name": "สะพานเฉลิมพระเกียรติ",
+    "nameEn": "Chaloem Phra Kiat Bridge",
+    "location": "ต.ชมพู อ.เมืองลำปาง จ.ลำปาง",
+    "province": "ลำปาง",
+    "district": "เมืองลำปาง",
+    "subDistrict": "ชมพู",
+    "basin": "โทรมาตรลุ่มน้ำปิง-วัง",
+    "basinShort": "ปิง-วัง",
+    "region": "NORTH",
+    "stream": "แม่น้ำวัง",
+    "lat": 18.280862,
+    "lng": 99.462715,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA070502",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "e85d0be3-329d-4569-9192-6914e7825a7a",
+    "code": "TA071102",
+    "name": "แม่น้ำวังที่บ้านแม่สลิด",
+    "nameEn": "Wang River at Ban Mae Salid",
+    "location": "ต.แม่สลิด อ.บ้านตาก จ.ตาก",
+    "province": "ตาก",
+    "district": "บ้านตาก",
+    "subDistrict": "แม่สลิด",
+    "basin": "โทรมาตรลุ่มน้ำปิง-วัง",
+    "basinShort": "ปิง-วัง",
+    "region": "NORTH",
+    "stream": "แม่น้ำวัง",
+    "lat": 17.139417,
+    "lng": 99.101722,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA071102",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "f43ac713-40fc-417b-9d64-fc8eac203cbb",
+    "code": "TA080901",
+    "name": "สะพานมหาโพธิ์",
+    "nameEn": "Maha Pho Bridge",
+    "location": "ต.ป่าแมต อ.เมือง จ.แพร่",
+    "province": "แพร่",
+    "district": "เมืองแพร่",
+    "subDistrict": "ป่าแมต",
+    "basin": "โทรมาตรลุ่มน้ำยม-น่าน",
+    "basinShort": "ยม-น่าน",
+    "region": "NORTH",
+    "stream": "แม่น้ำยม",
+    "lat": 18.150698,
+    "lng": 100.13769,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA080901",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "7410ea3c-ed75-4836-baf0-6d343666fba5",
+    "code": "TA081301",
+    "name": "สะพานศรีสัชนาลัย",
+    "nameEn": "Si Satchanalai Bridge",
+    "location": "ต.หาดเสี้ยว อ.ศรีสัชนาลัย จ.สุโขทัย",
+    "province": "สุโขทัย",
+    "district": "ศรีสัชนาลัย",
+    "subDistrict": "หาดเสี้ยว",
+    "basin": "โทรมาตรลุ่มน้ำยม-น่าน",
+    "basinShort": "ยม-น่าน",
+    "region": "NORTH",
+    "stream": "แม่น้ำยม",
+    "lat": 17.517405,
+    "lng": 99.758811,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA081301",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "4b3e1cdf-2d32-4f26-b2ff-1915bd92c42b",
+    "code": "TA081701",
+    "name": "สะพานพระแม่ย่า",
+    "nameEn": "Phra Mae Ya Bridge",
+    "location": "ต.ธานี อ.เมือง จ.สุโขทัย",
+    "province": "สุโขทัย",
+    "district": "เมืองสุโขทัย",
+    "subDistrict": "ธานี",
+    "basin": "โทรมาตรลุ่มน้ำยม-น่าน",
+    "basinShort": "ยม-น่าน",
+    "region": "NORTH",
+    "stream": "แม่น้ำยม",
+    "lat": 17.002894,
+    "lng": 99.831277,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA081701",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "f7e509d8-7d7c-4504-8960-181ec1821031",
+    "code": "TA081903",
+    "name": "สะพานบ้านโพทะเล",
+    "nameEn": "Ban Pho Thale Bridge",
+    "location": "ต.โพทะเล อ.โพทะเล จ.พิจิตร",
+    "province": "พิจิตร",
+    "district": "โพทะเล",
+    "subDistrict": "โพทะเล",
+    "basin": "โทรมาตรลุ่มน้ำยม-น่าน",
+    "basinShort": "ยม-น่าน",
+    "region": "NORTH",
+    "stream": "แม่น้ำยม",
+    "lat": 16.094695,
+    "lng": 100.260153,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA081903",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "98285606-3bcb-4187-bc3b-fa108a99bfaa",
+    "code": "TA090502",
+    "name": "สะพานนครน่านพัฒนา",
+    "nameEn": "Nakhon Nan Phatthana Bridge",
+    "location": "ต.ฝายแก้ว อ.ภูเพียง จ.น่าน",
+    "province": "น่าน",
+    "district": "ภูเพียง",
+    "subDistrict": "ฝายแก้ว",
+    "basin": "โทรมาตรลุ่มน้ำยม-น่าน",
+    "basinShort": "ยม-น่าน",
+    "region": "NORTH",
+    "stream": "แม่น้ำน่าน",
+    "lat": 18.794827,
+    "lng": 100.79194,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA090502",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "968ab0a0-fb1b-4825-ad3e-e2c7fdc2f153",
+    "code": "TA091501",
+    "name": "สะพานท่าเสา",
+    "nameEn": "Tha Sao Bridge",
+    "location": "ต.ท่าเสา อ.เมือง จ.อุตรดิตถ์",
+    "province": "อุตรดิตถ์",
+    "district": "เมืองอุตรดิตถ์",
+    "subDistrict": "ท่าเสา",
+    "basin": "โทรมาตรลุ่มน้ำยม-น่าน",
+    "basinShort": "ยม-น่าน",
+    "region": "NORTH",
+    "stream": "แม่น้ำน่าน",
+    "lat": 17.643914,
+    "lng": 100.11663,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA091501",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "f873ada7-e296-4448-918c-035b7fcef734",
+    "code": "TA092101",
+    "name": "สะพานสุพรรณกัลยา",
+    "nameEn": "Suphankalaya Bridge",
+    "location": "ต.วัดจันทร์ อ.เมือง จ.พิษณุโลก",
+    "province": "พิษณุโลก",
+    "district": "เมืองพิษณุโลก",
+    "subDistrict": "วัดจันทร์",
+    "basin": "โทรมาตรลุ่มน้ำยม-น่าน",
+    "basinShort": "ยม-น่าน",
+    "region": "NORTH",
+    "stream": "แม่น้ำน่าน",
+    "lat": 16.806748,
+    "lng": 100.24548,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA092101",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "c5b7ef87-fca4-4732-9efc-e33146032971",
+    "code": "TA092102",
+    "name": "สะพานเฉลิมพระเกียรติ 48 พรรษา",
+    "nameEn": "Chaloemphrakiat 48 Phansa Bridge",
+    "location": "ต.ไผ่ขวาง อ.เมือง จ.พิจิตร",
+    "province": "พิจิตร",
+    "district": "เมืองพิจิตร",
+    "subDistrict": "ไผ่ขวาง",
+    "basin": "โทรมาตรลุ่มน้ำยม-น่าน",
+    "basinShort": "ยม-น่าน",
+    "region": "NORTH",
+    "stream": "แม่น้ำน่าน",
+    "lat": 16.515844,
+    "lng": 100.30841,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA092102",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "8162765d-970d-4ffa-bd55-43afd2b4bd09",
+    "code": "TA092306",
+    "name": "สะพานเฉลิมพระเกียรติ ร.9 72 พรรษา",
+    "nameEn": "Chaloemphrakiat ro 9 72 Phansa Bridge",
+    "location": "ต.เนินมะกอก อ.บางมูลนาก จ.พิจิตร",
+    "province": "พิจิตร",
+    "district": "บางมูลนาก",
+    "subDistrict": "เนินมะกอก",
+    "basin": "โทรมาตรลุ่มน้ำยม-น่าน",
+    "basinShort": "ยม-น่าน",
+    "region": "NORTH",
+    "stream": "แม่น้ำน่าน",
+    "lat": 16.009518,
+    "lng": 100.368865,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA092306",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "504aa9b4-99b0-4f48-b924-f4d12e1ed0f2",
+    "code": "TA100212",
+    "name": "สะพานเดชาติวงศ์",
+    "nameEn": "Dechatiwong Bridge",
+    "location": "ต.ปากน้ำโพ อ.เมือง จ.นครสวรรค์",
+    "province": "นครสวรรค์",
+    "district": "เมืองนครสวรรค์",
+    "subDistrict": "ปากน้ำโพ",
+    "basin": "โทรมาตรลุ่มน้ำเจ้าพระยา-ท่าจีน",
+    "basinShort": "เจ้าพระยา-ท่าจีน",
+    "region": "CENTRAL",
+    "stream": "แม่น้ำเจ้าพระยา",
+    "lat": 15.689367,
+    "lng": 100.1234,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA100212",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "9442e1ab-2c74-44e6-ab91-668cb5f4eb93",
+    "code": "TA100213",
+    "name": "บ้านเนินไผ่",
+    "nameEn": "Ban Nen Phai",
+    "location": "ต.วัดโคก อ.มโนรมย์ จ.ชัยนาท",
+    "province": "ชัยนาท",
+    "district": "มโนรมย์",
+    "subDistrict": "วัดโคก",
+    "basin": "โทรมาตรลุ่มน้ำเจ้าพระยา-ท่าจีน",
+    "basinShort": "เจ้าพระยา-ท่าจีน",
+    "region": "CENTRAL",
+    "stream": "แม่น้ำเจ้าพระยา",
+    "lat": 15.327417,
+    "lng": 100.10897,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA100213",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "f8d51f79-1369-4f84-8ef0-bd6b162189b8",
+    "code": "TA100215",
+    "name": "บ้านยางมณี",
+    "nameEn": "Ban Yangmanee",
+    "location": "ต.องครักษ์ อ.โพธิ์ทอง จ.อ่างทอง",
+    "province": "อ่างทอง",
+    "district": "โพธิ์ทอง",
+    "subDistrict": "องครักษ์",
+    "basin": "โทรมาตรลุ่มน้ำเจ้าพระยา-ท่าจีน",
+    "basinShort": "เจ้าพระยา-ท่าจีน",
+    "region": "CENTRAL",
+    "stream": "แม่น้ำน้อย",
+    "lat": 14.73518,
+    "lng": 100.4151,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA100215",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "4c64bb64-32db-4ab3-bb3a-8f2843307374",
+    "code": "TA100216",
+    "name": "บ้านบางปี",
+    "nameEn": "Bang Pi House",
+    "location": "ต.โพธิ์เก้าต้น อ.เมือง จ.ลพบุรี",
+    "province": "ลพบุรี",
+    "district": "เมืองลพบุรี",
+    "subDistrict": "โพธิ์เก้าต้น",
+    "basin": "โทรมาตรลุ่มน้ำเจ้าพระยา-ท่าจีน",
+    "basinShort": "เจ้าพระยา-ท่าจีน",
+    "region": "CENTRAL",
+    "stream": "แม่น้ำลพบุรี",
+    "lat": 14.794419,
+    "lng": 100.60588,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA100216",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "41f2d868-918d-47ce-9964-eaded6eb266a",
+    "code": "TA100217",
+    "name": "ศาลากลางอ่างทอง",
+    "nameEn": "Ang Thong City Hall",
+    "location": "ต.บางแก้ว อ.เมือง จ.อ่างทอง",
+    "province": "อ่างทอง",
+    "district": "เมืองอ่างทอง",
+    "subDistrict": "บางแก้ว",
+    "basin": "โทรมาตรลุ่มน้ำเจ้าพระยา-ท่าจีน",
+    "basinShort": "เจ้าพระยา-ท่าจีน",
+    "region": "CENTRAL",
+    "stream": "แม่น้ำเจ้าพระยา",
+    "lat": 14.59002,
+    "lng": 100.45375,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA100217",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "791b194f-c7a5-4df2-b1d4-a5d10d8801a3",
+    "code": "TA100218",
+    "name": "บ้านป้อม",
+    "nameEn": "Ban Pom",
+    "location": "ต.บ้านป้อม อ.พระนครศรีอยุธยา จ.พระนครศรีอยุธยา",
+    "province": "พระนครศรีอยุธยา",
+    "district": "พระนครศรีอยุธยา",
+    "subDistrict": "บ้านป้อม",
+    "basin": "โทรมาตรลุ่มน้ำเจ้าพระยา-ท่าจีน",
+    "basinShort": "เจ้าพระยา-ท่าจีน",
+    "region": "CENTRAL",
+    "stream": "แม่น้ำเจ้าพระยา",
+    "lat": 14.368386,
+    "lng": 100.52908,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA100218",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "67113bac-7195-4acb-8476-a5c746995e26",
+    "code": "TA100219",
+    "name": "สะพานปทุมธานี 1",
+    "nameEn": "Pathum Thani Bridge 1",
+    "location": "ต.บางปรอก อ.เมือง จ.ปทุมธานี",
+    "province": "ปทุมธานี",
+    "district": "เมืองปทุมธานี",
+    "subDistrict": "บางปรอก",
+    "basin": "โทรมาตรลุ่มน้ำเจ้าพระยา-ท่าจีน",
+    "basinShort": "เจ้าพระยา-ท่าจีน",
+    "region": "CENTRAL",
+    "stream": "แม่น้ำเจ้าพระยา",
+    "lat": 14.025061,
+    "lng": 100.53942,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA100219",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "2b0a946b-4381-4f96-bbc6-35ff21294288",
+    "code": "TA100220",
+    "name": "สะพานพระพุทธยอดฟ้า",
+    "nameEn": "Phra Phuttha Yot Fa Bridge",
+    "location": "ต.วัดกัลยาณ์ อ.ธนบุรี จ.กรุงเทพมหานคร",
+    "province": "กรุงเทพมหานคร",
+    "district": "ธนบุรี",
+    "subDistrict": "วัดกัลยาณ์",
+    "basin": "โทรมาตรลุ่มน้ำเจ้าพระยา-ท่าจีน",
+    "basinShort": "เจ้าพระยา-ท่าจีน",
+    "region": "CENTRAL",
+    "stream": "แม่น้ำเจ้าพระยา",
+    "lat": 13.738694,
+    "lng": 100.49633,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA100220",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "7cfc58ee-364f-4dd1-89fb-87f88cc5bde7",
+    "code": "TA100221",
+    "name": "ศาลากลางสมุทรปราการ",
+    "nameEn": "Samut Prakan City Hall",
+    "location": "ต.ปากน้ำ อ.เมือง จ.สมุทรปราการ",
+    "province": "สมุทรปราการ",
+    "district": "เมืองสมุทรปราการ",
+    "subDistrict": "ปากน้ำ",
+    "basin": "โทรมาตรลุ่มน้ำเจ้าพระยา-ท่าจีน",
+    "basinShort": "เจ้าพระยา-ท่าจีน",
+    "region": "CENTRAL",
+    "stream": "แม่น้ำเจ้าพระยา",
+    "lat": 13.59801,
+    "lng": 100.59622,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA100221",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "d6ce0ed7-535c-4f9e-8ed5-796c5b096783",
+    "code": "TA100222",
+    "name": "สะพานปรีดี-ธำรง",
+    "nameEn": "Pridi-Thamrong Bridge",
+    "location": "ต.หอรัตนไชย อ.พระนครศรีอยุธยา จ.พระนครศรีอยุธยา",
+    "province": "พระนครศรีอยุธยา",
+    "district": "พระนครศรีอยุธยา",
+    "subDistrict": "หอรัตนไชย",
+    "basin": "โทรมาตรลุ่มน้ำเจ้าพระยา-ท่าจีน",
+    "basinShort": "เจ้าพระยา-ท่าจีน",
+    "region": "CENTRAL",
+    "stream": "แม่น้ำป่าสัก",
+    "lat": 14.35169,
+    "lng": 100.58076,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA100222",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "64c81d1c-2ed1-4bcf-b8e8-382f22397560",
+    "code": "TC100222",
+    "name": "เสนา",
+    "nameEn": "Sena",
+    "location": "ต.บ้านแพน อ.เสนา จ.พระนครศรีอยุธยา",
+    "province": "พระนครศรีอยุธยา",
+    "district": "เสนา",
+    "subDistrict": "บ้านแพน",
+    "basin": "โทรมาตรลุ่มน้ำเจ้าพระยา-ท่าจีน",
+    "basinShort": "เจ้าพระยา-ท่าจีน",
+    "region": "CENTRAL",
+    "stream": "น้อย",
+    "lat": 14.327567,
+    "lng": 100.40481,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TC100222",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "01463c94-68bb-4a25-866b-38e85ebe606f",
+    "code": "TC100223",
+    "name": "เชิงสะพานสิงห์บุรี",
+    "nameEn": "ChoengSaphan Sing Buri",
+    "location": "ต.บางมัญ อ.เมือง จ.สิงห์บุรี",
+    "province": "สิงห์บุรี",
+    "district": "เมืองสิงห์บุรี",
+    "subDistrict": "บางมัญ",
+    "basin": "โทรมาตรลุ่มน้ำเจ้าพระยา-ท่าจีน",
+    "basinShort": "เจ้าพระยา-ท่าจีน",
+    "region": "CENTRAL",
+    "stream": "เจ้าพระยา",
+    "lat": 14.898926,
+    "lng": 100.40103,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TC100223",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "11ab94b3-acd2-41c1-8969-9de1ad240dac",
+    "code": "TC100224",
+    "name": "สะพานปทุมธานี 2",
+    "nameEn": "Pathum Thani Bridge 2",
+    "location": "ต.บ้านใหม่ อ.เมือง จ.ปทุมธานี",
+    "province": "ปทุมธานี",
+    "district": "เมืองปทุมธานี",
+    "subDistrict": "บ้านใหม่",
+    "basin": "โทรมาตรลุ่มน้ำเจ้าพระยา-ท่าจีน",
+    "basinShort": "เจ้าพระยา-ท่าจีน",
+    "region": "CENTRAL",
+    "stream": "เจ้าพระยา",
+    "lat": 13.965762,
+    "lng": 100.53591,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TC100224",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "02cff3f4-4bec-4bcf-b9fe-8680c8a67887",
+    "code": "TA110307",
+    "name": "คลองท่าข้ามที่บ้านท่าข้าม",
+    "nameEn": "Tha Kham Canal at Ban Tha Kham",
+    "location": "ต.ห้วยน้ำหอม อ.ลาดยาว จ.นครสวรรค์",
+    "province": "นครสวรรค์",
+    "district": "ลาดยาว",
+    "subDistrict": "ห้วยน้ำหอม",
+    "basin": "โทรมาตรลุ่มน้ำเจ้าพระยา-ท่าจีน",
+    "basinShort": "เจ้าพระยา-ท่าจีน",
+    "region": "CENTRAL",
+    "stream": "คลองท่าข้าม",
+    "lat": 15.670621,
+    "lng": 99.663104,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA110307",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "c7f0dd3d-9f02-4d37-ba58-f546bdbaa134",
+    "code": "TA110403",
+    "name": "ห้วยทับเสลาที่บ้านนาไร่เดียว",
+    "nameEn": "Huai Thap Salao at Ban Na Rai Diao",
+    "location": "ต.ลานสัก อ.ลานสัก จ.อุทัยธานี",
+    "province": "อุทัยธานี",
+    "district": "ลานสัก",
+    "subDistrict": "ลานสัก",
+    "basin": "โทรมาตรลุ่มน้ำเจ้าพระยา-ท่าจีน",
+    "basinShort": "เจ้าพระยา-ท่าจีน",
+    "region": "CENTRAL",
+    "stream": "ห้วยทับเสลา",
+    "lat": 15.450066,
+    "lng": 99.558096,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA110403",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "ed10004f-d10c-4e01-aff9-954f0e322d17",
+    "code": "TA110608",
+    "name": "แม่น้ำตากแดดที่บ้านหนองขาลาย",
+    "nameEn": "Tak Daed River at Ban Nong Kha Lai",
+    "location": "ต.หนองหลวง อ.สว่างอารมณ์ จ.อุทัยธานี",
+    "province": "อุทัยธานี",
+    "district": "สว่างอารมณ์",
+    "subDistrict": "หนองหลวง",
+    "basin": "โทรมาตรลุ่มน้ำเจ้าพระยา-ท่าจีน",
+    "basinShort": "เจ้าพระยา-ท่าจีน",
+    "region": "CENTRAL",
+    "stream": "แม่น้ำตากแดด",
+    "lat": 15.544951,
+    "lng": 99.887321,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA110608",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "dc81159d-59f1-48f3-bd15-450e8028e14f",
+    "code": "TA110609",
+    "name": "แม่น้ำตากแดดที่บ้านบุญลือ",
+    "nameEn": "Tak Daed River at Ban Bun Lue",
+    "location": "ต.เนินแจง อ.เมืองอุทัยธานี จ.อุทัยธานี",
+    "province": "อุทัยธานี",
+    "district": "เมืองอุทัยธานี",
+    "subDistrict": "เนินแจง",
+    "basin": "โทรมาตรลุ่มน้ำเจ้าพระยา-ท่าจีน",
+    "basinShort": "เจ้าพระยา-ท่าจีน",
+    "region": "CENTRAL",
+    "stream": "แม่น้ำตากแดด",
+    "lat": 15.452769,
+    "lng": 100.031898,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA110609",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "59d38cac-6614-4094-8dba-e4d72a137f49",
+    "code": "TA110604",
+    "name": "อุทัยใหม่",
+    "nameEn": "Uthai Mai",
+    "location": "ต.สะแกกรัง อ.เมือง จ.อุทัยธานี",
+    "province": "อุทัยธานี",
+    "district": "เมืองอุทัยธานี",
+    "subDistrict": "สะแกกรัง",
+    "basin": "โทรมาตรลุ่มน้ำเจ้าพระยา-ท่าจีน",
+    "basinShort": "เจ้าพระยา-ท่าจีน",
+    "region": "CENTRAL",
+    "stream": "แม่น้ำสะแกกรัง",
+    "lat": 15.411319,
+    "lng": 100.05767,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA110604",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "7322f040-c02e-4cc2-8fc4-feeb6843b6c4",
+    "code": "TA120204",
+    "name": "ห้วยน้ำพุงที่ อ.หล่มเก่า",
+    "nameEn": "Huai Nam Phung at Lom Kao District",
+    "location": "ต.หล่มเก่า อ.หล่มเก่า จ.เพชรบูรณ์",
+    "province": "เพชรบูรณ์",
+    "district": "หล่มเก่า",
+    "subDistrict": "หล่มเก่า",
+    "basin": "โทรมาตรลุ่มน้ำป่าสัก-สะแกกรัง",
+    "basinShort": "ป่าสัก-สะแกกรัง",
+    "region": "CENTRAL",
+    "stream": "ห้วยน้ำพุง",
+    "lat": 16.892359,
+    "lng": 101.21864,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA120204",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "da00ab29-6829-41ff-8381-5188065c8e64",
+    "code": "TA120302",
+    "name": "แม่น้ำป่าสักที่บ้านจางวาง",
+    "nameEn": "Pa Sak River at Ban Changwang",
+    "location": "ต.ลานบ่า อ.หล่มสัก จ.เพชรบูรณ์",
+    "province": "เพชรบูรณ์",
+    "district": "หล่มสัก",
+    "subDistrict": "ลานบ่า",
+    "basin": "โทรมาตรลุ่มน้ำป่าสัก-สะแกกรัง",
+    "basinShort": "ป่าสัก-สะแกกรัง",
+    "region": "CENTRAL",
+    "stream": "แม่น้ำป่าสัก",
+    "lat": 16.65049,
+    "lng": 101.213539,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA120302",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "d29613c6-f066-43f7-9e60-24f305073532",
+    "code": "TA120304",
+    "name": "สะพานเพชบุระ3",
+    "nameEn": "Phetchaburi Bridge 3",
+    "location": "ต.สะเดียง อ.เมืองเพชรบูรณ์ จ.เพชรบูรณ์",
+    "province": "เพชรบูรณ์",
+    "district": "เมืองเพชรบูรณ์",
+    "subDistrict": "สะเดียง",
+    "basin": "โทรมาตรลุ่มน้ำป่าสัก-สะแกกรัง",
+    "basinShort": "ป่าสัก-สะแกกรัง",
+    "region": "CENTRAL",
+    "stream": "แม่น้ำป่าสัก",
+    "lat": 16.4302,
+    "lng": 101.163458,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA120304",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "b805003a-b83a-4eca-a78a-0fd4321e4374",
+    "code": "TA120501",
+    "name": "แม่น้ำป่าสักที่บ้านหนองแหวน",
+    "nameEn": "Pa Sak River at Ban Nong Waen",
+    "location": "ต.นายม อ.เมืองเพชรบูรณ์ จ.เพชรบูรณ์",
+    "province": "เพชรบูรณ์",
+    "district": "เมืองเพชรบูรณ์",
+    "subDistrict": "นายม",
+    "basin": "โทรมาตรลุ่มน้ำป่าสัก-สะแกกรัง",
+    "basinShort": "ป่าสัก-สะแกกรัง",
+    "region": "CENTRAL",
+    "stream": "แม่น้ำป่าสัก",
+    "lat": 16.20944,
+    "lng": 101.138147,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA120501",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "0a863e60-15e3-4847-b260-91365d7ec644",
+    "code": "TA120802",
+    "name": "ลำสนธิที่บ้านท่ายาง",
+    "nameEn": "Lam Sonthi at Ban Tha Yang",
+    "location": "ต.หนองยายโต๊ะ อ.ชัยบาดาล จ.ลพบุรี",
+    "province": "ลพบุรี",
+    "district": "ชัยบาดาล",
+    "subDistrict": "หนองยายโต๊ะ",
+    "basin": "โทรมาตรลุ่มน้ำป่าสัก-สะแกกรัง",
+    "basinShort": "ป่าสัก-สะแกกรัง",
+    "region": "CENTRAL",
+    "stream": "แม่น้ำลำสนธิ",
+    "lat": 15.235926,
+    "lng": 101.238485,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA120802",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "9bbab163-969f-43a6-b5f0-b947dd2284ee",
+    "code": "TA121102",
+    "name": "แม่น้ำป่าสักที่ อ.แก่งคอย",
+    "nameEn": "Pa Sak River at Kaeng Khoi District",
+    "location": "ต.แก่งคอย อ.แก่งคอย จ.สระบุรี",
+    "province": "สระบุรี",
+    "district": "แก่งคอย",
+    "subDistrict": "แก่งคอย",
+    "basin": "โทรมาตรลุ่มน้ำป่าสัก-สะแกกรัง",
+    "basinShort": "ป่าสัก-สะแกกรัง",
+    "region": "CENTRAL",
+    "stream": "แม่น้ำป่าสัก",
+    "lat": 14.592348,
+    "lng": 101.003913,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA121102",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "5dcb0e71-a41e-4ef9-8e11-652b649c7566",
+    "code": "TA121103",
+    "name": "แม่น้ำป่าสักที่ อ.เสาไห้",
+    "nameEn": "Pa Sak River at Sao Hai District",
+    "location": "ต.ศาลารีไทย อ.เสาไห้ จ.สระบุรี",
+    "province": "สระบุรี",
+    "district": "เสาไห้",
+    "subDistrict": "ศาลารีไทย",
+    "basin": "โทรมาตรลุ่มน้ำป่าสัก-สะแกกรัง",
+    "basinShort": "ป่าสัก-สะแกกรัง",
+    "region": "CENTRAL",
+    "stream": "แม่น้ำป่าสัก",
+    "lat": 14.556145,
+    "lng": 100.856508,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA121103",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "db2aa2a0-638a-4f6a-8392-579288ee8650",
+    "code": "TA130201",
+    "name": "สะพานสาธุกิจ",
+    "nameEn": "Sathukit Bridge",
+    "location": "ต.หนองน้อย อ.วัดสิงห์ จ.ชัยนาท",
+    "province": "ชัยนาท",
+    "district": "วัดสิงห์",
+    "subDistrict": "หนองน้อย",
+    "basin": "โทรมาตรลุ่มน้ำเจ้าพระยา-ท่าจีน",
+    "basinShort": "เจ้าพระยา-ท่าจีน",
+    "region": "CENTRAL",
+    "stream": "แม่น้ำท่าจีน",
+    "lat": 15.160753,
+    "lng": 100.05471,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA130201",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "9183e404-9c24-44b6-9635-6457a82db2b4",
+    "code": "TA130202",
+    "name": "แม่น้ำท่าจีนที่ท่าฉลอม",
+    "nameEn": "Tha Chin River at Tha Chalom",
+    "location": "ต.ท่าฉลอม อ.เมือง จ.สมุทรสาคร",
+    "province": "สมุทรสาคร",
+    "district": "เมืองสมุทรสาคร",
+    "subDistrict": "ท่าฉลอม",
+    "basin": "โทรมาตรลุ่มน้ำเจ้าพระยา-ท่าจีน",
+    "basinShort": "เจ้าพระยา-ท่าจีน",
+    "region": "CENTRAL",
+    "stream": "แม่น้ำท่าจีน",
+    "lat": 13.530655,
+    "lng": 100.26536,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA130202",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "939175cd-5039-4433-8687-179c108a1f65",
+    "code": "TA130203",
+    "name": "แม่น้ำท่าจีนที่สะพานข้ามแม่น้ำท่าจีน 3",
+    "nameEn": "Tha Chin River at the Tha Chin River Bridge 3",
+    "location": "ต.บ้านเกาะ อ.เมือง จ.สมุทรสาคร",
+    "province": "สมุทรสาคร",
+    "district": "เมืองสมุทรสาคร",
+    "subDistrict": "บ้านเกาะ",
+    "basin": "โทรมาตรลุ่มน้ำเจ้าพระยา-ท่าจีน",
+    "basinShort": "เจ้าพระยา-ท่าจีน",
+    "region": "CENTRAL",
+    "stream": "แม่น้ำท่าจีน",
+    "lat": 13.5859,
+    "lng": 100.23125,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA130203",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "210933ae-3844-4bcb-9aff-469974659fb9",
+    "code": "TA130204",
+    "name": "แม่น้ำท่าจีนที่สะพานบุญรัตน์ประชานุวัฒน์",
+    "nameEn": "Tha Chin River at Boonrat Prachanuwat Bridge",
+    "location": "ต.สามพราน อ.สามพราน จ.นครปฐม",
+    "province": "นครปฐม",
+    "district": "สามพราน",
+    "subDistrict": "สามพราน",
+    "basin": "โทรมาตรลุ่มน้ำเจ้าพระยา-ท่าจีน",
+    "basinShort": "เจ้าพระยา-ท่าจีน",
+    "region": "CENTRAL",
+    "stream": "แม่น้ำท่าจีน",
+    "lat": 13.723497,
+    "lng": 100.216,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA130204",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "a1b4e2af-377c-4833-9c17-ec99d32ca89f",
+    "code": "TA130205",
+    "name": "แม่น้ำท่าจีนที่สะพานหลวงพ่อเปิ่น",
+    "nameEn": "Tha Chin River at Luang Phor Pen Bridge",
+    "location": "ต.บางแก้วฟ้า อ.นครชัยศรี จ.นครปฐม",
+    "province": "นครปฐม",
+    "district": "นครชัยศรี",
+    "subDistrict": "บางแก้วฟ้า",
+    "basin": "โทรมาตรลุ่มน้ำเจ้าพระยา-ท่าจีน",
+    "basinShort": "เจ้าพระยา-ท่าจีน",
+    "region": "CENTRAL",
+    "stream": "แม่น้ำท่าจีน",
+    "lat": 13.898843,
+    "lng": 100.21246,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA130205",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "e7d5ccd7-a86e-4d4a-b225-9a1f857fddcf",
+    "code": "TA130206",
+    "name": "แม่น้ำท่าจีนที่สะพานข้ามแม่น้ำท่าจีน (ทางหลวง 346)",
+    "nameEn": "Tha Chin River at the Tha Chin River Bridge (Highway 346)",
+    "location": "ต.บางเลน อ.บางเลน จ.นครปฐม",
+    "province": "นครปฐม",
+    "district": "บางเลน",
+    "subDistrict": "บางเลน",
+    "basin": "โทรมาตรลุ่มน้ำเจ้าพระยา-ท่าจีน",
+    "basinShort": "เจ้าพระยา-ท่าจีน",
+    "region": "CENTRAL",
+    "stream": "แม่น้ำท่าจีน",
+    "lat": 14.015993,
+    "lng": 100.18,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA130206",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "d5956d03-0250-4394-a8ac-506de5ea86a8",
+    "code": "TA130207",
+    "name": "แม่น้ำท่าจีนที่สะพานวัดพระรูป",
+    "nameEn": "Tha Chin River at Wat Phra Rup Bridge",
+    "location": "ต.ท่าพี่เลี้ยง อ.เมือง จ.สุพรรณบุรี",
+    "province": "สุพรรณบุรี",
+    "district": "เมืองสุพรรณบุรี",
+    "subDistrict": "ท่าพี่เลี้ยง",
+    "basin": "โทรมาตรลุ่มน้ำเจ้าพระยา-ท่าจีน",
+    "basinShort": "เจ้าพระยา-ท่าจีน",
+    "region": "CENTRAL",
+    "stream": "แม่น้ำท่าจีน",
+    "lat": 14.47044,
+    "lng": 100.11515,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA130207",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "02d84f27-be73-4ccf-b0a3-974c2800b065",
+    "code": "TA130208",
+    "name": "แม่น้ำท่าจีนที่สะพานข้ามแม่น้ำท่าจีน (ทางหลวง 3365)",
+    "nameEn": "Tha Chin River at the Tha Chin River Bridge (Highway 3365)",
+    "location": "ต.สามชุก อ.สามชุก จ.สุพรรณบุรี",
+    "province": "สุพรรณบุรี",
+    "district": "สามชุก",
+    "subDistrict": "สามชุก",
+    "basin": "โทรมาตรลุ่มน้ำเจ้าพระยา-ท่าจีน",
+    "basinShort": "เจ้าพระยา-ท่าจีน",
+    "region": "CENTRAL",
+    "stream": "แม่น้ำท่าจีน",
+    "lat": 14.751478,
+    "lng": 100.09594,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA130208",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "4dc3cbc9-7e45-4f2f-a1c3-4b332fe11ddb",
+    "code": "TC151007",
+    "name": "เชิงสะพานฉะเชิงเทรา",
+    "nameEn": "ChoengSaphan Chachoengsao",
+    "location": "ต.หน้าเมือง อ.เมือง จ.ฉะเชิงเทรา",
+    "province": "ฉะเชิงเทรา",
+    "district": "เมืองฉะเชิงเทรา",
+    "subDistrict": "หน้าเมือง",
+    "basin": "โทรมาตรลุ่มน้ำบางปะกง",
+    "basinShort": "บางปะกง",
+    "region": "EAST_WEST",
+    "stream": "บางปะกง",
+    "lat": 13.68868,
+    "lng": 101.0768,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TC151007",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "f0d7ef3f-40c8-444a-a2fc-829513ffe371",
+    "code": "TA170102",
+    "name": "สะพานข้ามคลองนาเกลือ",
+    "nameEn": "Bridge over Na Kluea Canal",
+    "location": "ต.นาเกลือ อ.บางละมุง จ.ชลบุรี",
+    "province": "ชลบุรี",
+    "district": "บางละมุง",
+    "subDistrict": "นาเกลือ",
+    "basin": "โทรมาตรลุ่มน้ำชายฝั่งทะเลตะวันออก",
+    "basinShort": "ชายฝั่งทะเลตะวันออก",
+    "region": "EAST_WEST",
+    "stream": "คลองนาเกลือ",
+    "lat": 12.97109,
+    "lng": 100.9112,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA170102",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "ec06a49c-a335-4e8d-a6cf-39a8aa0d1687",
+    "code": "TA170203",
+    "name": "สะพานข้ามคลองใหญ่ที่ระยอง",
+    "nameEn": "Bridge over Khlong Yai in Rayong",
+    "location": "ต..เชิงเนิน อ.เมือง จ.ระยอง",
+    "province": "ระยอง",
+    "district": "เมืองระยอง",
+    "subDistrict": "เชิงเนิน",
+    "basin": "โทรมาตรลุ่มน้ำชายฝั่งทะเลตะวันออก",
+    "basinShort": "ชายฝั่งทะเลตะวันออก",
+    "region": "EAST_WEST",
+    "stream": "คลองใหญ่",
+    "lat": 12.68,
+    "lng": 101.29278,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA170203",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "82406bf4-b432-4db5-8423-4bbb40360fd5",
+    "code": "TA170406",
+    "name": "สะพานข้ามคลองประแสร์ที่คลองสะพานดำ",
+    "nameEn": "Bridge over Khlong Prasae at Khlong Saphan Dam",
+    "location": "ต.ทางเกวียน อ.แกลง จ.ระยอง",
+    "province": "ระยอง",
+    "district": "แกลง",
+    "subDistrict": "ทางเกวียน",
+    "basin": "โทรมาตรลุ่มน้ำชายฝั่งทะเลตะวันออก",
+    "basinShort": "ชายฝั่งทะเลตะวันออก",
+    "region": "EAST_WEST",
+    "stream": "คลองประแสร์",
+    "lat": 12.78338,
+    "lng": 101.65397,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA170406",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "b351cab6-9beb-4408-8f20-1bd07c6b5b0b",
+    "code": "TA170706",
+    "name": "สะพานข้ามคลองจันทบุรีที่วัดกระทิง",
+    "nameEn": "Bridge over Khlong Chanthaburi at Wat Krathing",
+    "location": "ต.พลวง อ.เขาคิชฌกูฏ จ.จันทบุรี",
+    "province": "จันทบุรี",
+    "district": "เขาคิชฌกูฏ",
+    "subDistrict": "พลวง",
+    "basin": "โทรมาตรลุ่มน้ำชายฝั่งทะเลตะวันออก",
+    "basinShort": "ชายฝั่งทะเลตะวันออก",
+    "region": "EAST_WEST",
+    "stream": "คลองจันทบุรี",
+    "lat": 12.79391,
+    "lng": 102.11273,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA170706",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "11ed9564-3968-40dd-a888-4b7a8fe4cc02",
+    "code": "TA170707",
+    "name": "สะพานข้ามแม่น้ำจันทบุรี",
+    "nameEn": "Bridge over the Chanthaburi River",
+    "location": "ต.พลับพลา อ.เมือง จ.จันทบุรี",
+    "province": "จันทบุรี",
+    "district": "เมืองจันทบุรี",
+    "subDistrict": "พลับพลา",
+    "basin": "โทรมาตรลุ่มน้ำชายฝั่งทะเลตะวันออก",
+    "basinShort": "ชายฝั่งทะเลตะวันออก",
+    "region": "EAST_WEST",
+    "stream": "คลองจันทบุรี",
+    "lat": 12.63654,
+    "lng": 102.13756,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA170707",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "14b258f3-bea6-4b84-8612-3ab91a032797",
+    "code": "TC170709",
+    "name": "ตรงข้ามวัดจันทนาราม",
+    "nameEn": "Trongkham Wat Chanthana Ram",
+    "location": "ต.วัดใหม่ อ.เมือง จ.จันทบุรี",
+    "province": "จันทบุรี",
+    "district": "เมืองจันทบุรี",
+    "subDistrict": "วัดใหม่",
+    "basin": "โทรมาตรลุ่มน้ำชายฝั่งทะเลตะวันออก",
+    "basinShort": "ชายฝั่งทะเลตะวันออก",
+    "region": "EAST_WEST",
+    "stream": "จันทบุรี",
+    "lat": 12.61389,
+    "lng": 102.1138,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TC170709",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "09103034-c53b-43e8-ba9d-1d35c4f08e42",
+    "code": "TA170905",
+    "name": "สะพานข้ามคลองห้วยแร้ง",
+    "nameEn": "Bridge over Khlong Huai Raeng",
+    "location": "ต.ห้วยแร้ง อ.เมือง จ.ตราด",
+    "province": "ตราด",
+    "district": "เมืองตราด",
+    "subDistrict": "ห้วยแร้ง",
+    "basin": "โทรมาตรลุ่มน้ำชายฝั่งทะเลตะวันออก",
+    "basinShort": "ชายฝั่งทะเลตะวันออก",
+    "region": "EAST_WEST",
+    "stream": "คลองห้วยแร้ง",
+    "lat": 12.38189,
+    "lng": 102.54693,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA170905",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "f0e64e93-7e47-409e-9b88-42fedfd15e3f",
+    "code": "TA170906",
+    "name": "สะพานข้ามคลองเขาสมิง",
+    "nameEn": "Bridge over Khlong Khao Saming",
+    "location": "ต.ทุ่งนนทรี อ.เขาสมิง จ.ตราด",
+    "province": "ตราด",
+    "district": "เขาสมิง",
+    "subDistrict": "ทุ่งนนทรี",
+    "basin": "โทรมาตรลุ่มน้ำชายฝั่งทะเลตะวันออก",
+    "basinShort": "ชายฝั่งทะเลตะวันออก",
+    "region": "EAST_WEST",
+    "stream": "คลองเขาสมิง",
+    "lat": 12.35721,
+    "lng": 102.438,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA170906",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "54c76533-fbfe-4471-8cf1-3a48998ac7c5",
+    "code": "TA170907",
+    "name": "สะพานข้ามแม่น้ำตราด",
+    "nameEn": "Bridge over the Trat River",
+    "location": "ต.เนินทราย อ.เมือง จ.ตราด",
+    "province": "ตราด",
+    "district": "เมืองตราด",
+    "subDistrict": "เนินทราย",
+    "basin": "โทรมาตรลุ่มน้ำชายฝั่งทะเลตะวันออก",
+    "basinShort": "ชายฝั่งทะเลตะวันออก",
+    "region": "EAST_WEST",
+    "stream": "แม่น้ำเมืองตราด",
+    "lat": 12.26258,
+    "lng": 102.52712,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA170907",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "7e8bde64-c482-4703-aa7b-948f1d86dfc9",
+    "code": "TA180304",
+    "name": "สะพานท่าแลงพัฒนา",
+    "nameEn": "Tha Lang Phatthana Bridge",
+    "location": "ต.ท่าคอย อ.ท่ายาง จ.เพชรบุรี",
+    "province": "เพชรบุรี",
+    "district": "ท่ายาง",
+    "subDistrict": "ท่าคอย",
+    "basin": "โทรมาตรลุ่มน้ำเพชรบุรี-ประจวบคีรีขันธ์",
+    "basinShort": "เพชรบุรี-ประจวบคีรีขันธ์",
+    "region": "EAST_WEST",
+    "stream": "คลองแม่ประจันต์",
+    "lat": 12.948888,
+    "lng": 99.854665,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA180304",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "45079f8f-925b-4d82-a23f-0fe31ee8199a",
+    "code": "TA180305",
+    "name": "สะพานวัดตำหรุ",
+    "nameEn": "Wat Tamhru Bridge",
+    "location": "ต.ถ้ำรงค์ อ.บ้านลาด จ.เพชรบุรี",
+    "province": "เพชรบุรี",
+    "district": "บ้านลาด",
+    "subDistrict": "ถ้ำรงค์",
+    "basin": "โทรมาตรลุ่มน้ำเพชรบุรี-ประจวบคีรีขันธ์",
+    "basinShort": "เพชรบุรี-ประจวบคีรีขันธ์",
+    "region": "EAST_WEST",
+    "stream": "แม่น้ำเพชรบุรี",
+    "lat": 13.023992,
+    "lng": 99.89685,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA180305",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "fd0cb1b8-0286-4cb4-bd66-7d23cff101d8",
+    "code": "TA180307",
+    "name": "สะพานท่าสรง",
+    "nameEn": "Tha Song Bridge",
+    "location": "ต.ท่าราบ อ.เมืองเพชรบุรี จ.เพชรบุรี",
+    "province": "เพชรบุรี",
+    "district": "เมืองเพชรบุรี",
+    "subDistrict": "ท่าราบ",
+    "basin": "โทรมาตรลุ่มน้ำเพชรบุรี-ประจวบคีรีขันธ์",
+    "basinShort": "เพชรบุรี-ประจวบคีรีขันธ์",
+    "region": "EAST_WEST",
+    "stream": "แม่น้ำเพชรบุรี",
+    "lat": 13.099392,
+    "lng": 99.948934,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA180307",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "9077cdf4-ab65-4c0f-a626-ac04a0ae1ebc",
+    "code": "TA180308",
+    "name": "สะพานข้ามแม่น้ำเพชรบุรีที่ อบต.บางครก",
+    "nameEn": "The bridge over the Phetchaburi River at Bang Krok Subdistrict Administrative Organization",
+    "location": "ต.บางครก อ.บ้านแหลม จ.เพชรบุรี",
+    "province": "เพชรบุรี",
+    "district": "บ้านแหลม",
+    "subDistrict": "บางครก",
+    "basin": "โทรมาตรลุ่มน้ำเพชรบุรี-ประจวบคีรีขันธ์",
+    "basinShort": "เพชรบุรี-ประจวบคีรีขันธ์",
+    "region": "EAST_WEST",
+    "stream": "แม่น้ำเพชรบุรี",
+    "lat": 13.183788,
+    "lng": 99.949989,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA180308",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "6598fd87-90d3-4e12-948e-4762b4ea2581",
+    "code": "TC180301",
+    "name": "เทศบาลเมืองเพชรบุรี",
+    "nameEn": "Phetchaburi Municipality",
+    "location": "ต.คลองกระแชง อ.เมือง จ.เพชรบุรี",
+    "province": "เพชรบุรี",
+    "district": "เมืองเพชรบุรี",
+    "subDistrict": "คลองกระแชง",
+    "basin": "โทรมาตรลุ่มน้ำเพชรบุรี-ประจวบคีรีขันธ์",
+    "basinShort": "เพชรบุรี-ประจวบคีรีขันธ์",
+    "region": "EAST_WEST",
+    "stream": "เพชรบุรี",
+    "lat": 13.111411,
+    "lng": 99.948301,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TC180301",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "4a255e61-eb8a-48e5-a17f-19887a19f015",
+    "code": "TA180404",
+    "name": "สะพานธรรมรัชต์",
+    "nameEn": "Thammarat Bridge",
+    "location": "ต.เขาน้อย อ.ปราณบุรี จ.ประจวบคีรีขันธ์",
+    "province": "ประจวบคีรีขันธ์",
+    "district": "ปราณบุรี",
+    "subDistrict": "เขาน้อย",
+    "basin": "โทรมาตรลุ่มน้ำเพชรบุรี-ประจวบคีรีขันธ์",
+    "basinShort": "เพชรบุรี-ประจวบคีรีขันธ์",
+    "region": "EAST_WEST",
+    "stream": "แม่น้ำปราณบุรี",
+    "lat": 12.408164,
+    "lng": 99.883292,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA180404",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "18009fba-5819-4b20-a1f1-138913da1799",
+    "code": "TA180601",
+    "name": "สะพานข้ามคลองกุย",
+    "nameEn": "Kui Canal Bridge",
+    "location": "ต.กุยบุรี อ.กุยบุรี จ.ประจวบคีรีขันธ์",
+    "province": "ประจวบคีรีขันธ์",
+    "district": "กุยบุรี",
+    "subDistrict": "กุยบุรี",
+    "basin": "โทรมาตรลุ่มน้ำเพชรบุรี-ประจวบคีรีขันธ์",
+    "basinShort": "เพชรบุรี-ประจวบคีรีขันธ์",
+    "region": "EAST_WEST",
+    "stream": "แม่น้ำกุยบุรี",
+    "lat": 12.058692,
+    "lng": 99.857367,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA180601",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "44fc6d19-d8ce-44ae-93bf-2adfd29239ea",
+    "code": "TC180701",
+    "name": "สะพานบ้านหนองหญ้าปล้อง",
+    "nameEn": "Saphan Ban NongYaPlong",
+    "location": "ต.ชัยเกษม อ.บางสะพาน จ.ประจวบคีรีขันธ์",
+    "province": "ประจวบคีรีขันธ์",
+    "district": "บางสะพาน",
+    "subDistrict": "ชัยเกษม",
+    "basin": "โทรมาตรอำเภอบางสะพาน",
+    "basinShort": "อำเภอบางสะพาน",
+    "region": "SOUTH",
+    "stream": "คลองหนองหญ้าปล้อง",
+    "lat": 11.404099,
+    "lng": 99.519217,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TC180701",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "fcc3d567-f267-4125-8e29-09519ce1d560",
+    "code": "TA180704",
+    "name": "สะพานอุดมศักดิ์",
+    "nameEn": "Udomsak Bridge",
+    "location": "ต.นาหูกวาง อ.ทับสะแก จ.ประจวบคีรีขันธ์",
+    "province": "ประจวบคีรีขันธ์",
+    "district": "ทับสะแก",
+    "subDistrict": "นาหูกวาง",
+    "basin": "โทรมาตรลุ่มน้ำเพชรบุรี-ประจวบคีรีขันธ์",
+    "basinShort": "เพชรบุรี-ประจวบคีรีขันธ์",
+    "region": "EAST_WEST",
+    "stream": "คลองทับสะแก",
+    "lat": 11.500956,
+    "lng": 99.609156,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA180704",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "00552bc5-46d4-45a4-9e95-e9d32dfca007",
+    "code": "TA180807",
+    "name": "สะพานบางสะพาน",
+    "nameEn": "Bang Saphan Bridge",
+    "location": "ต.ทองมงคล อ.บางสะพาน จ.ประจวบคีรีขันธ์",
+    "province": "ประจวบคีรีขันธ์",
+    "district": "บางสะพาน",
+    "subDistrict": "ทองมงคล",
+    "basin": "โทรมาตรลุ่มน้ำเพชรบุรี-ประจวบคีรีขันธ์",
+    "basinShort": "เพชรบุรี-ประจวบคีรีขันธ์",
+    "region": "EAST_WEST",
+    "stream": "คลองยางขวาง",
+    "lat": 11.240794,
+    "lng": 99.436204,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA180807",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "39ee72cb-bf1f-4f96-9fc1-263d3b8f6c0a",
+    "code": "TC180805",
+    "name": "ร.ร.อนุบาลบางสะพาน",
+    "nameEn": "Anuban BangSaphan School",
+    "location": "ต.กำเนิดนพคุณ อ.บางสะพาน จ.ประจวบคีรีขันธ์",
+    "province": "ประจวบคีรีขันธ์",
+    "district": "บางสะพาน",
+    "subDistrict": "กำเนิดนพคุณ",
+    "basin": "โทรมาตรลุ่มน้ำเพชรบุรี-ประจวบคีรีขันธ์",
+    "basinShort": "เพชรบุรี-ประจวบคีรีขันธ์",
+    "region": "EAST_WEST",
+    "stream": "บางสะพาน",
+    "lat": 11.205368,
+    "lng": 99.508264,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TC180805",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "94ed2b77-c965-44f4-bf94-d3f0d7bd691a",
+    "code": "TC191601",
+    "name": "สภ.เมืองสุราษฎร์ธานี",
+    "nameEn": "Muang Surat Thani Police Station",
+    "location": "ต.ตลาด อ.เมือง จ.สุราษฎร์ธานี",
+    "province": "สุราษฎร์ธานี",
+    "district": "เมืองสุราษฎร์ธานี",
+    "subDistrict": "ตลาด",
+    "basin": "โทรมาตรจังหวัดนครศรีบางสะพาน",
+    "basinShort": "จังหวัดนครศรีบางสะพาน",
+    "region": "SOUTH",
+    "stream": "ตาปี",
+    "lat": 9.139033,
+    "lng": 99.320554,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TC191601",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "000f7bfe-bbeb-4131-9ea3-6fd90f3e03c9",
+    "code": "TC191705",
+    "name": "สะพานปากน้ำสิชล",
+    "nameEn": "Paknam Sichon Bridge",
+    "location": "ต.สิชล อ.สิชล จ.นครศรีธรรมราช",
+    "province": "นครศรีธรรมราช",
+    "district": "สิชล",
+    "subDistrict": "สิชล",
+    "basin": "โทรมาตรจังหวัดนครศรีบางสะพาน",
+    "basinShort": "จังหวัดนครศรีบางสะพาน",
+    "region": "SOUTH",
+    "stream": "คลองสิชล",
+    "lat": 9.008779,
+    "lng": 99.890034,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TC191705",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "1b52ba58-7829-41ac-b0e6-ad99d74ae374",
+    "code": "TC191802",
+    "name": "สะพานบ้านโรงเหล็ก",
+    "nameEn": "Ban Rong Lek Bridge",
+    "location": "ต.นบพิตำ อ.นบพิตำ จ.นครศรีธรรมราช",
+    "province": "นครศรีธรรมราช",
+    "district": "นบพิตำ",
+    "subDistrict": "นบพิตำ",
+    "basin": "โทรมาตรจังหวัดนครศรีบางสะพาน",
+    "basinShort": "จังหวัดนครศรีบางสะพาน",
+    "region": "SOUTH",
+    "stream": "คลองกลาย",
+    "lat": 8.730994,
+    "lng": 99.746121,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TC191802",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "aefd389b-9d8e-4137-9526-4bd23e3ce072",
+    "code": "TC191911",
+    "name": "สะพานวัดท่าแพ",
+    "nameEn": "Tha Phae Temple Bridge",
+    "location": "ต.ปากพูน อ.เมือง จ.นครศรีธรรมราช",
+    "province": "นครศรีธรรมราช",
+    "district": "เมืองนครศรีธรรมราช",
+    "subDistrict": "ปากพูน",
+    "basin": "โทรมาตรจังหวัดนครศรีบางสะพาน",
+    "basinShort": "จังหวัดนครศรีบางสะพาน",
+    "region": "SOUTH",
+    "stream": "คลองท่าแพ",
+    "lat": 8.514587,
+    "lng": 99.952741,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TC191911",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "c3d98be6-dcc0-4858-a310-e92b9a44f730",
+    "code": "TC191912",
+    "name": "สะพานคลองท่าวัง",
+    "nameEn": "Klong Tha Wang Bridge",
+    "location": "ต.เทศบาลนครนครศรีธรรมราช อ.เมือง จ.นครศรีธรรมราช",
+    "province": "นครศรีธรรมราช",
+    "district": "เมืองนครศรีธรรมราช",
+    "subDistrict": "ท่าวัง",
+    "basin": "โทรมาตรจังหวัดนครศรีบางสะพาน",
+    "basinShort": "จังหวัดนครศรีบางสะพาน",
+    "region": "SOUTH",
+    "stream": "คลองท่าวัง",
+    "lat": 8.444095,
+    "lng": 99.959594,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TC191912",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "aad37442-4185-459f-8609-369435a02785",
+    "code": "TC191918",
+    "name": "สะพานตลาดเชียรใหญ่",
+    "nameEn": "Chiang Yai Market Bridge",
+    "location": "ต.เชียรใหญ่ อ.เชียรใหญ่ จ.นครศรีธรรมราช",
+    "province": "น��รศรีธรรมราช",
+    "district": "เชียรใหญ่",
+    "subDistrict": "เชียรใหญ่",
+    "basin": "โทรมาตรจังหวัดนครศรีบางสะพาน",
+    "basinShort": "จังหวัดนครศรีบางสะพาน",
+    "region": "SOUTH",
+    "stream": "คลองชะอวด",
+    "lat": 8.173895,
+    "lng": 100.14914,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TC191918",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "5502e892-d397-41c6-9504-fa43a09748f0",
+    "code": "TA200206",
+    "name": "คลองตะโหมด (ท่าเชียด)",
+    "nameEn": "Khlong Tamode (Tha Chiat)",
+    "location": "ต.แม่ขรี อ.ตะโหมด จ.พัทลุง",
+    "province": "พัทลุง",
+    "district": "ตะโหมด",
+    "subDistrict": "แม่ขรี",
+    "basin": "โทรมาตรลุ่มน้ำแม่กลอง-สาละวิน",
+    "basinShort": "แม่กลอง-สาละวิน",
+    "region": "EAST_WEST",
+    "stream": "คลองท่าเชียด",
+    "lat": 7.338375,
+    "lng": 100.10986,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA200206",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "2fa4e4cb-170c-4884-b355-56f6846f5182",
+    "code": "TA200207",
+    "name": "คลองนาท่อม",
+    "nameEn": "Khlong Na Thom",
+    "location": "ต.ร่มเมือง อ.เมือง จ.พัทลุง",
+    "province": "พัทลุง",
+    "district": "เมืองพัทลุง",
+    "subDistrict": "ร่มเมือง",
+    "basin": "โทรมาตรลุ่มน้ำแม่กลอง-สาละวิน",
+    "basinShort": "แม่กลอง-สาละวิน",
+    "region": "EAST_WEST",
+    "stream": "คลองนาท่อม",
+    "lat": 7.559121,
+    "lng": 99.987394,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA200207",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "4efde31f-21f6-4487-ba21-63abae0229d5",
+    "code": "TA200208",
+    "name": "คลองท่าแนะ",
+    "nameEn": "Tha Nae Canal",
+    "location": "ต.เขาย่า อ.ศรีบรรพต จ.พัทลุง",
+    "province": "พัทลุง",
+    "district": "ศรีบรรพต",
+    "subDistrict": "เขาย่า",
+    "basin": "โทรมาตรลุ่มน้ำแม่กลอง-สาละวิน",
+    "basinShort": "แม่กลอง-สาละวิน",
+    "region": "EAST_WEST",
+    "stream": "คลองท่าแนะ",
+    "lat": 7.743516,
+    "lng": 99.894059,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA200208",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "0e976e02-8381-4f6e-988a-81ecbed96fb9",
+    "code": "TA200303",
+    "name": "คลองอู่ตะเภาตอนบนทุ่งลาน",
+    "nameEn": "Upper U-Tapao Canal, Thung Lan",
+    "location": "ต.ทุ่งลาน อ.คลองหอยโข่ง จ.สงขลา",
+    "province": "สงขลา",
+    "district": "คลองหอยโข่ง",
+    "subDistrict": "ทุ่งลาน",
+    "basin": "โทรมาตรลุ่มน้ำแม่กลอง-สาละวิน",
+    "basinShort": "แม่กลอง-สาละวิน",
+    "region": "EAST_WEST",
+    "stream": "คลองอู่ตะเภา",
+    "lat": 6.856463,
+    "lng": 100.46416,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA200303",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "83125732-4f75-4856-8a4a-db150588409c",
+    "code": "TA210310",
+    "name": "บันนังสตา",
+    "nameEn": "Bannang Sata",
+    "location": "ต.บันนังสตา อ.บันนังสตา จ.ยะลา",
+    "province": "ยะลา",
+    "district": "บันนังสตา",
+    "subDistrict": "บันนังสตา",
+    "basin": "โทรมาตรลุ่มน้ำภาคใต้ฝั่งตะวันออกตอนล่าง",
+    "basinShort": "ภาคใต้ฝั่งตะวันออกตอนล่าง",
+    "region": "SOUTH",
+    "stream": "แม่น้ำปัตตานี",
+    "lat": 6.262527,
+    "lng": 101.26845,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA210310",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "07d01627-8cf9-4357-b2ee-20d5588690b1",
+    "code": "TA210311",
+    "name": "สะพานอาเส็น",
+    "nameEn": "Asen Bridge",
+    "location": "ต.บาโร๊ะ อ.ยะหา จ.ยะลา",
+    "province": "ยะลา",
+    "district": "ยะหา",
+    "subDistrict": "บาโร๊ะ",
+    "basin": "โทรมาตรลุ่มน้ำภาคใต้ฝั่งตะวันออกตอนล่าง",
+    "basinShort": "ภาคใต้ฝั่งตะวันออกตอนล่าง",
+    "region": "SOUTH",
+    "stream": "คลองอาเส็น",
+    "lat": 6.475873,
+    "lng": 101.12802,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA210311",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "f0af5c70-f29c-4036-aec7-5585ba3ce0b5",
+    "code": "TA210312",
+    "name": "สะพานเฉลิมพระเกียรติ 72 พรรษา มหาราชินี",
+    "nameEn": "Chaloem Phrakiat Bridge 72nd Anniversary of Her Majesty the Queen",
+    "location": "ต.สะเตง อ.เมือง จ.ยะลา",
+    "province": "ยะลา",
+    "district": "เมืองยะลา",
+    "subDistrict": "สะเตง",
+    "basin": "โทรมาตรลุ่มน้ำภาคใต้ฝั่งตะวันออกตอนล่าง",
+    "basinShort": "ภาคใต้ฝั่งตะวันออกตอนล่าง",
+    "region": "SOUTH",
+    "stream": "แม่น้ำปัตตานี",
+    "lat": 6.540887,
+    "lng": 101.24951,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA210312",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "3c6fc0d8-5552-4a98-b860-d90ec0fc63f4",
+    "code": "TA210506",
+    "name": "สะพานแม่น้ำสายบุรี",
+    "nameEn": "Sai Buri River Bridge",
+    "location": "ต.ซากอ อ.ศรีสาคร จ.นราธิวาส",
+    "province": "นราธิวาส",
+    "district": "ศรีสาคร",
+    "subDistrict": "ซากอ",
+    "basin": "โทรมาตรลุ่มน้ำภาคใต้ฝั่งตะวันออกตอนล่าง",
+    "basinShort": "ภาคใต้ฝั่งตะวันออกตอนล่าง",
+    "region": "SOUTH",
+    "stream": "แม่น้ำสายบุรี",
+    "lat": 6.228078,
+    "lng": 101.49738,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA210506",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "b0f778e3-029f-418d-8024-e22e3004a3c9",
+    "code": "TA210507",
+    "name": "4066-แม่น้ำสายบุรี",
+    "nameEn": "4066-Sai Buri River",
+    "location": "ต.ตะโล๊ะหะลอ อ.รามัน จ.ยะลา",
+    "province": "ยะลา",
+    "district": "รามัน",
+    "subDistrict": "ตะโล๊ะหะลอ",
+    "basin": "โทรมาตรลุ่มน้ำภาคใต้ฝั่งตะวันออกตอนล่าง",
+    "basinShort": "ภาคใต้ฝั่งตะวันออกตอนล่าง",
+    "region": "SOUTH",
+    "stream": "แม่น้ำสายบุรี",
+    "lat": 6.479854,
+    "lng": 101.44526,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA210507",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "e955b555-bde5-4ed7-80fe-11f17d6abfd3",
+    "code": "TA210508",
+    "name": "4157-แม่น้ำสายบุรี",
+    "nameEn": "4157-Sai Buri River",
+    "location": "ต.ตะลุบัน อ.สายบุรี จ.ปัตตานี",
+    "province": "ปัตตานี",
+    "district": "สายบุรี",
+    "subDistrict": "ตะลุบัน",
+    "basin": "โทรมาตรลุ่มน้ำภาคใต้ฝั่งตะวันออกตอนล่าง",
+    "basinShort": "ภาคใต้ฝั่งตะวันออกตอนล่าง",
+    "region": "SOUTH",
+    "stream": "แม่น้ำสายบุรี",
+    "lat": 6.7072,
+    "lng": 101.62211,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TA210508",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "f22e5a78-0cfa-4e79-83d5-71cf62709004",
+    "code": "TC220303",
+    "name": "สะพานบ่อน้ำร้อน",
+    "nameEn": "Bonamron Bridge",
+    "location": "ต.บางริ้น อ.เมือง จ.ระนอง",
+    "province": "ระนอง",
+    "district": "เมืองระนอง",
+    "subDistrict": "บางริ้น",
+    "basin": "โทรมาตรลุ่มน้ำภาคใต้ฝั่งตะวันตก",
+    "basinShort": "ภาคใต้ฝั่งตะวันตก",
+    "region": "SOUTH",
+    "stream": "คลองหาดส้มแป้น",
+    "lat": 9.958362,
+    "lng": 98.648577,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TC220303",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "6cb2f48f-610d-47d8-993b-d89e7b18fab0",
+    "code": "TC220512",
+    "name": "สะพานบ้านท่าคลอง",
+    "nameEn": "Ban Tha Khlong Bridge",
+    "location": "ต.ทับปริก อ.เมือง จ.กระบี่",
+    "province": "กระบี่",
+    "district": "เมืองกระบี่",
+    "subDistrict": "ทับปริก",
+    "basin": "โทรมาตรลุ่มน้ำภาคใต้ฝั่งตะวันตก",
+    "basinShort": "ภาคใต้ฝั่งตะวันตก",
+    "region": "SOUTH",
+    "stream": "คลองกระบี่ใหญ่",
+    "lat": 8.112268,
+    "lng": 98.904501,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TC220512",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "867e042c-df18-48b2-bd3b-5f54db680f8c",
+    "code": "TC220605",
+    "name": "สะพานดำรง",
+    "nameEn": "Damrong Bridge",
+    "location": "ต.ตลาดใหญ่ อ.เมือง จ.ภูเก็ต",
+    "province": "ภูเก็ต",
+    "district": "เมืองภูเก็ต",
+    "subDistrict": "ตลาดใหญ่",
+    "basin": "โทรมาตรลุ่มน้ำภาคใต้ฝั่งตะวันตก",
+    "basinShort": "ภาคใต้ฝั่งตะวันตก",
+    "region": "SOUTH",
+    "stream": "คลองบางใหญ่",
+    "lat": 7.891025,
+    "lng": 98.391663,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TC220605",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "5fcaaacb-69c3-4c30-be55-b27bf24d7334",
+    "code": "TC220904",
+    "name": "สะพานอนุสาวรีย์พระยารัษฏานุประดิษฐ์มหิศรภักดี",
+    "nameEn": "Phraya Ratsadanupradit Mahisornpakdee Monument Bridge",
+    "location": "ต.ทับเที่ยง อ.เมือง จ.ตรัง",
+    "province": "ตรัง",
+    "district": "เมืองตรัง",
+    "subDistrict": "ทับเที่ยง",
+    "basin": "โทรมาตรลุ่มน้ำภาคใต้ฝั่งตะวันตก",
+    "basinShort": "ภาคใต้ฝั่งตะวันตก",
+    "region": "SOUTH",
+    "stream": "คลองน้ำเจ็ด",
+    "lat": 7.564591,
+    "lng": 99.624306,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TC220904",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  },
+  {
+    "id": "e8916e69-dfff-432c-a4c7-b20d57e56ba0",
+    "code": "TC221203",
+    "name": "สะพานบ้านนาลาน",
+    "nameEn": "Ban Na Lan Bridge",
+    "location": "ต.ควนขัน อ.เมือง จ.สตูล",
+    "province": "สตูล",
+    "district": "เมืองสตูล",
+    "subDistrict": "ควนขัน",
+    "basin": "โทรมาตรลุ่มน้ำภาคใต้ฝั่งตะวันตก",
+    "basinShort": "ภาคใต้ฝั่งตะวันตก",
+    "region": "SOUTH",
+    "stream": "ตาลีไกล",
+    "lat": 6.625225,
+    "lng": 100.06116,
+    "online": true,
+    "streamUrl": "https://telemetry.dwr.go.th/cctv/mjpeg/TC221203",
+    "dwrUrl": "https://telemetry.dwr.go.th/reportCctv"
+  }
+];
+
+    let currentCctvFilterRegion = 'ALL';
 
     function renderCctvMarkersOnMap() {
       if (!tacticalMap) return;
@@ -9143,12 +11172,16 @@
       window.cctvMapMarkers = cctvMapMarkers;
 
       publicCctvCameras.forEach((cam, idx) => {
+        const isOnline = cam.online !== false;
+        const pulseColor = isOnline ? 'cctv-pin-pulse' : 'bg-rose-500/40';
+        const statusDot = isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500';
+
         const customIcon = L.divIcon({
           className: 'cctv-custom-pin',
           html: `
             <div class="cctv-pin-bubble">
-              <i class="fa-solid fa-video"></i>
-              <div class="cctv-pin-pulse"></div>
+              <i class="fa-solid fa-water text-[11px]"></i>
+              <div class="${pulseColor}"></div>
             </div>
             <div class="cctv-pin-label">${cam.code}</div>
           `,
@@ -9158,22 +11191,20 @@
         });
 
         const popupContent = `
-          <div style="min-width: 270px; max-width: 320px; font-family: ui-sans-serif, system-ui, sans-serif;" class="text-slate-100 p-0.5">
+          <div style="min-width: 280px; max-width: 330px; font-family: ui-sans-serif, system-ui, sans-serif;" class="text-slate-100 p-0.5">
             <div class="relative rounded-lg overflow-hidden border border-cyan-500/50 bg-black aspect-video mb-2 shadow-lg group">
-              <video autoplay loop muted playsinline style="width: 100%; height: 100%; object-fit: cover;" poster="${cam.poster}">
-                <source src="${cam.streamUrl}" type="video/mp4">
-              </video>
+              <img src="${cam.streamUrl}" alt="${cam.name}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.src='https://telemetry.dwr.go.th/static/images/image-placeholder.png';" loading="lazy">
               <div class="absolute top-1.5 left-1.5 px-2 py-0.5 rounded bg-black/80 backdrop-blur-xs text-[10px] font-mono text-cyan-300 flex items-center gap-1.5 border border-cyan-500/30">
-                <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-                <span class="font-bold">LIVE</span>
+                <span class="w-2 h-2 rounded-full ${statusDot}"></span>
+                <span class="font-bold">${isOnline ? 'LIVE MJPEG' : 'OFFLINE'}</span>
                 <span class="text-slate-400">•</span>
                 <span>${cam.code}</span>
               </div>
               <div class="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded bg-black/80 text-[9px] font-mono text-emerald-400 border border-emerald-500/30">
-                ${cam.fps} FPS
+                DWR โทรมาตร
               </div>
               <div class="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/80 text-[9px] font-mono text-slate-300">
-                ${cam.resolution}
+                ลุ่มน้ำ${cam.basinShort}
               </div>
             </div>
 
@@ -9181,28 +11212,29 @@
               <div>
                 <h4 class="text-xs font-bold text-white leading-tight">${cam.name}</h4>
                 <p class="text-[10px] text-cyan-300/90 flex items-center gap-1 mt-0.5">
-                  <i class="fa-solid fa-location-dot text-[9px]"></i> ${cam.road}
+                  <i class="fa-solid fa-location-dot text-[9px]"></i> ${cam.location}
                 </p>
               </div>
-              <span class="px-1.5 py-0.5 rounded text-[9px] font-mono shrink-0 border ${cam.agencyBadge}">
-                ${cam.agency}
+              <span class="px-1.5 py-0.5 rounded text-[9px] font-mono shrink-0 border bg-cyan-950 text-cyan-300 border-cyan-500/40">
+                ${cam.province}
               </span>
             </div>
 
-            <p class="text-[10px] text-slate-400 leading-tight mb-2">
-              ${cam.desc}
-            </p>
+            <div class="grid grid-cols-2 gap-1 py-1 mb-1.5 text-[9px] text-slate-400 border-y border-slate-800/80">
+              <div><span class="text-slate-500">ลำน้ำ:</span> <span class="text-slate-200 font-medium">${cam.stream}</span></div>
+              <div><span class="text-slate-500">สังกัด:</span> <span class="text-slate-200 font-medium">กรมทรัพยากรน้ำ</span></div>
+            </div>
 
-            <div class="grid grid-cols-3 gap-1 pt-1.5 border-t border-slate-800 text-[10px]">
+            <div class="grid grid-cols-3 gap-1 pt-0.5 text-[10px]">
               <button onclick="openCctvCameraInDrawer(${idx})" class="py-1 px-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white font-bold transition flex items-center justify-center gap-1 shadow cursor-pointer">
                 <i class="fa-solid fa-expand"></i> ขยายดูสด
               </button>
               <button onclick="lockCctvCameraTarget(${idx})" class="py-1 px-1.5 rounded bg-slate-800 hover:bg-slate-700 text-sky-300 hover:text-white transition flex items-center justify-center gap-1 border border-slate-700 cursor-pointer">
                 <i class="fa-solid fa-crosshairs"></i> ล็อคเป้า
               </button>
-              <button onclick="captureCctvSnapshotCamera(${idx})" class="py-1 px-1.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-white transition flex items-center justify-center gap-1 border border-slate-700 cursor-pointer">
-                <i class="fa-solid fa-camera"></i> แคปภาพ
-              </button>
+              <a href="https://telemetry.dwr.go.th/reportCctv" target="_blank" rel="noopener noreferrer" class="py-1 px-1.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-white transition flex items-center justify-center gap-1 border border-slate-700 cursor-pointer text-center">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i> เว็บ DWR
+              </a>
             </div>
           </div>
         `;
@@ -9210,7 +11242,7 @@
         const marker = L.marker([cam.lat, cam.lng], { icon: customIcon });
         marker.bindPopup(popupContent, {
           className: 'rtsd-custom-popup',
-          maxWidth: 340,
+          maxWidth: 350,
           closeButton: true
         });
 
@@ -9251,7 +11283,7 @@
       // Update Collapsed Pill text
       const colCamText = document.getElementById('cctvCollapsedCurrentCam');
       if (colCamText) {
-        colCamText.innerHTML = `<span class="font-semibold text-white">[${cam.code}]</span> ${cam.name} • สตรีมสด ${cam.resolution}`;
+        colCamText.innerHTML = `<span class="font-semibold text-white">[${cam.code}]</span> ${cam.name} (${cam.province}) • สตรีมสด DWR Telemetry`;
       }
 
       // Update Expanded Title & Subtitle
@@ -9259,12 +11291,12 @@
       if (expTitle) {
         expTitle.innerHTML = `
           <span>[${cam.code}] ${cam.name}</span>
-          <span class="px-1.5 py-0.2 rounded text-[9px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">🟢 LIVE ${cam.fps} FPS</span>
+          <span class="px-1.5 py-0.2 rounded text-[9px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">🟢 LIVE MJPEG</span>
         `;
       }
       const expSub = document.getElementById('cctvExpandedSubtitle');
       if (expSub) {
-        expSub.innerText = `${cam.road} • ${cam.agencyName} • Open-Source Tactical Feed`;
+        expSub.innerText = `${cam.location} • ลุ่มน้ำ: ${cam.basin} • ลำน้ำ: ${cam.stream} • กรมทรัพยากรน้ำ (DWR Telemetry)`;
       }
 
       // Update HUD text
@@ -9272,20 +11304,16 @@
       if (hudCode) hudCode.innerText = cam.code;
 
       const hudRes = document.getElementById('cctvHudResolution');
-      if (hudRes) hudRes.innerText = `${cam.resolution} @ ${cam.fps}FPS`;
+      if (hudRes) hudRes.innerText = `ลุ่มน้ำ${cam.basinShort} • ลำน้ำ: ${cam.stream}`;
 
       const hudCoords = document.getElementById('cctvHudCoords');
-      if (hudCoords) hudCoords.innerText = `LAT: ${cam.lat.toFixed(4)}° N • LON: ${cam.lng.toFixed(4)}° E • BRG: ${cam.bearing}`;
+      if (hudCoords) hudCoords.innerText = `LAT: ${cam.lat.toFixed(4)}° N • LON: ${cam.lng.toFixed(4)}° E • จ.${cam.province}`;
 
-      // Update Active Video Player
-      const vid = document.getElementById('cctvActiveVideoPlayer');
-      const src = document.getElementById('cctvActiveVideoSource');
-      if (vid && src) {
-        if (src.src !== cam.streamUrl) {
-          src.src = cam.streamUrl;
-          vid.poster = cam.poster || '';
-          vid.load();
-          vid.play().catch(() => {});
+      // Update Active Video / MJPEG Player
+      const mjpegImg = document.getElementById('cctvActiveMjpegPlayer');
+      if (mjpegImg) {
+        if (mjpegImg.src !== cam.streamUrl) {
+          mjpegImg.src = cam.streamUrl;
         }
       }
 
@@ -9294,8 +11322,9 @@
 
       // Update active card highlight in Right Panel list
       const cards = document.querySelectorAll('.cctv-right-card');
-      cards.forEach((c, i) => {
-        if (i === idx) {
+      cards.forEach((c) => {
+        const cCode = c.getAttribute('data-cctv-code');
+        if (cCode === cam.code) {
           c.classList.add('border-cyan-500', 'bg-cyan-950/20');
         } else {
           c.classList.remove('border-cyan-500', 'bg-cyan-950/20');
@@ -9362,27 +11391,28 @@
         if (singleWrap) singleWrap.classList.add('hidden');
         if (quadWrap) {
           quadWrap.classList.remove('hidden');
-          // Populate 4 video panes
+          // Take 4 stations around activeCctvIndex
           const quadCams = [
-            publicCctvCameras[0],
-            publicCctvCameras[1],
-            publicCctvCameras[2],
-            publicCctvCameras[3]
+            publicCctvCameras[activeCctvIndex % publicCctvCameras.length],
+            publicCctvCameras[(activeCctvIndex + 1) % publicCctvCameras.length],
+            publicCctvCameras[(activeCctvIndex + 2) % publicCctvCameras.length],
+            publicCctvCameras[(activeCctvIndex + 3) % publicCctvCameras.length]
           ];
-          quadWrap.innerHTML = quadCams.map((c, i) => `
-            <div class="relative bg-black rounded-lg overflow-hidden border border-slate-800 hover:border-cyan-500/80 transition-all cursor-pointer group" onclick="setActiveCctvCamera(${i}); toggleCctvMultiViewMode();">
-              <video class="w-full h-full object-cover" autoplay loop muted playsinline poster="${c.poster}">
-                <source src="${c.streamUrl}" type="video/mp4">
-              </video>
-              <div class="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-black/70 text-[9px] font-mono text-cyan-300 flex items-center gap-1">
-                <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
-                <span>${c.code}</span>
+          quadWrap.innerHTML = quadCams.map((c, i) => {
+            const actualIdx = (activeCctvIndex + i) % publicCctvCameras.length;
+            return `
+              <div class="relative bg-black rounded-lg overflow-hidden border border-slate-800 hover:border-cyan-500/80 transition-all cursor-pointer group" onclick="setActiveCctvCamera(${actualIdx}); toggleCctvMultiViewMode();">
+                <img src="${c.streamUrl}" alt="${c.name}" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://telemetry.dwr.go.th/static/images/image-placeholder.png';">
+                <div class="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-black/70 text-[9px] font-mono text-cyan-300 flex items-center gap-1">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span>${c.code}</span>
+                </div>
+                <div class="absolute bottom-1 left-1 right-1 px-1.5 py-0.5 rounded bg-black/70 text-[9px] text-white truncate">
+                  ${c.name} (${c.province})
+                </div>
               </div>
-              <div class="absolute bottom-1 left-1 right-1 px-1.5 py-0.5 rounded bg-black/70 text-[9px] text-white truncate">
-                ${c.name}
-              </div>
-            </div>
-          `).join('');
+            `;
+          }).join('');
         }
         if (btn) btn.className = 'px-2 py-1 rounded-lg bg-cyan-600 text-white font-bold transition flex items-center gap-1 cursor-pointer text-[11px] shadow';
         if (txt) txt.innerText = 'จอเดี่ยว (Single)';
@@ -9414,7 +11444,7 @@
 
       const now = new Date();
       const timeStr = now.toLocaleTimeString('th-TH');
-      showToast(`📸 บันทึกภาพ Snapshot จาก ${cam.code} (${timeStr}) เรียบร้อยแล้ว`);
+      showToast(`📸 บันทึกภาพ Snapshot จาก ${cam.code} - ${cam.name} (${timeStr}) เรียบร้อยแล้ว`);
     }
 
     function lockCctvCameraTarget(idx) {
@@ -9436,12 +11466,12 @@
       const hudCoords = document.getElementById('hudTargetCoords');
 
       if (hudTarget) hudTarget.classList.remove('hidden');
-      if (hudName) hudName.innerText = `📹 ${cam.code} (${cam.agency})`;
-      if (hudSub) hudSub.innerText = cam.name;
+      if (hudName) hudName.innerText = `📹 ${cam.code} (${cam.province})`;
+      if (hudSub) hudSub.innerText = `${cam.name} • ลำน้ำ: ${cam.stream}`;
       if (hudCoords) hudCoords.innerText = `${cam.lat.toFixed(4)}° N, ${cam.lng.toFixed(4)}° E`;
 
       updateRadarSweepPosition();
-      showToast(`🎯 ล็อคเป้าเรดาร์ที่กล้อง ${cam.code} (${cam.name})`);
+      showToast(`🎯 ล็อคเป้าเรดาร์ที่สถานีโทรมาตร ${cam.code} (${cam.name})`);
     }
 
     function flyToCurrentCctvOnMap() {
@@ -9458,14 +11488,19 @@
           cctvMapMarkers[cam.id].openPopup();
         }, 1300);
       }
-      showToast(`🗺️ เลื่อนแผนที่ไปที่ตำแหน่งกล้อง ${cam.code}`);
+      showToast(`🗺️ เลื่อนแผนที่ไปที่ตำแหน่งสถานี ${cam.code} (${cam.name})`);
     }
 
     function renderCctvCarouselStrip() {
       const strip = document.getElementById('cctvCarouselStrip');
       if (!strip) return;
 
-      strip.innerHTML = publicCctvCameras.map((cam, idx) => {
+      // Show nearby 15 cameras around activeCctvIndex or current filtered list
+      const startIdx = Math.max(0, activeCctvIndex - 5);
+      const displayCams = publicCctvCameras.slice(startIdx, startIdx + 20);
+
+      strip.innerHTML = displayCams.map((cam) => {
+        const idx = publicCctvCameras.findIndex(c => c.id === cam.id);
         const isActive = idx === activeCctvIndex;
         const activeClass = isActive 
           ? 'bg-cyan-600/40 border-cyan-400 text-white shadow-md' 
@@ -9474,7 +11509,7 @@
           <button onclick="setActiveCctvCamera(${idx})" class="px-2.5 py-1 rounded-lg border text-xs flex items-center gap-1.5 shrink-0 transition-all cursor-pointer ${activeClass}">
             <span class="w-2 h-2 rounded-full ${isActive ? 'bg-cyan-400 animate-ping' : 'bg-emerald-400'}"></span>
             <span class="font-mono font-bold text-[11px]">${cam.code}</span>
-            <span class="text-[10px] text-slate-400 max-w-[90px] truncate hidden md:inline">${cam.name}</span>
+            <span class="text-[10px] text-slate-400 max-w-[100px] truncate hidden md:inline">${cam.name}</span>
           </button>
         `;
       }).join('');
@@ -9492,12 +11527,12 @@
     // =========================================================================
     // 🎛️ RIGHT PANEL CCTV TAB VIEW & SEARCH CONTROLS
     // =========================================================================
-    function setFilterCctvAgency(agency) {
-      currentCctvFilterAgency = agency;
-      ['ALL', 'RTSD', 'BMA', 'DOH', 'EXAT'].forEach(ag => {
-        const btn = document.getElementById(`btnCctvFilter${ag}`);
+    function setFilterCctvRegion(region) {
+      currentCctvFilterRegion = region;
+      ['ALL', 'CENTRAL', 'NORTH', 'NORTHEAST', 'SOUTH', 'EAST_WEST'].forEach(reg => {
+        const btn = document.getElementById(`btnCctvFilter${reg}`);
         if (btn) {
-          if (ag === agency) {
+          if (reg === region) {
             btn.className = 'px-2 py-0.5 rounded-md bg-cyan-600 text-white font-medium cursor-pointer shrink-0 shadow-sm';
           } else {
             btn.className = 'px-2 py-0.5 rounded-md bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800 cursor-pointer shrink-0';
@@ -9518,24 +11553,25 @@
       const searchInput = document.getElementById('inputSearchCctv');
       const query = (searchInput ? searchInput.value : '').trim().toLowerCase();
 
-      const filtered = publicCctvCameras.filter((cam, idx) => {
-        const matchAgency = (currentCctvFilterAgency === 'ALL') || (cam.agency === currentCctvFilterAgency);
-        if (!matchAgency) return false;
+      const filtered = publicCctvCameras.filter((cam) => {
+        const matchRegion = (currentCctvFilterRegion === 'ALL') || (cam.region === currentCctvFilterRegion);
+        if (!matchRegion) return false;
         if (!query) return true;
         return (
           cam.code.toLowerCase().includes(query) ||
           cam.name.toLowerCase().includes(query) ||
-          cam.road.toLowerCase().includes(query) ||
-          cam.agencyName.toLowerCase().includes(query) ||
-          cam.desc.toLowerCase().includes(query)
+          cam.location.toLowerCase().includes(query) ||
+          cam.province.toLowerCase().includes(query) ||
+          cam.basin.toLowerCase().includes(query) ||
+          cam.stream.toLowerCase().includes(query)
         );
       });
 
       if (filtered.length === 0) {
         container.innerHTML = `
           <div class="p-6 text-center text-slate-400">
-            <i class="fa-solid fa-video-slash text-3xl mb-2 text-slate-600"></i>
-            <p class="text-xs">ไม่พบจุดตั้งกล้องวงจรปิดที่ตรงกับเงื่อนไข</p>
+            <i class="fa-solid fa-water text-3xl mb-2 text-slate-600"></i>
+            <p class="text-xs">ไม่พบสถานีโทรมาตรกล้อง CCTV ที่ตรงกับเงื่อนไข</p>
           </div>
         `;
         return;
@@ -9547,13 +11583,13 @@
         const borderClass = isCurrentActive ? 'border-cyan-500 bg-cyan-950/20' : 'border-slate-800 bg-slate-900/80';
 
         return `
-          <div class="cctv-right-card rounded-xl border p-2.5 transition-all hover:border-cyan-500/60 shadow-sm ${borderClass}">
+          <div class="cctv-right-card rounded-xl border p-2.5 transition-all hover:border-cyan-500/60 shadow-sm ${borderClass}" data-cctv-code="${cam.code}">
             <div class="flex items-start gap-2.5">
-              <!-- Video / Poster Preview Thumbnail -->
+              <!-- Video / MJPEG Live Thumbnail -->
               <div class="w-24 h-16 rounded-lg bg-black overflow-hidden relative shrink-0 border border-slate-800 cursor-pointer group" onclick="openCctvCameraInDrawer(${originalIndex})">
-                <img src="${cam.poster}" alt="${cam.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                <img src="${cam.streamUrl}" alt="${cam.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.onerror=null; this.src='https://telemetry.dwr.go.th/static/images/image-placeholder.png';" loading="lazy">
                 <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <i class="fa-solid fa-play text-white text-xs"></i>
+                  <i class="fa-solid fa-expand text-white text-xs"></i>
                 </div>
                 <div class="absolute bottom-1 right-1 px-1 rounded bg-black/80 text-[8px] font-mono text-emerald-400">
                   LIVE
@@ -9563,18 +11599,18 @@
               <!-- Metadata -->
               <div class="flex-1 min-w-0">
                 <div class="flex items-start justify-between gap-1 mb-0.5">
-                  <span class="text-xs font-bold text-white truncate block">${cam.code}</span>
-                  <span class="px-1.5 py-0.2 rounded text-[9px] font-mono border shrink-0 ${cam.agencyBadge}">
-                    ${cam.agency}
+                  <span class="text-xs font-bold text-white truncate block">[${cam.code}]</span>
+                  <span class="px-1.5 py-0.2 rounded text-[9px] font-mono border shrink-0 bg-cyan-950 text-cyan-300 border-cyan-500/40">
+                    ${cam.province}
                   </span>
                 </div>
-                <h5 class="text-[11px] text-slate-200 font-medium truncate mb-1" title="${cam.name}">${cam.name}</h5>
+                <h5 class="text-[11px] text-slate-200 font-medium truncate mb-0.5" title="${cam.name}">${cam.name}</h5>
                 <p class="text-[10px] text-cyan-300/80 truncate mb-1">
-                  <i class="fa-solid fa-location-dot text-[9px]"></i> ${cam.road}
+                  <i class="fa-solid fa-water text-[9px]"></i> ลำน้ำ: ${cam.stream} • ลุ่มน้ำ${cam.basinShort}
                 </p>
 
                 <!-- Actions -->
-                <div class="flex items-center gap-1.5 pt-1 text-[10px]">
+                <div class="flex items-center gap-1.5 pt-0.5 text-[10px]">
                   <button onclick="openCctvCameraInDrawer(${originalIndex})" class="px-2 py-0.5 rounded bg-cyan-600/30 hover:bg-cyan-600 text-cyan-300 hover:text-white transition font-medium cursor-pointer border border-cyan-500/30 flex items-center gap-1">
                     <i class="fa-solid fa-expand"></i> ดูสด
                   </button>
