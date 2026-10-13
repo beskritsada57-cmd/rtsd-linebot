@@ -630,37 +630,13 @@ def tracker_page():
     return "Tracker HTML template not found on server", 404
 
 
-GITHUB_APK_URL = "https://raw.githubusercontent.com/beskritsada57-cmd/rtsd-linebot/main/RTSD_Tactical_Tracker_v1.3_FullAuth.apk"
+# 📦 ลิงก์ดาวน์โหลด APK ผ่าน GitHub CDN (ปักที่ commit hash เพื่อไม่ให้เสีย bandwidth ของ Render)
+GITHUB_APK_URL = "https://raw.githubusercontent.com/beskritsada57-cmd/rtsd-linebot/91e798f/RTSD_Tactical_Tracker_v1.3_FullAuth.apk"
 
 @app.route("/download", methods=['GET'])
 @app.route("/download/app", methods=['GET'])
 def download_app_file():
-    """ให้บริการดาวน์โหลดไฟล์ RTSD Tactical Tracker Mobile App (.apk) โดยตรง"""
-    apk_filename = "RTSD_Tactical_Tracker_v1.3_FullAuth.apk"
-    base_dirs = [
-        os.path.dirname(os.path.abspath(__file__)),
-        os.getcwd(),
-        os.path.dirname(os.getcwd())
-    ]
-    apk_path = None
-    for b in base_dirs:
-        candidate = os.path.join(b, apk_filename)
-        if os.path.exists(candidate):
-            apk_path = candidate
-            break
-        candidate_v12 = os.path.join(b, "RTSD_Tactical_Tracker_v1.2_FullAuth.apk")
-        if os.path.exists(candidate_v12):
-            apk_path = candidate_v12
-            break
-
-    if apk_path and os.path.exists(apk_path):
-        return send_file(
-            apk_path,
-            as_attachment=True,
-            download_name="RTSD_Tactical_Tracker_v1.3.apk",
-            mimetype="application/vnd.android.package-archive"
-        )
-    # หากเซิร์ฟเวอร์ยังไม่โหลดไฟล์ลงดิสก์ ให้ Redirect ตรงไปยัง GitHub Raw CDN ทันที (เสถียรและดาวน์โหลดเร็ว)
+    """Redirect ไปดาวน์โหลด APK จาก GitHub CDN โดยตรง (ไม่เสิร์ฟจาก Render เพื่อประหยัด Bandwidth)"""
     return redirect(GITHUB_APK_URL)
 
 
