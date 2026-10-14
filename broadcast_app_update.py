@@ -9,9 +9,9 @@ import requests
 
 CHANNEL_ACCESS_TOKEN = "tZwEj7/Os0MEb2g5oQMsZc6/8Uvt0AID8SVj/O5dyRkph1hgP8H3JSdduIh+SIXjQI1rPILjCx3ZVuG+WszETDZxOZZ2oXki4wCIF/kz26gjfE+iz8GCQtYCj4cbFLv3EQrOv/YrsWJ/VwMDns4f7gdB04t89/1O/w1cDnyilFU="
 
-def broadcast_app_update(version="v1.4", changelog=None, download_url="https://linebot.goc-rtsd.com/download/app"):
+def broadcast_app_update(version="v1.5", changelog=None, download_url="https://linebot.goc-rtsd.com/download/app"):
     if not changelog:
-        changelog = "อัปเดตโลโก้แอปพลิเคชัน 3D Tactical Emblem ใหม่ พร้อมไอคอนบนหน้าจอมือถือ และเพิ่มความเสถียรระบบ GPS"
+        changelog = "เพิ่มระบบแทร็กกิ่งประวัติการเดินทางแบบเส้น (Polyline Line Tracking) เลือกเปิด/ปิดได้ และส่งออกไฟล์ KML/GPX"
 
     map_url = "https://linebot.goc-rtsd.com/map"
     dashboard_url = "https://linebot.goc-rtsd.com/dashboard"

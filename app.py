@@ -786,7 +786,7 @@ def tracker_page():
 
 
 # 📦 ลิงก์ดาวน์โหลด APK ผ่าน Google Drive
-APK_DOWNLOAD_URL = "https://drive.google.com/file/d/15bFxrdtr72Em9C6SBqaVcsRWsL8hvmWU/view?usp=sharing"
+APK_DOWNLOAD_URL = "https://drive.google.com/file/d/1gfLNzJr_oUfvgmLErlts0zVtVaJidjzv/view?usp=sharing"
 
 @app.route("/download", methods=['GET'])
 @app.route("/download/app", methods=['GET'])
@@ -4012,7 +4012,7 @@ def handle_text(event):
             "━━━━━━━━━━━━━━━━━━\n"
             "ระบบติดตามพิกัด GPS สด & เรดาร์ยุทธการ สำหรับเจ้าหน้าที่ภาคสนาม\n\n"
             "🎖️ สังกัด: กรมแผนที่ทหาร (RTSD)\n"
-            "📦 เวอร์ชัน: v1.4 (Modern 3D Tactical Logo & Live GPS)\n"
+            "📦 เวอร์ชัน: v1.5 (Opt-in Line Tracking & Patrol Route Log)\n"
             "⚙️ ขนาดไฟล์: ~56 MB (Android 8.0+)\n"
             "━━━━━━━━━━━━━━━━━━\n"
             "📥 ลิงก์ดาวน์โหลดตรง (.APK):\n"
