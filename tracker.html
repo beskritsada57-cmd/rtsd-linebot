@@ -296,8 +296,8 @@
   <!-- ========================================================================= -->
   <script>
     // Auto-detect API Base
-    const API_BASE = (window.location.protocol === 'file:' || !window.location.host.includes('onrender.com')) 
-      ? 'https://rtsd-linebot.onrender.com' 
+    const API_BASE = (window.location.protocol === 'file:' || window.location.origin === 'null') 
+      ? 'https://linebot.goc-rtsd.com' 
       : '';
 
     let isTracking = false;

@@ -2172,7 +2172,7 @@
           <label class="block text-xs font-semibold text-slate-300 mb-1.5">
             <i class="fa-solid fa-link text-emerald-400 mr-1"></i> ลิงก์ดาวน์โหลดไฟล์ติดตั้ง APK
           </label>
-          <input type="text" id="broadcastAppUrl" value="https://rtsd-linebot.onrender.com/download/app" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-sky-400 font-mono text-xs focus:outline-none focus:border-emerald-500 transition-colors">
+          <input type="text" id="broadcastAppUrl" value="https://linebot.goc-rtsd.com/download/app" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-sky-400 font-mono text-xs focus:outline-none focus:border-emerald-500 transition-colors">
         </div>
 
         <!-- Preview Card -->
@@ -2190,7 +2190,7 @@
             </p>
             <p class="text-[11px] text-slate-400 pt-1">
               📥 ดาวน์โหลดและติดตั้งใหม่ได้ทันที:<br>
-              <span class="text-sky-400 font-mono underline" id="previewUrlText">https://rtsd-linebot.onrender.com/download/app</span>
+              <span class="text-sky-400 font-mono underline" id="previewUrlText">https://linebot.goc-rtsd.com/download/app</span>
             </p>
           </div>
         </div>
@@ -3431,9 +3431,9 @@
     // Web App URL ของ Google Sheets (CORS-friendly JSON)
     const DATA_URL = "https://script.google.com/macros/s/AKfycbw5Gepu7a5s9j1vXtgE55403L0K3sKtOcpUNArNCm6RJO1ulNp735XyZgAbTlMBwxI/exec";
     
-    // Auto-detect API Base: ถ้าเปิดไฟล์ตรงจากเครื่อง (file://) หรือโดเมนอื่น ให้ยิงเข้า Render Server อัตโนมัติ
-    const API_BASE = (window.location.protocol === 'file:' || !window.location.host.includes('onrender.com')) 
-      ? 'https://rtsd-linebot.onrender.com' 
+    // Auto-detect API Base: ถ้าเปิดไฟล์ตรงจากเครื่อง (file://) ให้ยิงเข้า goc-rtsd.com เซิร์ฟเวอร์ QNAP
+    const API_BASE = (window.location.protocol === 'file:' || window.location.origin === 'null') 
+      ? 'https://linebot.goc-rtsd.com' 
       : '';
     
     let rawIncidents = [];
@@ -7019,7 +7019,7 @@
 
       const version = (vInput ? vInput.value : 'v1.3').trim();
       const changelog = (cInput ? cInput.value : '').trim();
-      const downloadUrl = (uInput ? uInput.value : 'https://rtsd-linebot.onrender.com/download/app').trim();
+      const downloadUrl = (uInput ? uInput.value : 'https://linebot.goc-rtsd.com/download/app').trim();
 
       if (!confirm(`ยืนยันการส่งข้อความ Broadcast แจ้งเตือนอัปเดตแอป ${version} ไปยังเพื่อนทุกคนใน LINE ทันทีหรือไม่?`)) {
         return;

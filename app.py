@@ -1,4 +1,4 @@
-import os
+﻿import os
 import re
 import time
 import datetime
@@ -747,9 +747,9 @@ def api_broadcast_app_update():
         data = request.get_json(silent=True) or {}
         version = str(data.get("version") or "v1.3").strip()
         changelog = str(data.get("changelog") or "ปรับปรุงระบบถ่ายภาพหน้างาน และส่งสัญญาณขอกำลังเสริมด่วน (SOS) พร้อมพิกัด GPS สด").strip()
-        download_url = str(data.get("download_url") or "https://rtsd-linebot.onrender.com/download/app").strip()
-        map_url = "https://rtsd-linebot.onrender.com/map"
-        dashboard_url = "https://rtsd-linebot.onrender.com/dashboard"
+        download_url = str(data.get("download_url") or "https://linebot.goc-rtsd.com/download/app").strip()
+        map_url = "https://linebot.goc-rtsd.com/map"
+        dashboard_url = "https://linebot.goc-rtsd.com/dashboard"
 
         msg_text = (
             f"📲 [แจ้งอัปเดตแอปพลิเคชัน RTSD Tactical Tracker]\n"
@@ -1042,7 +1042,7 @@ def api_update_incident_status():
                 f"📌 สถานะ: {new_status}\n"
                 f"━━━━━━━━━━━━━━━━━━\n"
                 f"ศูนย์ TOC สามารถติดตามพิกัดการเคลื่อนที่ได้สดบน Dashboard\n"
-                f"👉 https://rtsd-linebot.onrender.com/map"
+                f"👉 https://linebot.goc-rtsd.com/map"
             )
             for admin_phone in ADMIN_PHONES:
                 for phone, u in phone_to_user.items():
@@ -1058,7 +1058,7 @@ def api_update_incident_status():
                     f"📍 สถานะ: กำลังมุ่งหน้าเข้าสู่จุดเกิดเหตุของท่าน\n"
                     f"━━━━━━━━━━━━━━━━━━\n"
                     f"🗺️ ตรวจสอบแผนที่สถานการณ์สด:\n"
-                    f"👉 https://rtsd-linebot.onrender.com/map"
+                    f"👉 https://linebot.goc-rtsd.com/map"
                 )
                 push_line_message(reporter_line_id, push_citizen_msg)
         except Exception as e:
@@ -1075,7 +1075,7 @@ def api_update_incident_status():
                 f"📝 ผลการปฏิบัติ: {note or 'ระงับเหตุและช่วยเหลือประชาชนเรียบร้อยแล้ว ปลอดภัยทุกฝ่าย'}\n"
                 f"━━━━━━━━━━━━━━━━━━\n"
                 f"🌐 ตรวจสอบภาพและสรุปงาน:\n"
-                f"👉 https://rtsd-linebot.onrender.com/map"
+                f"👉 https://linebot.goc-rtsd.com/map"
             )
             for admin_phone in ADMIN_PHONES:
                 for phone, u in phone_to_user.items():
@@ -1591,7 +1591,7 @@ def api_incident_dispatch():
     push_msg_text = "\n".join(msg_lines)
 
     quick_items = [
-        QuickReplyItem(action=URIAction(label="🌐 แดชบอร์ดสถานการณ์", uri="https://rtsd-linebot.onrender.com/dashboard")),
+        QuickReplyItem(action=URIAction(label="🌐 แดชบอร์ดสถานการณ์", uri="https://linebot.goc-rtsd.com/dashboard")),
         QuickReplyItem(action=MessageAction(label="🚨 รับทราบคำสั่ง", text=f"รับทราบคำสั่ง {incident_id}"))
     ]
     if nav_link:
@@ -2353,7 +2353,7 @@ def api_register_request():
             f"⏳ สถานะ: รออนุมัติ (Pending)\n"
             f"━━━━━━━━━━━━━━━━━━\n"
             f"👉 แอดมินสามารถตรวจสอบและกดอนุมัติสิทธิ์ได้ที่:\n"
-            f"🔗 https://rtsd-linebot.onrender.com/dashboard\n"
+            f"🔗 https://linebot.goc-rtsd.com/dashboard\n"
             f"(เมนู 'จัดการสิทธิ์' บน Tactical Dashboard)"
         )
         notify_admins(admin_alert_msg)
@@ -2709,7 +2709,7 @@ def handle_follow(event):
             f"👉 [เบอร์โทรศัพท์ 10 หลัก] ส่งเข้ามาได้เลยครับ\n"
             f"ตัวอย่างเช่น: 0812345678 หรือ สมชาย 0812345678\n\n"
             f"🌐 หรือกรอกข้อมูลแบบละเอียดพร้อมระบุยศ/สังกัดได้ที่:\n"
-            f"https://rtsd-linebot.onrender.com/register\n\n"
+            f"https://linebot.goc-rtsd.com/register\n\n"
             f"✨ เมื่อลงทะเบียนแล้ว ระบบจะจำบัญชีของท่านถาวรเพื่อขอรับรหัส OTP ล็อกอิน Dashboard ครับ!"
         )
         quick_reply = QuickReply(items=[
@@ -3113,7 +3113,7 @@ def handle_text(event):
                          f"1️⃣ พิมพ์ [เบอร์โทรศัพท์ 10 หลัก] ส่งในแชตนี้ได้ทันที\n"
                          f"เช่น: 0812345678 หรือ สมชาย 0812345678\n\n"
                          f"2️⃣ หรือกรอกฟอร์มพร้อมระบุ ยศ/สังกัด/สิทธิ์ ผ่านหน้าเว็บ:\n"
-                         f"👉 https://rtsd-linebot.onrender.com/register\n"
+                         f"👉 https://linebot.goc-rtsd.com/register\n"
                          f"━━━━━━━━━━━━━━━━━━\n"
                          f"🔒 ข้อมูลจะถูกจัดเก็บสำหรับรับรหัส OTP เข้าหน้าแดชบอร์ดครับ")
         quick_reply = QuickReply(items=[
@@ -3245,7 +3245,7 @@ def handle_text(event):
                      f"━━━━━━━━━━━━━━━━━━\n"
                      f"ข้อมูลและพิกัดถูกส่งขึ้นหน้าจอ Dashboard เรียบร้อยแล้ว ศูนย์ฯ กำลังเร่งประสานสนับสนุนครับ")
         quick_reply = QuickReply(items=[
-            QuickReplyItem(action=URIAction(label="🌐 ตรวจสอบบน Dashboard", uri="https://rtsd-linebot.onrender.com/dashboard")),
+            QuickReplyItem(action=URIAction(label="🌐 ตรวจสอบบน Dashboard", uri="https://linebot.goc-rtsd.com/dashboard")),
             QuickReplyItem(action=MessageAction(label="📸 ส่งภาพถ่ายรายงาน", text="ส่งรูปรายงาน"))
         ])
         with ApiClient(configuration) as api_client:
@@ -3395,7 +3395,7 @@ def handle_text(event):
                 f"🆔 LINE User ID: {user_id}\n"
                 f"⏳ สถานะ: รออนุมัติ (Pending)\n"
                 f"━━━━━━━━━━━━━━━━━━\n"
-                f"👉 ตรวจสอบและอนุมัติที่ https://rtsd-linebot.onrender.com/dashboard"
+                f"👉 ตรวจสอบและอนุมัติที่ https://linebot.goc-rtsd.com/dashboard"
             )
             notify_admins(admin_alert_msg)
 
@@ -3597,13 +3597,13 @@ def handle_text(event):
                 msg_lines.append(f"...และอีก {len(deployed_units) - 6} หน่วย")
         else:
             msg_lines.append("ℹ️ ขณะนี้ยังไม่มีชุดปฏิบัติการส่งสัญญาณ GPS สด")
-            msg_lines.append("💡 เจ้าหน้าที่สามารถกด '🛰️ ส่งพิกัดสด GPS' หรือเปิดหน้าเว็บ https://rtsd-linebot.onrender.com/tracker เพื่อเริ่มเข้าเวรได้ทันทีครับ")
+            msg_lines.append("💡 เจ้าหน้าที่สามารถกด '🛰️ ส่งพิกัดสด GPS' หรือเปิดหน้าเว็บ https://linebot.goc-rtsd.com/tracker เพื่อเริ่มเข้าเวรได้ทันทีครับ")
             
         msg_lines.append("━━━━━━━━━━━━━━━━━━")
-        msg_lines.append("🌐 ดูแผนที่สถานการณ์สด (มือถือ):\n👉 https://rtsd-linebot.onrender.com/map\n(หรือเปิด Command Dashboard PC: https://rtsd-linebot.onrender.com/dashboard)")
+        msg_lines.append("🌐 ดูแผนที่สถานการณ์สด (มือถือ):\n👉 https://linebot.goc-rtsd.com/map\n(หรือเปิด Command Dashboard PC: https://linebot.goc-rtsd.com/dashboard)")
         
         quick_reply = QuickReply(items=[
-            QuickReplyItem(action=URIAction(label="🗺️ แผนที่สถานการณ์", uri="https://rtsd-linebot.onrender.com/map")),
+            QuickReplyItem(action=URIAction(label="🗺️ แผนที่สถานการณ์", uri="https://linebot.goc-rtsd.com/map")),
             QuickReplyItem(action=MessageAction(label="🔄 รีเฟรชยอด", text="เช็กกำลังพล")),
             QuickReplyItem(action=LocationAction(label="📍 เช็กสถานการณ์รอบตัว")),
             QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุเตือนภัย", text="แจ้งเหตุ"))
@@ -3671,14 +3671,14 @@ def handle_text(event):
             "⚙️ ขนาดไฟล์: ~55 MB (Android 8.0+)\n"
             "━━━━━━━━━━━━━━━━━━\n"
             "📥 ลิงก์ดาวน์โหลดตรง (.APK):\n"
-            "👉 https://rtsd-linebot.onrender.com/download/app\n\n"
+            "👉 https://linebot.goc-rtsd.com/download/app\n\n"
             "🛡️ คำแนะนำความปลอดภัย:\n"
             "แอปพลิเคชันนี้พัฒนาเพื่อภารกิจภายในกรมแผนที่ทหาร ปลอดภัย 100% ไม่มีมัลแวร์\n"
             "หากระบบ Android ขึ้นเตือน ให้กด 'ติดตั้งต่อไป (Install anyway)' ได้เลยครับ"
         )
         quick_reply = QuickReply(items=[
-            QuickReplyItem(action=URIAction(label="📥 ดาวน์โหลดไฟล์ APK", uri="https://rtsd-linebot.onrender.com/download/app")),
-            QuickReplyItem(action=URIAction(label="🗺️ แผนที่สถานการณ์", uri="https://rtsd-linebot.onrender.com/map")),
+            QuickReplyItem(action=URIAction(label="📥 ดาวน์โหลดไฟล์ APK", uri="https://linebot.goc-rtsd.com/download/app")),
+            QuickReplyItem(action=URIAction(label="🗺️ แผนที่สถานการณ์", uri="https://linebot.goc-rtsd.com/map")),
             QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุฉุกเฉิน", text="แจ้งเหตุ"))
         ])
         reply_message = TextMessage(text=reply_msg, quick_reply=quick_reply)
@@ -3695,8 +3695,8 @@ def handle_text(event):
             "👉 แตะปุ่ม '🗺️ เปิดแผนที่สถานการณ์' ด้านล่างเพื่อเข้าดูได้ทันทีครับ:"
         )
         quick_reply = QuickReply(items=[
-            QuickReplyItem(action=URIAction(label="🗺️ เปิดแผนที่สถานการณ์", uri="https://rtsd-linebot.onrender.com/map")),
-            QuickReplyItem(action=URIAction(label="🖥️ แดชบอร์ดศูนย์ TOC (PC)", uri="https://rtsd-linebot.onrender.com/dashboard")),
+            QuickReplyItem(action=URIAction(label="🗺️ เปิดแผนที่สถานการณ์", uri="https://linebot.goc-rtsd.com/map")),
+            QuickReplyItem(action=URIAction(label="🖥️ แดชบอร์ดศูนย์ TOC (PC)", uri="https://linebot.goc-rtsd.com/dashboard")),
             QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุฉุกเฉิน", text="แจ้งเหตุ"))
         ])
         reply_message = TextMessage(text=reply_msg, quick_reply=quick_reply)
@@ -3719,14 +3719,14 @@ def handle_text(event):
             "• พิมพ์ 'เสร็จสิ้น RTSD-xxxx' เพื่อปิดงาน\n"
             "• ส่งภาพรายงานจากหน้างานเข้าระบบ Dashboard ได้ทันที\n\n"
             "🛰️ ศูนย์ควบคุม TOC & แอปพลิเคชัน:\n"
-            "• แดชบอร์ดควบคุม (PC): https://rtsd-linebot.onrender.com/dashboard\n"
-            "• แผนที่มือถือสด: https://rtsd-linebot.onrender.com/map\n"
-            "• ดาวน์โหลดแอป Android: https://rtsd-linebot.onrender.com/download/app"
+            "• แดชบอร์ดควบคุม (PC): https://linebot.goc-rtsd.com/dashboard\n"
+            "• แผนที่มือถือสด: https://linebot.goc-rtsd.com/map\n"
+            "• ดาวน์โหลดแอป Android: https://linebot.goc-rtsd.com/download/app"
         )
         quick_reply = QuickReply(items=[
-            QuickReplyItem(action=URIAction(label="🗺️ แผนที่สถานการณ์", uri="https://rtsd-linebot.onrender.com/map")),
-            QuickReplyItem(action=URIAction(label="🖥️ แดชบอร์ด TOC", uri="https://rtsd-linebot.onrender.com/dashboard")),
-            QuickReplyItem(action=URIAction(label="📲 ติดตั้งแอป APK", uri="https://rtsd-linebot.onrender.com/download/app")),
+            QuickReplyItem(action=URIAction(label="🗺️ แผนที่สถานการณ์", uri="https://linebot.goc-rtsd.com/map")),
+            QuickReplyItem(action=URIAction(label="🖥️ แดชบอร์ด TOC", uri="https://linebot.goc-rtsd.com/dashboard")),
+            QuickReplyItem(action=URIAction(label="📲 ติดตั้งแอป APK", uri="https://linebot.goc-rtsd.com/download/app")),
             QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุเตือนภัย", text="แจ้งเหตุ")),
             QuickReplyItem(action=MessageAction(label="🆘 เบอร์ฉุกเฉิน", text="เบอร์ฉุกเฉิน"))
         ])
@@ -3800,7 +3800,7 @@ def handle_text(event):
                          f"⚡ ระบบเปิดใช้งาน 'ริชเมนูยุทธการ (Tactical Command)' ให้ท่านแล้ว!\n"
                          f"👉 ท่านสามารถเข้าสู่ระบบ Dashboard War Room หรือสั่งการผ่านปุ่มด้านล่างได้ทันทีครับ")
             quick_reply = QuickReply(items=[
-                QuickReplyItem(action=URIAction(label="🌐 แดชบอร์ด War Room", uri="https://rtsd-linebot.onrender.com/dashboard")),
+                QuickReplyItem(action=URIAction(label="🌐 แดชบอร์ด War Room", uri="https://linebot.goc-rtsd.com/dashboard")),
                 QuickReplyItem(action=MessageAction(label="👥 เช็กกำลังพล", text="เช็กกำลังพล")),
                 QuickReplyItem(action=MessageAction(label="⚡ อัปเดตงานสนาม", text="อัปเดตงานสนาม")),
                 QuickReplyItem(action=MessageAction(label="🔄 สลับเมนูประชาชน", text="เมนูประชาชน"))
@@ -3812,10 +3812,10 @@ def handle_text(event):
                          "1️⃣ พิมพ์เบอร์โทรศัพท์ 10 หลัก เพื่อขอรับรหัส OTP หรือผูกบัญชี เช่น:\n"
                          "👉 0812345678\n\n"
                          "2️⃣ หรือลงทะเบียนข้อมูลยศ/สังกัด/ยานพาหนะ ได้ที่:\n"
-                         "👉 https://rtsd-linebot.onrender.com/register\n\n"
+                         "👉 https://linebot.goc-rtsd.com/register\n\n"
                          "💡 เมื่อผ่านการอนุมัติ ระบบจะปลดล็อกริชเมนูยุทธการให้อัตโนมัติครับ")
             quick_reply = QuickReply(items=[
-                QuickReplyItem(action=URIAction(label="📝 ลงทะเบียนเจ้าหน้าที่", uri="https://rtsd-linebot.onrender.com/register")),
+                QuickReplyItem(action=URIAction(label="📝 ลงทะเบียนเจ้าหน้าที่", uri="https://linebot.goc-rtsd.com/register")),
                 QuickReplyItem(action=MessageAction(label="👤 โปรไฟล์ของฉัน", text="โปรไฟล์")),
                 QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุเตือนภัย", text="แจ้งเหตุ"))
             ])
@@ -3859,7 +3859,7 @@ def handle_text(event):
     # =========================================================================
     elif user_text in ["แจ้งเหตุศูนย์ toc", "แจ้งเหตุ toc", "toc dispatch", "แจ้งเหตุศูนย์"]:
         quick_reply = QuickReply(items=[
-            QuickReplyItem(action=URIAction(label="🚨 เปิดระบบแจ้งเหตุ TOC", uri="https://rtsd-linebot.onrender.com/dashboard")),
+            QuickReplyItem(action=URIAction(label="🚨 เปิดระบบแจ้งเหตุ TOC", uri="https://linebot.goc-rtsd.com/dashboard")),
             QuickReplyItem(action=MessageAction(label="🚨 แจ้งเหตุผ่านแชต", text="แจ้งเหตุ")),
             QuickReplyItem(action=MessageAction(label="👥 เช็กกำลังพล", text="เช็กกำลังพล"))
         ])
@@ -3867,7 +3867,7 @@ def handle_text(event):
             text=("🚨 ระบบแจ้งเหตุและสั่งการศูนย์ควบคุม TOC (TOC Dispatch)\n"
                   "━━━━━━━━━━━━━━━━━━\n"
                   "ศูนย์ควบคุมสามารถเปิดใบสั่งการและปักหมุดเรดาร์ Tactical Pins ได้ที่:\n"
-                  "👉 https://rtsd-linebot.onrender.com/dashboard\n\n"
+                  "👉 https://linebot.goc-rtsd.com/dashboard\n\n"
                   "หรือแจ้งเหตุฉุกเฉินด่วนผ่านแชต LINE ได้ทันทีครับ"),
             quick_reply=quick_reply
         )
@@ -3941,7 +3941,7 @@ def handle_text(event):
         
     # ด่านเปิดระบบ Live GPS Tracker สำหรับเจ้าหน้าที่
     elif user_text in ['แทร็กกิ้ง', 'แทร็ก', 'gps', 'พิกัดสด', 'tracking', 'แชร์พิกัดสด', 'ภารกิจ', 'แชร์ตำแหน่ง', 'ระบบแทร็กกิ่ง']:
-        tracker_url = "https://rtsd-linebot.onrender.com/tracker"
+        tracker_url = "https://linebot.goc-rtsd.com/tracker"
         portal_map_url = "https://geoportal.rtsd.mi.th/portal/home/webmap/viewer.html?url=https://geoportal.rtsd.mi.th/arcgis/rest/services/Hosted/rtsd_live_trackers/FeatureServer/0"
         reply_msg = (f"🛰️ ระบบติดตามกำลังพลภาคสนาม RTSD (Live GPS Tracker)\n"
                      f"━━━━━━━━━━━━━━━━━━\n"
@@ -3951,7 +3951,7 @@ def handle_text(event):
                      f"2️⃣ เปิดดูแผนที่ติดตามกำลังพลบน Portal RTSD:\n"
                      f"👉 {portal_map_url}\n\n"
                      f"3️⃣ เปิดดู Tactical Dashboard ศูนย์ควบคุม:\n"
-                     f"👉 https://rtsd-linebot.onrender.com/dashboard\n"
+                     f"👉 https://linebot.goc-rtsd.com/dashboard\n"
                      f"━━━━━━━━━━━━━━━━━━\n"
                      f"💡 หรือกดปุ่ม '📍 ส่งตำแหน่งปัจจุบัน' ด้านล่างเพื่อเช็กอินจุดพิกัดทันทีได้เลยครับ")
         quick_reply = QuickReply(items=[

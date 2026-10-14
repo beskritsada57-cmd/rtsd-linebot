@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 สคริปต์สร้างและติดตั้ง LINE Rich Menu แบบ 4 ช่องบูรณาการ (Unified 4-Grid Menu - Style 2)
@@ -78,7 +78,7 @@ def create_unified_4grid_menu():
             # ช่อง 2 (ขวาบน): 🗺️ แผนที่สถานการณ์ & กำลังพล
             {
                 "bounds": {"x": 1250, "y": 0, "width": 1250, "height": 843},
-                "action": {"type": "uri", "uri": "https://rtsd-linebot.onrender.com/map"}
+                "action": {"type": "uri", "uri": "https://linebot.goc-rtsd.com/map"}
             },
             # ช่อง 3 (ซ้ายล่าง): 📞 สายด่วนกู้ภัย & ศูนย์ TOC 24 ชม.
             {

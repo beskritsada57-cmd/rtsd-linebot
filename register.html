@@ -371,8 +371,8 @@
   <!-- JavaScript Form Logic -->
   <script>
     const DATA_URL = "https://script.google.com/macros/s/AKfycbw5Gepu7a5s9j1vXtgE55403L0K3sKtOcpUNArNCm6RJO1ulNp735XyZgAbTlMBwxI/exec";
-    const API_BASE = (window.location.protocol === 'file:' || !window.location.host.includes('onrender.com')) 
-      ? 'https://rtsd-linebot.onrender.com' 
+    const API_BASE = (window.location.protocol === 'file:' || window.location.origin === 'null') 
+      ? 'https://linebot.goc-rtsd.com' 
       : '';
 
     function toggleRankOther(val) {
