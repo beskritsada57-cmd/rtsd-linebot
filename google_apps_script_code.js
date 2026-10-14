@@ -150,6 +150,46 @@ function doPost(e) {
     }
 
     // =========================================================================
+    // 2.5 กรณีสั่งลบผู้ใช้งานออกจากแท็บ Users (action: "delete_user")
+    // =========================================================================
+    if (data.action === "delete_user") {
+      var userSheet = ss.getSheetByName("Users");
+      if (!userSheet) {
+        return ContentService.createTextOutput(JSON.stringify({
+          status: "error", 
+          message: "ไม่พบแท็บ Users ใน Google Sheets"
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+      var targetPhone = (data.phone_number || data.phone || "").toString().trim().replace(/[-\s]/g, "");
+      var targetLineId = (data.line_user_id || "").toString().trim();
+      var uValues = userSheet.getDataRange().getValues();
+      var deletedCount = 0;
+      
+      // วนลูปจากล่างขึ้นบน เพื่อลบแถวได้อย่างปลอดภัย
+      for (var i = uValues.length - 1; i >= 1; i--) {
+        var rowPhone = (uValues[i][3] || "").toString().trim().replace(/[-\s]/g, "");
+        if (rowPhone.length === 9 && (rowPhone[0] === '6' || rowPhone[0] === '8' || rowPhone[0] === '9')) {
+          rowPhone = '0' + rowPhone;
+        }
+        var rowLineId = (uValues[i][1] || "").toString().trim();
+        
+        var matchPhone = targetPhone && (rowPhone === targetPhone || rowPhone.endsWith(targetPhone) || targetPhone.endsWith(rowPhone));
+        var matchLine = targetLineId && rowLineId && rowLineId === targetLineId;
+        
+        if (matchPhone || matchLine) {
+          userSheet.deleteRow(i + 1);
+          deletedCount++;
+        }
+      }
+      
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        deleted_count: deletedCount,
+        message: deletedCount > 0 ? "ลบผู้ใช้สำเร็จ" : "ไม่พบแถวที่ตรงกับเงื่อนไขในตาราง"
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // =========================================================================
     // 3. กรณีสั่งอัปเดตสถานะของเหตุการณ์เดิม (action: "update_status")
     // =========================================================================
     if (data.action === "update_status") {

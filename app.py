@@ -1,4 +1,4 @@
-﻿import os
+import os
 import re
 import time
 import datetime
@@ -2493,17 +2493,18 @@ def api_admin_update_role():
 
 @app.route("/api/admin/delete-user", methods=['POST'])
 def api_admin_delete_user():
-    """แอดมินลบบัญชีผู้ใช้งานออกจากระบบ"""
+    """แอดมินลบบัญชีผู้ใช้งานออกจากระบบ และลบออกจากตาราง Google Sheets ถาวร"""
     data = request.get_json(silent=True) or {}
     phone = str(data.get("phone", "")).strip().replace("-", "").replace(" ", "")
 
-    if not phone or phone not in phone_to_user:
-        return jsonify({"status": "error", "message": "ไม่พบหมายเลขโทรศัพท์นี้ในระบบ"}), 404
+    if not phone:
+        return jsonify({"status": "error", "message": "กรุณาระบุหมายเลขโทรศัพท์ที่ต้องการลบ"}), 400
 
-    user_info = phone_to_user[phone]
+    user_info = phone_to_user.get(phone, {})
     lid = user_info.get("line_user_id", "")
 
-    del phone_to_user[phone]
+    if phone in phone_to_user:
+        del phone_to_user[phone]
     if lid and lid in registered_users:
         del registered_users[lid]
 
@@ -2511,7 +2512,28 @@ def api_admin_delete_user():
     for t in tokens_to_remove:
         del ACTIVE_SESSIONS[t]
 
-    return jsonify({"status": "success", "message": f"ลบบัญชีกำลังพล {phone} เรียบร้อยแล้ว"}), 200
+    # ส่งคำสั่งไปลบแถวในแท็บ Users ของ Google Sheets ถาวร
+    sheet_res = {}
+    try:
+        res = requests.post(
+            GOOGLE_SHEET_URL,
+            json={
+                "action": "delete_user",
+                "phone": phone,
+                "line_user_id": lid
+            },
+            timeout=10
+        )
+        if res.status_code == 200:
+            sheet_res = res.json()
+    except Exception as e:
+        print(f"Error deleting user from Google Sheets: {e}")
+
+    return jsonify({
+        "status": "success", 
+        "message": f"ลบบัญชีกำลังพล {phone} ออกจากระบบและ Google Sheets เรียบร้อยแล้ว",
+        "sheet_sync": sheet_res
+    }), 200
 
 
 @app.route("/api/user/update-profile", methods=['POST'])
