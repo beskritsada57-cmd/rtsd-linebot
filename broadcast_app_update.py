@@ -1,4 +1,4 @@
-﻿"""
+"""
 📡 RTSD Tactical Tracker - LINE Broadcast App Update Script
 สคริปต์สำหรับส่งข้อความแจ้งเตือนเพื่อนและผู้ติดตามทุกคนใน LINE Official Account
 ว่ามีการอัปเดตแอปพลิเคชันเวอร์ชันใหม่ พร้อมลิงก์ดาวน์โหลด APK
@@ -9,9 +9,9 @@ import requests
 
 CHANNEL_ACCESS_TOKEN = "tZwEj7/Os0MEb2g5oQMsZc6/8Uvt0AID8SVj/O5dyRkph1hgP8H3JSdduIh+SIXjQI1rPILjCx3ZVuG+WszETDZxOZZ2oXki4wCIF/kz26gjfE+iz8GCQtYCj4cbFLv3EQrOv/YrsWJ/VwMDns4f7gdB04t89/1O/w1cDnyilFU="
 
-def broadcast_app_update(version="v1.3", changelog=None, download_url="https://linebot.goc-rtsd.com/download/app"):
+def broadcast_app_update(version="v1.4", changelog=None, download_url="https://linebot.goc-rtsd.com/download/app"):
     if not changelog:
-        changelog = "ปรับปรุงระบบถ่ายภาพรายงานหน้างาน และส่งสัญญาณขอกำลังเสริมด่วน (SOS) พร้อมพิกัด GPS สด"
+        changelog = "อัปเดตโลโก้แอปพลิเคชัน 3D Tactical Emblem ใหม่ พร้อมไอคอนบนหน้าจอมือถือ และเพิ่มความเสถียรระบบ GPS"
 
     map_url = "https://linebot.goc-rtsd.com/map"
     dashboard_url = "https://linebot.goc-rtsd.com/dashboard"

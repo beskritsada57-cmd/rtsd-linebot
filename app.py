@@ -703,14 +703,14 @@ def tracker_page():
     return "Tracker HTML template not found on server", 404
 
 
-# 📦 ลิงก์ดาวน์โหลด APK ผ่าน GitHub CDN (ปักที่ commit hash เพื่อไม่ให้เสีย bandwidth ของ Render)
-GITHUB_APK_URL = "https://raw.githubusercontent.com/beskritsada57-cmd/rtsd-linebot/91e798f/RTSD_Tactical_Tracker_v1.3_FullAuth.apk"
+# 📦 ลิงก์ดาวน์โหลด APK ผ่าน Google Drive
+APK_DOWNLOAD_URL = "https://drive.google.com/file/d/15bFxrdtr72Em9C6SBqaVcsRWsL8hvmWU/view?usp=sharing"
 
 @app.route("/download", methods=['GET'])
 @app.route("/download/app", methods=['GET'])
 def download_app_file():
-    """Redirect ไปดาวน์โหลด APK จาก GitHub CDN โดยตรง (ไม่เสิร์ฟจาก Render เพื่อประหยัด Bandwidth)"""
-    return redirect(GITHUB_APK_URL)
+    """Redirect ไปดาวน์โหลด APK จาก Google Drive โดยตรง"""
+    return redirect(APK_DOWNLOAD_URL)
 
 
 @app.route("/api/tracker/update", methods=['POST'])
@@ -3772,8 +3772,8 @@ def handle_text(event):
             "━━━━━━━━━━━━━━━━━━\n"
             "ระบบติดตามพิกัด GPS สด & เรดาร์ยุทธการ สำหรับเจ้าหน้าที่ภาคสนาม\n\n"
             "🎖️ สังกัด: กรมแผนที่ทหาร (RTSD)\n"
-            "📦 เวอร์ชัน: v1.3 (SOS & Direct Photo Report)\n"
-            "⚙️ ขนาดไฟล์: ~55 MB (Android 8.0+)\n"
+            "📦 เวอร์ชัน: v1.4 (Modern 3D Tactical Logo & Live GPS)\n"
+            "⚙️ ขนาดไฟล์: ~56 MB (Android 8.0+)\n"
             "━━━━━━━━━━━━━━━━━━\n"
             "📥 ลิงก์ดาวน์โหลดตรง (.APK):\n"
             "👉 https://linebot.goc-rtsd.com/download/app\n\n"
