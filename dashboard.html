@@ -888,10 +888,10 @@
       </div>
 
       <!-- RIGHT 50%: MULTI-TAB OPERATIONAL COMMAND FEED -->
-      <div id="tacticalRightPanel" class="w-full md:w-1/2 flex flex-col h-full min-h-0 bg-rtsd-card border border-slate-800 rounded-xl p-2.5 shadow-2xl overflow-hidden transition-all duration-300">
+      <div id="tacticalRightPanel" class="w-full md:w-1/2 flex flex-col h-full min-h-0 bg-rtsd-card border border-slate-800 rounded-xl p-2.5 shadow-2xl overflow-hidden transition-all duration-300" style="overflow-y: hidden !important;">
         
-        <!-- Tab Bar Header -->
-        <div class="shrink-0 flex items-center justify-between pb-2 border-b border-slate-800/80 mb-2 gap-2 flex-wrap">
+        <!-- Tab Bar Header (Sticky pinned at top) -->
+        <div id="rightPanelTabBarHeader" class="shrink-0 flex items-center justify-between pb-2 border-b border-slate-800/80 mb-2 gap-2 flex-wrap sticky top-0 z-20 bg-rtsd-card">
           <div class="flex items-center gap-1 p-1 bg-slate-900/95 rounded-xl border border-slate-800 text-xs font-semibold">
             <!-- Tab 1: Incident Feed (Default Active) -->
             <button id="tabFeedIncidents" onclick="switchRightPanelTab('incidents')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-md shadow-red-900/30 transition-all cursor-pointer text-xs font-bold">
@@ -1147,6 +1147,24 @@
         <!-- =================================================================== -->
         <div id="panelCctvView" class="hidden flex-1 min-h-0 flex flex-col">
           
+          <!-- 📊 Tactical Status Summary Bar (แสดงจำนวนเหตุการณ์และคนออนไลน์ตลอดเวลา) -->
+          <div class="shrink-0 flex items-center justify-between p-2 mb-2 rounded-xl bg-slate-900/95 border border-slate-800 text-xs shadow-md">
+            <div class="flex items-center gap-2.5 sm:gap-3 flex-wrap">
+              <button onclick="switchRightPanelTab('incidents')" class="flex items-center gap-1.5 text-rose-400 hover:text-rose-300 font-bold cursor-pointer transition" title="คลิกเพื่อกลับไปดูรายการเหตุการณ์">
+                <i class="fa-solid fa-bullhorn text-xs text-amber-300 animate-pulse"></i> <span>เหตุการณ์:</span>
+                <span id="cctvTopIncidentCount" class="px-2 py-0.5 rounded-full bg-rose-950 border border-rose-700/60 text-white font-mono font-bold text-xs">0</span> รายการ
+              </button>
+              <span class="text-slate-700">|</span>
+              <button onclick="switchRightPanelTab('units')" class="flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 font-bold cursor-pointer transition" title="คลิกเพื่อกลับไปดูชุดปฏิบัติการ">
+                <i class="fa-solid fa-crosshairs text-xs text-sky-400"></i> <span>คนออนไลน์:</span>
+                <span id="cctvTopOnlineCount" class="px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-700/60 text-emerald-300 font-mono font-bold text-xs">0</span> นาย
+              </button>
+            </div>
+            <button onclick="switchRightPanelTab('incidents')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-semibold transition flex items-center gap-1.5 border border-slate-700 cursor-pointer shadow-sm">
+              <i class="fa-solid fa-arrow-left text-sky-400"></i> <span>กลับดูเหตุการณ์</span>
+            </button>
+          </div>
+
           <!-- 📺 RTSD HLS LIVE MONITOR PLAYER (แสดงภาพตามจุดที่คลิกในแผนที่) -->
           <div id="rtsdHlsMonitorCard" class="shrink-0 mb-2 p-2.5 rounded-xl bg-slate-950/90 border border-emerald-500/40 shadow-xl transition-all">
             <!-- Header bar of the active stream -->
@@ -1160,6 +1178,9 @@
                 <span id="rtsdMonitorBadge" class="hidden px-1.5 py-0.2 rounded text-[8px] font-mono bg-emerald-950 text-emerald-300 border border-emerald-500/40 shrink-0">RTSD LIVE</span>
               </div>
               <div class="flex items-center gap-1.5 shrink-0">
+                <button onclick="switchRightPanelTab('incidents')" class="px-2 py-0.5 rounded bg-rose-950/80 hover:bg-rose-900 text-rose-300 hover:text-white text-[10px] font-bold transition flex items-center gap-1 border border-rose-700/50 cursor-pointer" title="ปิดกล้องและกลับไปดูแถบเหตุการณ์">
+                  <i class="fa-solid fa-xmark text-rose-400"></i> <span>ปิดกล้อง</span>
+                </button>
                 <a id="rtsdMonitorGeoPortalLink" href="https://geoportal.rtsd.mi.th/portal/home/item.html?id=b8b872b1146e410b82791dcb08ad66cb" target="_blank" rel="noopener noreferrer" class="px-2 py-0.5 rounded bg-emerald-700/40 hover:bg-emerald-600 text-emerald-200 text-[10px] font-medium transition flex items-center gap-1 border border-emerald-500/30" title="เปิด RTSD GeoPortal Item (b8b872b1146e410b82791dcb08ad66cb)">
                   <i class="fa-solid fa-earth-asia"></i> <span>RTSD Item</span>
                   <i class="fa-solid fa-arrow-up-right-from-square text-[8px]"></i>
@@ -3585,6 +3606,9 @@
       if (incResEl) incResEl.innerText = resolved;
       const badgeIncTotal = document.getElementById('badgeIncidentsTotal');
       if (badgeIncTotal) badgeIncTotal.innerText = total;
+      if (typeof updateCctvTopKpiCounts === 'function') {
+        updateCctvTopKpiCounts();
+      }
 
       const rightTypeFilter = document.getElementById('tacticalIncidentTypeFilter');
       if (rightTypeFilter) {
@@ -5018,6 +5042,11 @@
     // =========================================================================
     function switchRightPanelTab(tabName) {
       currentRightPanelTab = tabName;
+      const panel = document.getElementById('tacticalRightPanel');
+      if (panel) panel.scrollTop = 0;
+      if (typeof updateCctvTopKpiCounts === 'function') {
+        updateCctvTopKpiCounts();
+      }
       const pIncidents = document.getElementById('panelIncidentsView');
       const pUnits = document.getElementById('panelUnitsView');
       const pStats = document.getElementById('panelStatsView');
@@ -17889,17 +17918,38 @@
         }
       }
 
-      // ไฮไลต์การ์ดที่กำลังเล่นอยู่ในรายการด้านล่าง
-      renderRightPanelCctvList();
+      // อัปเดตตัวเลขเหตุการณ์และคนออนไลน์บนแถบสรุปของกล้อง
+      if (typeof updateCctvTopKpiCounts === 'function') {
+        updateCctvTopKpiCounts();
+      }
 
+      // เลื่อนเฉพาะรายการกล้องด้านล่าง ไม่ให้แถบหัวข้อหลักของ tacticalRightPanel เลื่อนหลุดเฟรม
       setTimeout(() => {
+        const panel = document.getElementById('tacticalRightPanel');
+        if (panel) panel.scrollTop = 0;
+        const list = document.getElementById('cctvCardsList');
         const activeCard = document.querySelector(`.cctv-right-card[data-cctv-code="${cam.code}"]`);
-        if (activeCard) {
-          activeCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        if (list && activeCard) {
+          const targetTop = activeCard.offsetTop - list.offsetTop - 8;
+          list.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
         }
-      }, 150);
+      }, 100);
     }
     window.playRtsdCameraInRightPanel = playRtsdCameraInRightPanel;
+
+    function updateCctvTopKpiCounts() {
+      const cctvIncEl = document.getElementById('cctvTopIncidentCount');
+      const badgeIncTotal = document.getElementById('badgeIncidentsTotal');
+      if (cctvIncEl && badgeIncTotal) {
+        cctvIncEl.innerText = badgeIncTotal.innerText || '0';
+      }
+      const cctvOnlineEl = document.getElementById('cctvTopOnlineCount');
+      const tabUnitsActive = document.getElementById('badgeUnitsActive');
+      if (cctvOnlineEl && tabUnitsActive) {
+        cctvOnlineEl.innerText = tabUnitsActive.innerText || '0';
+      }
+    }
+    window.updateCctvTopKpiCounts = updateCctvTopKpiCounts;
 
     function retryActiveRtsdStream() {
       if (typeof activeCctvIndex === 'number' && activeCctvIndex >= 0) {
@@ -19373,6 +19423,9 @@
       if (badgeOffline) badgeOffline.innerText = `⚪ ${countOffline} OFFLINE`;
       const tabUnitsActive = document.getElementById('badgeUnitsActive');
       if (tabUnitsActive) tabUnitsActive.innerText = countActive;
+      if (typeof updateCctvTopKpiCounts === 'function') {
+        updateCctvTopKpiCounts();
+      }
 
       if (displayUnits.length === 0) {
         container.innerHTML = `
