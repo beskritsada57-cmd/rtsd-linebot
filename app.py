@@ -248,6 +248,50 @@ def save_user_credentials():
 
 load_user_credentials()
 
+# 🔐 Persistent OTP Cache Store (รองรับ Multi-worker และป้องกัน OTP หายเวลารีสตาร์ทคอนเทนเนอร์)
+OTP_CACHE_FILE = os.path.join(os.path.dirname(__file__), "otp_cache.json")
+
+def get_cached_otp(phone):
+    global otp_cache
+    if os.path.exists(OTP_CACHE_FILE):
+        try:
+            with open(OTP_CACHE_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if phone in data:
+                    otp_cache[phone] = data[phone]
+                    return data[phone]
+        except Exception:
+            pass
+    return otp_cache.get(phone)
+
+def set_cached_otp(phone, entry):
+    global otp_cache
+    otp_cache[phone] = entry
+    try:
+        data = {}
+        if os.path.exists(OTP_CACHE_FILE):
+            with open(OTP_CACHE_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        data[phone] = entry
+        with open(OTP_CACHE_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Error saving otp_cache: {e}")
+
+def delete_cached_otp(phone):
+    global otp_cache
+    otp_cache.pop(phone, None)
+    if os.path.exists(OTP_CACHE_FILE):
+        try:
+            with open(OTP_CACHE_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if phone in data:
+                del data[phone]
+                with open(OTP_CACHE_FILE, "w", encoding="utf-8") as f:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+
 
 
 def fetch_registered_users():
@@ -1902,12 +1946,12 @@ def api_request_otp():
             "message": "หมายเลขโทรศัพท์นี้ยังไม่ได้เชื่อมต่อกับ LINE Bot กรุณาเพิ่มเพื่อน LINE (@411vtica) แล้วพิมพ์เบอร์โทรส่งเข้าแชตก่อนขอ OTP ครับ"
         }), 400
 
-    # บันทึก OTP ลงแคช
-    otp_cache[phone] = {
+    # บันทึก OTP ลงแคช (RAM + File)
+    set_cached_otp(phone, {
         "otp": otp_code,
         "expires_at": time.time() + 300,  # 5 นาที
         "user_info": user_info
-    }
+    })
 
     try:
         with ApiClient(configuration) as api_client:
@@ -2256,15 +2300,15 @@ def api_verify_otp():
         }), 200
 
     # 3. ตรวจสอบ OTP ผ่าน LINE
-    cached = otp_cache.get(phone)
+    cached = get_cached_otp(phone)
     if not cached:
         return jsonify({"status": "error", "message": "ไม่พบคำขอ OTP หรือรหัสหมดอายุแล้ว กรุณากดขอใหม่"}), 400
 
-    if time.time() > cached["expires_at"]:
-        del otp_cache[phone]
+    if time.time() > cached.get("expires_at", 0):
+        delete_cached_otp(phone)
         return jsonify({"status": "error", "message": "รหัส OTP หมดอายุแล้ว (เกิน 5 นาที) กรุณากดขอใหม่"}), 400
 
-    if cached["otp"] != otp:
+    if cached.get("otp") != otp:
         return jsonify({"status": "error", "message": "รหัส OTP ไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง"}), 400
 
     user_info = cached.get("user_info") or phone_to_user.get(phone)
@@ -2288,7 +2332,7 @@ def api_verify_otp():
     if phone in ADMIN_PHONES:
         user_info["role"] = "ผู้ดูแลระบบสูงสุด (Super Admin)"
     user_info["permissions"] = get_user_permissions(user_info.get("role", ""))
-    del otp_cache[phone]
+    delete_cached_otp(phone)
 
     token = f"token-{phone}-{int(time.time())}"
     ACTIVE_SESSIONS[token] = {
