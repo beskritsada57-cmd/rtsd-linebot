@@ -627,26 +627,28 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // 🛡️ RTSD Header Icon & Title
+                // 🛡️ RTSD Header Logo & Title
                 Center(
                   child: Container(
-                    padding: const EdgeInsets.all(16),
+                    width: 96,
+                    height: 96,
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.12),
                       shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.primaryLight.withOpacity(0.4), width: 1.5),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primary.withOpacity(0.2),
-                          blurRadius: 20,
+                          color: Colors.cyan.withOpacity(0.35),
+                          blurRadius: 24,
                           spreadRadius: 2,
                         )
                       ],
                     ),
-                    child: const Icon(
-                      Icons.shield,
-                      size: 48,
-                      color: AppColors.primaryLight,
+                    child: ClipOval(
+                      child: Image.asset(
+                        'assets/images/app_logo.png',
+                        width: 96,
+                        height: 96,
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
                 ),
