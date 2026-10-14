@@ -1,4 +1,4 @@
-﻿import os
+import os
 import sys
 import io
 import time
@@ -21,7 +21,7 @@ TARGET_LAYER_URL = "https://geoportal.rtsd.mi.th/arcgis/rest/services/Hosted/inc
 TRACKER_LAYER_URL = "https://geoportal.rtsd.mi.th/arcgis/rest/services/Hosted/rtsd_live_trackers/FeatureServer/0"
 
 # Web App URL ของ Google Sheets และ API สำหรับ Trackers
-GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbw5Gepu7a5s9j1vXtgE55403L0K3sKtOcpUNArNCm6RJO1ulNp735XyZgAbTlMBwxI/exec"
+GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbwX4BwiTCEy7gZCymlGDF9_-WArI9RCIsxTpJ2vOOhEp3C2-ut-Pe5S_fN0IpXP-y8/exec"
 TRACKER_UNITS_URL = "https://linebot.goc-rtsd.com/api/tracker/units"
 
 # ไฟล์บันทึกประวัติแถวที่ Sync ไปแล้ว เพื่อไม่ให้ปักหมุดซ้ำ
