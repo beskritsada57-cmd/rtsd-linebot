@@ -105,7 +105,7 @@ phone_to_user = {
         "unit": "กรมแผนที่ทหาร (RTSD)",
         "position": "ผู้ดูแลระบบหลัก",
         "status": "อนุมัติแล้ว",
-        "line_user_id": "-"
+        "line_user_id": "U2e495c2521fcf6fda9afee8924b3ba55"
     }
 }
 otp_cache = {}         # { phone: {"otp": "123456", "expires_at": timestamp, "user_info": ...} }
@@ -239,7 +239,7 @@ def fetch_registered_users():
         "unit": "กรมแผนที่ทหาร (RTSD)",
         "position": "ผู้ดูแลระบบหลัก",
         "status": "อนุมัติแล้ว",
-        "line_user_id": phone_to_user.get(master_phone, {}).get("line_user_id", "-"),
+        "line_user_id": phone_to_user.get(master_phone, {}).get("line_user_id") if str(phone_to_user.get(master_phone, {}).get("line_user_id", "")).startswith("U") else "U2e495c2521fcf6fda9afee8924b3ba55",
         "picture_profile": existing_master_pic,
         "permissions": get_user_permissions("ผู้ดูแลระบบสูงสุด (Super Admin)")
     }
@@ -297,10 +297,13 @@ def fetch_registered_users():
                         "picture_profile": final_pic,
                         "permissions": get_user_permissions(role)
                     }
-                    if lid and lid != "-":
-                        registered_users[lid] = user_data_item
+                    current_lid = current_entry.get("line_user_id", "")
+                    best_lid = lid if str(lid).startswith("U") else (current_lid if str(current_lid).startswith("U") else lid)
+
+                    if best_lid and best_lid != "-":
+                        registered_users[best_lid] = user_data_item
                     if phone:
-                        phone_to_user[phone] = {"line_user_id": lid, **user_data_item}
+                        phone_to_user[phone] = {"line_user_id": best_lid, **user_data_item}
     except Exception as e:
         print(f"Error fetching users: {e}")
 
