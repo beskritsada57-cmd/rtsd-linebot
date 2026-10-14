@@ -19,10 +19,15 @@ PORTAL_USER = "goc01@2024"
 PORTAL_PASS = "GEOINT@rtsd_09_69"
 TARGET_LAYER_URL = "https://geoportal.rtsd.mi.th/arcgis/rest/services/Hosted/incident_reports_template/FeatureServer/0"
 TRACKER_LAYER_URL = "https://geoportal.rtsd.mi.th/arcgis/rest/services/Hosted/rtsd_live_trackers/FeatureServer/0"
+PATROL_TRACKS_LAYER_URL = os.environ.get(
+    "PATROL_TRACKS_LAYER_URL",
+    "https://geoportal.rtsd.mi.th/arcgis/rest/services/Hosted/rtsd_patrol_tracks/FeatureServer/0"
+)
 
 # Web App URL ของ Google Sheets และ API สำหรับ Trackers
 GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbwX4BwiTCEy7gZCymlGDF9_-WArI9RCIsxTpJ2vOOhEp3C2-ut-Pe5S_fN0IpXP-y8/exec"
 TRACKER_UNITS_URL = "https://linebot.goc-rtsd.com/api/tracker/units"
+TRACKS_API_URL = "https://linebot.goc-rtsd.com/api/tracker/tracks"
 
 # ไฟล์บันทึกประวัติแถวที่ Sync ไปแล้ว เพื่อไม่ให้ปักหมุดซ้ำ
 SYNC_HISTORY_FILE = os.path.join(os.path.dirname(__file__), "synced_reports.json")
@@ -363,6 +368,84 @@ def sync_live_trackers_to_rtsd(token):
         pass
 
 
+def sync_patrol_tracks_to_rtsd(token):
+    """ซิงค์เส้นทางประวัติการเคลื่อนที่ (Polyline LineString) ของชุดปฏิบัติการขึ้น Geoportal RTSD"""
+    try:
+        res = requests.get(TRACKS_API_URL, timeout=10)
+        if res.status_code != 200:
+            return
+        data = res.json()
+        features = data.get("features", [])
+        if not features:
+            return
+
+        headers = {'referer': PORTAL_URL}
+        updated_count = 0
+
+        for feat in features:
+            coords = feat.get("geometry", {}).get("coordinates", [])
+            props = feat.get("properties", {})
+            uid = props.get("unit_id")
+            if not uid or len(coords) < 2:
+                continue
+
+            polyline_geom = {
+                "paths": [coords],
+                "spatialReference": {"wkid": 4326}
+            }
+
+            feature_attrs = {
+                "unit_id": str(uid)[:50],
+                "unit_name": str(props.get("unit_name", ""))[:100],
+                "commander": str(props.get("commander", ""))[:100],
+                "status": str(props.get("status", "🟢 ปฏิบัติการ"))[:50],
+                "total_distance_km": float(props.get("total_distance_km", 0)),
+                "avg_speed": float(props.get("avg_speed", 0)),
+                "point_count": int(props.get("point_count", len(coords))),
+                "start_time": str(props.get("start_time", ""))[:50],
+                "last_update": str(props.get("last_update", ""))[:50]
+            }
+
+            try:
+                q_res = requests.get(f"{PATROL_TRACKS_LAYER_URL}/query", params={
+                    "where": f"unit_id = '{uid}'",
+                    "outFields": "objectid",
+                    "f": "json",
+                    "token": token
+                }, headers=headers, verify=False, timeout=10).json()
+
+                if "error" in q_res:
+                    continue
+
+                existing = q_res.get("features", [])
+                if existing:
+                    obj_id = existing[0]["attributes"]["objectid"]
+                    feature_attrs["objectid"] = obj_id
+                    r = requests.post(f"{PATROL_TRACKS_LAYER_URL}/updateFeatures", data={
+                        'features': json.dumps([{"geometry": polyline_geom, "attributes": feature_attrs}]),
+                        'token': token,
+                        'f': 'json'
+                    }, headers=headers, verify=False, timeout=15).json()
+                    if r.get("updateResults"):
+                        updated_count += 1
+                else:
+                    r = requests.post(f"{PATROL_TRACKS_LAYER_URL}/addFeatures", data={
+                        'features': json.dumps([{"geometry": polyline_geom, "attributes": feature_attrs}]),
+                        'token': token,
+                        'f': 'json'
+                    }, headers=headers, verify=False, timeout=15).json()
+                    if r.get("addResults"):
+                        updated_count += 1
+            except Exception:
+                pass
+
+        if updated_count > 0:
+            print(f"\n🛣️ ซิงค์เส้นทางลาดตระเวน (Polyline) ขึ้น RTSD สำเร็จ {updated_count} หน่วย")
+
+    except Exception:
+        pass
+
+
 def main():
     print("=" * 65)
     print("🚀 ระบบอัตโนมัติ: เชื่อมโยงข้อมูล LINE Bot ➔ Google Sheets ➔ Geoportal RTSD")
@@ -370,6 +453,7 @@ def main():
     print(f"📡 ติดตามตาราง: {GOOGLE_SHEET_URL[:55]}...")
     print(f"🗺️ ปลายทางเหตุการณ์: {TARGET_LAYER_URL}")
     print(f"🛰️ ปลายทางพิกัดสด: {TRACKER_LAYER_URL}")
+    print(f"🛣️ ปลายทางเส้นทางเดิน: {PATROL_TRACKS_LAYER_URL}")
     print("🔄 ตรวจสอบข้อมูลใหม่ทุกๆ 30 วินาที (กด Ctrl + C เพื่อหยุดการทำงาน)\n")
 
     synced_history = load_synced_history()
@@ -384,8 +468,10 @@ def main():
             if token:
                 # 1. ซิงค์เหตุการณ์จาก Google Sheets
                 synced_history = sync_once(synced_history)
-                # 2. ซิงค์พิกัดสดของหน่วยกำลังพล / รถยนต์
+                # 2. ซิงค์พิกัดสดของหน่วยกำลังพล / รถยนต์ (Point)
                 sync_live_trackers_to_rtsd(token)
+                # 3. ซิงค์เส้นทางประวัติการเคลื่อนที่ (Polyline LineString)
+                sync_patrol_tracks_to_rtsd(token)
                 
             time.sleep(30)
         except KeyboardInterrupt:

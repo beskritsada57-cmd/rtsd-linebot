@@ -292,6 +292,44 @@ def delete_cached_otp(phone):
         except Exception:
             pass
 
+# 🗺️ Patrol Route Tracklines Store (บันทึกเส้นทางเดินของแต่ละชุดปฏิบัติการแบบ Polyline)
+UNIT_TRACKS_FILE = os.path.join(os.path.dirname(__file__), "unit_tracks.json")
+unit_tracks = {} # { unit_id: [ {"lon": 100.x, "lat": 13.y, "time": "...", "speed": 10, "heading": 90}, ... ] }
+
+def load_unit_tracks():
+    global unit_tracks
+    if os.path.exists(UNIT_TRACKS_FILE):
+        try:
+            with open(UNIT_TRACKS_FILE, "r", encoding="utf-8") as f:
+                unit_tracks = json.load(f)
+        except Exception as e:
+            print(f"Error loading unit_tracks.json: {e}")
+            unit_tracks = {}
+    else:
+        unit_tracks = {}
+
+def save_unit_tracks():
+    try:
+        with open(UNIT_TRACKS_FILE, "w", encoding="utf-8") as f:
+            json.dump(unit_tracks, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Error saving unit_tracks.json: {e}")
+
+def calculate_track_distance_km(pts):
+    if not pts or len(pts) < 2:
+        return 0.0
+    total_m = 0.0
+    for i in range(len(pts) - 1):
+        p1 = pts[i]
+        p2 = pts[i + 1]
+        dlat = (p2["lat"] - p1["lat"]) * 111320
+        dlon = (p2["lon"] - p1["lon"]) * 111320 * math.cos(math.radians((p1["lat"] + p2["lat"]) / 2.0))
+        total_m += math.sqrt(dlat * dlat + dlon * dlon)
+    return round(total_m / 1000.0, 2)
+
+load_unit_tracks()
+
+
 
 
 def fetch_registered_users():
@@ -776,13 +814,16 @@ def api_tracker_update():
     speed = float(data.get("speed", 0))
     raw_status = str(data.get("status", "🟢 สแตนด์บายพร้อมปฏิบัติการ")).strip()
     
+    lat = float(data.get("latitude", 0))
+    lon = float(data.get("longitude", 0))
+
     # Real-time state deduction: ถ้า speed > 2 กม./ชม. หรือมีคีย์เวิร์ดภารกิจถือว่า ACTIVE เคลื่อนที่
     active_trackers[unit_id] = {
         "unit_id": unit_id,
         "unit_name": str(data.get("unit_name", "ชุดปฏิบัติการ")),
         "commander": commander,
-        "latitude": float(data.get("latitude", 0)),
-        "longitude": float(data.get("longitude", 0)),
+        "latitude": lat,
+        "longitude": lon,
         "speed": speed,
         "heading": float(data.get("heading", 0)),
         "battery": int(data.get("battery", 100)),
@@ -793,6 +834,31 @@ def api_tracker_update():
         "last_update": data.get("timestamp", time.strftime("%Y-%m-%d %H:%M:%S")),
         "last_seen_epoch": time.time()
     }
+
+    # 🗺️ บันทึกประวัติพิกัดลง Tracklines (Polyline) ของชุดปฏิบัติการ
+    if lat != 0 and lon != 0 and -90 <= lat <= 90 and -180 <= lon <= 180:
+        if unit_id not in unit_tracks:
+            unit_tracks[unit_id] = []
+        pts = unit_tracks[unit_id]
+        should_add = True
+        if pts:
+            last_pt = pts[-1]
+            dlat = (lat - last_pt["lat"]) * 111320
+            dlon = (lon - last_pt["lon"]) * 111320 * math.cos(math.radians(lat))
+            if math.sqrt(dlat * dlat + dlon * dlon) < 4.0:
+                should_add = False
+        if should_add:
+            pts.append({
+                "lon": round(lon, 6),
+                "lat": round(lat, 6),
+                "time": data.get("timestamp", time.strftime("%Y-%m-%d %H:%M:%S")),
+                "speed": speed,
+                "heading": float(data.get("heading", 0))
+            })
+            if len(pts) > 3000:
+                unit_tracks[unit_id] = pts[-3000:]
+            save_unit_tracks()
+
     return jsonify({"status": "success", "unit_id": unit_id}), 200
 
 
@@ -841,6 +907,133 @@ def get_computed_active_units():
 def api_tracker_units():
     """ส่งรายการพิกัดสดของทุกหน่วยให้ Dashboard และ Geoportal RTSD Sync โดยคำนวณสถานะ ACTIVE/STANDBY/OFFLINE ตามเวลาจริง"""
     return jsonify(get_computed_active_units()), 200
+
+
+@app.route("/api/tracker/tracks", methods=['GET'])
+def api_tracker_tracks():
+    """ส่งข้อมูลประวัติเส้นทางเดินลาดตระเวน (Patrol Tracks) ของทุกหน่วยในรูปแบบ GeoJSON LineString"""
+    target_unit = request.args.get("unit_id")
+    features = []
+    
+    for uid, pts in unit_tracks.items():
+        if target_unit and uid != target_unit:
+            continue
+        if len(pts) < 1:
+            continue
+        
+        info = active_trackers.get(uid, {})
+        unit_name = info.get("unit_name", f"ชุดปฏิบัติการ {uid}")
+        commander = info.get("commander", "หัวหน้าชุด")
+        status = info.get("status", "🟢 ปฏิบัติการ")
+        
+        line_coords = [[p["lon"], p["lat"]] for p in pts]
+        dist_km = calculate_track_distance_km(pts)
+        speeds = [p.get("speed", 0) for p in pts if p.get("speed", 0) > 0]
+        avg_speed = round(sum(speeds) / len(speeds), 1) if speeds else 0.0
+        
+        feat = {
+            "type": "Feature",
+            "geometry": {
+                "type": "LineString",
+                "coordinates": line_coords
+            },
+            "properties": {
+                "unit_id": uid,
+                "unit_name": unit_name,
+                "commander": commander,
+                "status": status,
+                "point_count": len(pts),
+                "total_distance_km": dist_km,
+                "avg_speed": avg_speed,
+                "start_time": pts[0].get("time", "-"),
+                "last_update": pts[-1].get("time", "-"),
+                "points": pts[-50:] # 50 จุดล่าสุดสำหรับ tooltip
+            }
+        }
+        features.append(feat)
+        
+    return jsonify({
+        "type": "FeatureCollection",
+        "features": features
+    }), 200
+
+
+@app.route("/api/tracker/tracks/clear", methods=['POST'])
+def api_tracker_tracks_clear():
+    """ล้างประวัติเส้นทางเดิน (เฉพาะ Admin)"""
+    target_unit = request.args.get("unit_id")
+    if target_unit:
+        unit_tracks.pop(target_unit, None)
+    else:
+        unit_tracks.clear()
+    save_unit_tracks()
+    return jsonify({"status": "success", "message": "Cleared track logs"}), 200
+
+
+@app.route("/api/tracker/export/kml", methods=['GET'])
+def api_tracker_export_kml():
+    """ดาวน์โหลดเส้นทางลาดตระเวนเป็นไฟล์ KML สำหรับ Google Earth / ArcGIS"""
+    target_unit = request.args.get("unit_id", "ALL")
+    kml = ['<?xml version="1.0" encoding="UTF-8"?>']
+    kml.append('<kml xmlns="http://www.opengis.net/kml/2.2">')
+    kml.append('<Document>')
+    kml.append('<name>RTSD Tactical Patrol Routes</name>')
+    kml.append('<description>เส้นทางเดินลาดตระเวนชุดปฏิบัติการ กรมแผนที่ทหาร</description>')
+    kml.append('<Style id="patrolLine"><LineStyle><color>ff00ff00</color><width>4</width></LineStyle></Style>')
+    
+    for uid, pts in unit_tracks.items():
+        if target_unit != "ALL" and uid != target_unit:
+            continue
+        if len(pts) < 2:
+            continue
+        info = active_trackers.get(uid, {})
+        u_name = info.get("unit_name", uid)
+        dist = calculate_track_distance_km(pts)
+        
+        kml.append('<Placemark>')
+        kml.append(f'<name>{u_name} ({dist} กม.)</name>')
+        kml.append(f'<description>หน่วย: {uid}&#10;ระยะทางรวม: {dist} กม.&#10;จุดตรวจ: {len(pts)} จุด</description>')
+        kml.append('<styleUrl>#patrolLine</styleUrl>')
+        kml.append('<LineString><extrude>1</extrude><tessellate>1</tessellate><coordinates>')
+        coords_str = " ".join([f"{p['lon']},{p['lat']},0" for p in pts])
+        kml.append(coords_str)
+        kml.append('</coordinates></LineString>')
+        kml.append('</Placemark>')
+        
+    kml.append('</Document></kml>')
+    response = make_response("\n".join(kml))
+    response.headers["Content-Type"] = "application/vnd.google-earth.kml+xml; charset=utf-8"
+    response.headers["Content-Disposition"] = f"attachment; filename=rtsd_patrol_tracks_{int(time.time())}.kml"
+    return response
+
+
+@app.route("/api/tracker/export/gpx", methods=['GET'])
+def api_tracker_export_gpx():
+    """ดาวน์โหลดเส้นทางลาดตระเวนเป็นไฟล์ GPX สำหรับอุปกรณ์ GPS Garmin / GIS"""
+    target_unit = request.args.get("unit_id", "ALL")
+    gpx = ['<?xml version="1.0" encoding="UTF-8"?>']
+    gpx.append('<gpx version="1.1" creator="RTSD Tactical Tracker" xmlns="http://www.topografix.com/GPX/1/1">')
+    
+    for uid, pts in unit_tracks.items():
+        if target_unit != "ALL" and uid != target_unit:
+            continue
+        if len(pts) < 2:
+            continue
+        info = active_trackers.get(uid, {})
+        u_name = info.get("unit_name", uid)
+        dist = calculate_track_distance_km(pts)
+        
+        gpx.append(f'<trk><name>{u_name}</name><desc>ระยะทาง: {dist} km</desc><trkseg>')
+        for p in pts:
+            gpx.append(f'<trkpt lat="{p["lat"]}" lon="{p["lon"]}"><time>{p["time"].replace(" ", "T")}Z</time><speed>{p.get("speed", 0)}</speed></trkpt>')
+        gpx.append('</trkseg></trk>')
+        
+    gpx.append('</gpx>')
+    response = make_response("\n".join(gpx))
+    response.headers["Content-Type"] = "application/gpx+xml; charset=utf-8"
+    response.headers["Content-Disposition"] = f"attachment; filename=rtsd_patrol_tracks_{int(time.time())}.gpx"
+    return response
+
 
 
 @app.route("/api/system/settings", methods=['GET', 'POST'])

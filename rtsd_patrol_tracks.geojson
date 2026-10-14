@@ -1,0 +1,29 @@
+{
+  "type": "FeatureCollection",
+  "name": "rtsd_patrol_tracks",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [100.5912, 13.7857],
+          [100.5925, 13.7870],
+          [100.5940, 13.7895]
+        ]
+      },
+      "properties": {
+        "track_id": "TRK-UNIT-01-20261014",
+        "unit_id": "UNIT-01",
+        "unit_name": "ชุดปฏิบัติการช่วยเหลือที่ 1 (RTSD)",
+        "commander": "ร.อ. กฤษดา (หัวหน้าชุด)",
+        "mission": "ลาดตระเวนสำรวจเส้นทางและช่วยเหลือประชาชน",
+        "total_distance_km": 1.25,
+        "avg_speed": 18.5,
+        "start_time": "2026-10-14 08:30:00",
+        "last_update": "2026-10-14 15:15:00",
+        "status": "🟢 กำลังลาดตระเวน"
+      }
+    }
+  ]
+}

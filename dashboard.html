@@ -686,6 +686,25 @@
                   <input type="checkbox" id="chkFilterCctv" checked onchange="toggleLayerFilter('cctv', this.checked)" class="accent-emerald-500 rounded cursor-pointer">
                 </label>
 
+                <!-- Toggle Patrol Tracks (Polyline) -->
+                <label class="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-800/80 cursor-pointer select-none">
+                  <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
+                    <span class="text-cyan-300 font-medium">🛣️ เส้นทางลาดตระเวน (Tracks)</span>
+                  </div>
+                  <input type="checkbox" id="chkFilterTracks" checked onchange="toggleLayerFilter('tracks', this.checked)" class="accent-cyan-500 rounded cursor-pointer">
+                </label>
+
+                <!-- Export Patrol Tracks Buttons -->
+                <div class="pt-1.5 border-t border-slate-800 flex items-center justify-between gap-1 text-[10px]">
+                  <a href="/api/tracker/export/kml" target="_blank" class="flex-1 py-1 text-center bg-cyan-950/70 hover:bg-cyan-900/90 text-cyan-300 rounded border border-cyan-800/60 hover:border-cyan-400 transition-all font-medium" title="ดาวน์โหลดเส้นทางเป็น KML สำหรับ Google Earth / ArcGIS">
+                    <i class="fa-solid fa-download mr-1"></i>KML (ArcGIS)
+                  </a>
+                  <a href="/api/tracker/export/gpx" target="_blank" class="flex-1 py-1 text-center bg-emerald-950/70 hover:bg-emerald-900/90 text-emerald-300 rounded border border-emerald-800/60 hover:border-emerald-400 transition-all font-medium" title="ดาวน์โหลดเส้นทางเป็น GPX สำหรับเครื่อง GPS Garmin">
+                    <i class="fa-solid fa-file-export mr-1"></i>GPX (Garmin)
+                  </a>
+                </div>
+
                 <!-- Action: Clear / Delete all custom pins -->
                 <div class="pt-1.5 border-t border-slate-800 flex items-center justify-between gap-1 text-[11px]">
                   <button onclick="clearAllCustomPins()" class="w-full py-1 px-2 rounded-lg bg-rose-950/60 hover:bg-rose-900 border border-rose-500/30 text-rose-300 hover:text-white transition-all flex items-center justify-center gap-1.5 cursor-pointer">
@@ -7596,6 +7615,7 @@
     let currentBasemap = 'satellite';
     let isRadarSweepActive = false;
     let tacticalMarkers = {};
+    let tacticalTrackPolylines = {};
     let activeTacticalUnits = [];
     let tacticalPollInterval = null;
     let lockedTargetUnitId = null;
@@ -7638,7 +7658,8 @@
       incidents: true,
       units: true,
       pins: true,
-      cctv: true
+      cctv: true,
+      tracks: true
     };
     try {
       const savedLayers = localStorage.getItem('rtsd_layer_filters');
@@ -7755,6 +7776,17 @@
         } else {
           showToast('🙈 ซ่อนหมุดกล้อง CCTV บนแผนที่แล้ว');
         }
+      } else if (type === 'tracks') {
+        if (typeof tacticalTrackPolylines !== 'undefined') {
+          Object.keys(tacticalTrackPolylines).forEach(k => {
+            if (isVisible) {
+              if (!tacticalMap.hasLayer(tacticalTrackPolylines[k])) tacticalTrackPolylines[k].addTo(tacticalMap);
+            } else {
+              if (tacticalMap.hasLayer(tacticalTrackPolylines[k])) tacticalMap.removeLayer(tacticalTrackPolylines[k]);
+            }
+          });
+        }
+        showToast(isVisible ? '🛣️ เปิดแสดงเส้นทางลาดตระเวน' : '🙈 ซ่อนเส้นทางลาดตระเวนบนแผนที่แล้ว');
       }
 
       updateLayerFilterBadge();
@@ -7789,11 +7821,13 @@
         const chkUnits = document.getElementById('chkFilterUnits');
         const chkPins = document.getElementById('chkFilterPins');
         const chkCctv = document.getElementById('chkFilterCctv');
+        const chkTracks = document.getElementById('chkFilterTracks');
         if (chkSos) chkSos.checked = isLayerVisible.sos !== false;
         if (chkInc) chkInc.checked = isLayerVisible.incidents !== false;
         if (chkUnits) chkUnits.checked = isLayerVisible.units !== false;
         if (chkPins) chkPins.checked = isLayerVisible.pins !== false;
         if (chkCctv) chkCctv.checked = isLayerVisible.cctv !== false;
+        if (chkTracks) chkTracks.checked = isLayerVisible.tracks !== false;
         updateLayerFilterBadge();
         dd.classList.remove('hidden');
       } else {
@@ -19062,10 +19096,12 @@
           activeTacticalUnits = (units && Array.isArray(units)) ? units : [];
           renderTacticalUnits(activeTacticalUnits);
           updateTacticalMapMarkers(activeTacticalUnits);
+          fetchTacticalTracks();
         } else {
           activeTacticalUnits = [];
           renderTacticalUnits(activeTacticalUnits);
           updateTacticalMapMarkers(activeTacticalUnits);
+          fetchTacticalTracks();
         }
       } catch (err) {
         console.warn('Tactical telemetry fetch warning:', err);
@@ -19341,6 +19377,93 @@
             }
           }
         }, 300);
+      }
+    }
+
+    async function fetchTacticalTracks() {
+      if (!tacticalMap) return;
+      try {
+        const res = await fetch(API_BASE + '/api/tracker/tracks');
+        if (!res.ok) return;
+        const data = await res.json();
+        const features = data.features || [];
+        const activeTrackUids = new Set();
+
+        features.forEach(feat => {
+          const geom = feat.geometry;
+          const props = feat.properties || {};
+          const uid = props.unit_id;
+          if (!uid || !geom || !geom.coordinates || geom.coordinates.length < 2) return;
+
+          activeTrackUids.add(uid);
+          const latlngs = geom.coordinates.map(pt => [pt[1], pt[0]]);
+
+          const trackColors = ['#06b6d4', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6', '#14b8a6', '#eab308'];
+          let hash = 0;
+          for (let i = 0; i < uid.length; i++) hash = uid.charCodeAt(i) + ((hash << 5) - hash);
+          const color = trackColors[Math.abs(hash) % trackColors.length];
+
+          const popupHtml = `
+            <div style="font-family: 'Prompt', sans-serif; min-width: 220px;" class="p-1">
+              <div style="font-weight: 700; color: ${color}; font-size: 13px; border-bottom: 1px solid #334155; padding-bottom: 4px; margin-bottom: 6px;">
+                🛣️ เส้นทางลาดตระเวน: ${escapeHtml(props.unit_name || uid)}
+              </div>
+              <div style="font-size: 11px; color: #cbd5e1; line-height: 1.6;">
+                <div>👤 <b>ผู้บังคับหน่วย:</b> ${escapeHtml(props.commander || '-')}</div>
+                <div>📏 <b>ระยะทางรวม:</b> <span style="color: #38bdf8; font-weight: 700;">${props.total_distance_km || 0} กม.</span></div>
+                <div>⚡ <b>ความเร็วเฉลี่ย:</b> ${props.avg_speed || 0} กม./ชม.</div>
+                <div>📍 <b>จุดบันทึก GPS:</b> ${props.point_count || latlngs.length} จุด</div>
+                <div>⏱️ <b>เริ่มเดิน:</b> ${props.start_time || '-'}</div>
+                <div>🔄 <b>จุดล่าสุด:</b> ${props.last_update || '-'}</div>
+              </div>
+              <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #334155; display: flex; gap: 4px;">
+                <a href="${API_BASE}/api/tracker/export/kml?unit_id=${encodeURIComponent(uid)}" target="_blank" style="flex:1; text-align:center; padding: 4px; background: rgba(6,182,212,0.15); color: #22d3ee; border: 1px solid rgba(6,182,212,0.4); border-radius: 6px; font-size: 10px; text-decoration: none;">
+                  📥 KML (ArcGIS)
+                </a>
+                <a href="${API_BASE}/api/tracker/export/gpx?unit_id=${encodeURIComponent(uid)}" target="_blank" style="flex:1; text-align:center; padding: 4px; background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.4); border-radius: 6px; font-size: 10px; text-decoration: none;">
+                  📥 GPX (Garmin)
+                </a>
+              </div>
+            </div>
+          `;
+
+          if (tacticalTrackPolylines[uid]) {
+            tacticalTrackPolylines[uid].setLatLngs(latlngs);
+            tacticalTrackPolylines[uid].setPopupContent(popupHtml);
+            if (isLayerVisible.tracks === false && tacticalMap.hasLayer(tacticalTrackPolylines[uid])) {
+              tacticalMap.removeLayer(tacticalTrackPolylines[uid]);
+            } else if (isLayerVisible.tracks !== false && !tacticalMap.hasLayer(tacticalTrackPolylines[uid])) {
+              tacticalTrackPolylines[uid].addTo(tacticalMap);
+            }
+          } else {
+            const polyline = L.polyline(latlngs, {
+              color: color,
+              weight: 4,
+              opacity: 0.85,
+              dashArray: '8, 8',
+              lineCap: 'round',
+              lineJoin: 'round'
+            }).bindPopup(popupHtml);
+
+            if (isLayerVisible.tracks !== false) {
+              polyline.addTo(tacticalMap);
+            }
+            tacticalTrackPolylines[uid] = polyline;
+          }
+        });
+
+        // ลบเส้นทางที่ไม่มีในชุดข้อมูลแล้ว
+        Object.keys(tacticalTrackPolylines).forEach(uid => {
+          if (!activeTrackUids.has(uid)) {
+            if (tacticalMap.hasLayer(tacticalTrackPolylines[uid])) {
+              tacticalMap.removeLayer(tacticalTrackPolylines[uid]);
+            }
+            delete tacticalTrackPolylines[uid];
+          }
+        });
+
+      } catch (err) {
+        console.warn('Fetch tactical tracks warning:', err);
       }
     }
 
