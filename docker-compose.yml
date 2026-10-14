@@ -1,0 +1,41 @@
+# ============================================================
+# 🐳 Docker Compose สำหรับ QNAP TS-264
+# รัน LINE Bot + Cloudflare Tunnel (HTTPS ฟรี)
+# ============================================================
+
+services:
+  # 🤖 LINE Bot (Flask + Gunicorn)
+  linebot:
+    build: .
+    container_name: rtsd-linebot
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - CHANNEL_SECRET=95fadcaa0b4890bf137239eb0122230c
+      - CHANNEL_ACCESS_TOKEN=tZwEj7/Os0MEb2g5oQMsZc6/8Uvt0AID8SVj/O5dyRkph1hgP8H3JSdduIh+SIXjQI1rPILjCx3ZVuG+WszETDZxOZZ2oXki4wCIF/kz26gjfE+iz8GCQtYCj4cbFLv3EQrOv/YrsWJ/VwMDns4f7gdB04t89/1O/w1cDnyilFU=
+    volumes:
+      - bot_data:/app/data
+    networks:
+      - botnet
+
+  # 🌐 Cloudflare Tunnel (HTTPS ฟรี ไม่ต้องเปิด Port)
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: rtsd-tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=eyJhIjoiNTI1NDk0MjI0ZjY5NzEyZDY0YzcyYjkwNzFjMzk3YmQiLCJ0IjoiYTA5OTA1MmEtZDA2MC00MzdmLTk0ZTUtM2Q3OGViODNmODQ3IiwicyI6Ik1EVTRNalk0TURJdE5XWTNNeTAwTkdVMkxUbGpPRE10TXpreVpXRTNZMlZtTXpVMyJ9
+    networks:
+      - botnet
+    depends_on:
+      - linebot
+
+volumes:
+  bot_data:
+
+networks:
+  botnet:
+    driver: bridge
