@@ -154,6 +154,32 @@ def update_features_on_rtsd(features_list, token):
         return False
 
 
+def delete_features_from_rtsd(object_ids, token):
+    """ส่งคำสั่ง deleteFeatures ไปยัง Geoportal RTSD เพื่อลบหมุดเหตุการณ์ที่ถูกยกเลิก/ระงับเหตุออกจากแผนที่"""
+    if not object_ids:
+        return True
+        
+    url = f"{TARGET_LAYER_URL}/deleteFeatures"
+    headers = {'referer': PORTAL_URL}
+    try:
+        oids_str = ",".join(str(x) for x in object_ids)
+        res = requests.post(url, data={
+            'objectIds': oids_str,
+            'token': token,
+            'f': 'json'
+        }, headers=headers, verify=False, timeout=20)
+        
+        result = res.json()
+        deletes = result.get('deleteResults', [])
+        success_count = sum(1 for d in deletes if d.get('success'))
+        if success_count > 0:
+            print(f"🗑️ ลบหมุดเหตุการณ์ที่ยกเลิกออกจาก Geoportal RTSD สำเร็จ {success_count}/{len(object_ids)} รายการ!")
+        return success_count > 0
+    except Exception as e:
+        print(f"❌ เกิดข้อผิดพลาดในการลบหมุดที่ยกเลิกออกจาก RTSD: {e}")
+        return False
+
+
 def sync_once(synced_history):
     """ทำการตรวจสอบ 1 รอบ: ปักหมุดแถวใหม่ และอัปเดตสถานะแถวเดิมที่เปลี่ยนไป"""
     rows = fetch_sheets_data()
@@ -189,6 +215,7 @@ def sync_once(synced_history):
     data_rows = rows[1:]
     new_features = []
     update_features = []
+    delete_oids = []
 
     for row in data_rows:
         if len(row) < 10:
@@ -214,13 +241,18 @@ def sync_once(synced_history):
         if lat == 0 or lon == 0 or not (-90 <= lat <= 90 and -180 <= lon <= 180):
             continue
 
+        is_cancelled = "ยกเลิก" in status or "ระงับเหตุ" in status
+
         # ตรวจสอบว่ามีอยู่แล้วบน ArcGIS หรือไม่
         match_info = existing_map.get(timestamp) or existing_map.get(title)
         
         if match_info:
             oid, curr_gis_status = match_info
-            # ถ้าสถานะใน Google Sheets ไม่ตรงกับบน ArcGIS -> อัปเดตทันที
-            if status != curr_gis_status:
+            if is_cancelled:
+                # ถ้าสถานะเป็นยกเลิก/ระงับเหตุ ให้ลบหมุดออกจากแผนที่ ArcGIS
+                delete_oids.append(oid)
+            elif status != curr_gis_status:
+                # ถ้าสถานะใน Google Sheets ไม่ตรงกับบน ArcGIS -> อัปเดตทันที
                 update_features.append({
                     "attributes": {
                         "objectid": oid,
@@ -228,6 +260,10 @@ def sync_once(synced_history):
                     }
                 })
         else:
+            # รายการใหม่ ถ้าถูกยกเลิก/ระงับเหตุแล้ว ไม่ต้องปักหมุดขึ้นแผนที่
+            if is_cancelled:
+                continue
+
             # รายการใหม่ ปักหมุดเพิ่ม
             media_url = format_direct_image_url(raw_media_url)
             id_match = re.search(r'\[(RTSD-\d+)\]', title)
@@ -252,6 +288,10 @@ def sync_once(synced_history):
                 }
             }
             new_features.append(feature)
+
+    if delete_oids:
+        print(f"\n🗑️ พบเหตุการณ์ที่สถานะ 'ยกเลิก/ระงับเหตุ' {len(delete_oids)} รายการ กำลังลบหมุดออกจาก ArcGIS RTSD...")
+        delete_features_from_rtsd(delete_oids, token)
 
     if new_features:
         print(f"\n🔔 พบข้อมูลเหตุการณ์ใหม่ {len(new_features)} รายการ กำลังปักหมุดขึ้น ArcGIS RTSD...")
