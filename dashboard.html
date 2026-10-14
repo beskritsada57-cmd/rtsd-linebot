@@ -1817,12 +1817,12 @@
               <th class="px-4 py-3">ผู้แจ้ง</th>
               <th class="px-4 py-3">สถานะ</th>
               <th class="px-4 py-3 text-center">รูปถ่าย/คลิป</th>
-              <th class="px-4 py-3 text-center">เอกสาร</th>
+              <th class="px-4 py-3 text-center">จัดการ / เอกสาร</th>
             </tr>
           </thead>
           <tbody id="incidentsTableBody" class="divide-y divide-slate-800/60 font-light">
             <tr>
-              <td colspan="8" class="text-center py-8 text-slate-500">
+              <td colspan="9" class="text-center py-8 text-slate-500">
                 <i class="fa-solid fa-spinner fa-spin text-2xl text-sky-400 mb-2"></i>
                 <p>กำลังเชื่อมต่อฐานข้อมูลสถิติ...</p>
               </td>
@@ -3541,6 +3541,13 @@
       let statusCounts = { '⏳ รอดำเนินการ': 0, '🟡 กำลังดำเนินการ': 0, '🟢 แก้ไขแล้วเสร็จ': 0, '❌ ยกเลิก/ระงับเหตุ': 0 };
       let dateCounts = {};
 
+      let deletedIncCache = [];
+      try {
+        deletedIncCache = JSON.parse(localStorage.getItem('rtsd_deleted_incidents') || '[]');
+      } catch (e) {
+        deletedIncCache = [];
+      }
+
       rows.forEach(r => {
         if (!r || r.length < 5) return;
 
@@ -3554,6 +3561,14 @@
         const incident_type = r[7] || 'อื่นๆ';
         const status = (r[8] || '⏳ รอดำเนินการ').trim();
         const media_url = r[9] || '-';
+
+        // ตรวจสอบว่าถูกลบถาวรไปแล้วหรือไม่
+        const idMatch = (title || '').match(/\[(RTSD-\d+)\]/);
+        const report_id = idMatch ? idMatch[1] : '';
+        const incKey = `${timestamp}_${title}`;
+        if (deletedIncCache.includes(incKey) || deletedIncCache.includes(title) || (timestamp && deletedIncCache.includes(timestamp)) || (report_id && deletedIncCache.includes(report_id))) {
+          return; // ข้ามเหตุการณ์ที่ถูกลบ
+        }
 
         total++;
         if (urgency.includes('วิกฤต')) critical++;
@@ -4535,10 +4550,16 @@
           <td class="px-4 py-3 whitespace-nowrap">${statusSelectHtml}</td>
           <td class="px-4 py-3 text-center">${mediaHtml}</td>
           <td class="px-4 py-3 text-center whitespace-nowrap">
-            <button onclick="openIncidentDossierModal('${safeTime}', '${safeTitle}')" class="px-2.5 py-1 rounded-lg bg-sky-600/20 hover:bg-sky-600 text-sky-400 hover:text-white border border-sky-500/30 transition-all text-xs font-medium cursor-pointer shadow-sm inline-flex items-center gap-1.5" title="เปิด/พิมพ์ใบรายงานสรุปเหตุการณ์นี้ (A4 Dossier)">
-              <i class="fa-solid fa-file-lines"></i>
-              <span>ใบรายงาน</span>
-            </button>
+            <div class="inline-flex items-center gap-1.5">
+              <button onclick="openIncidentDossierModal('${safeTime}', '${safeTitle}')" class="px-2.5 py-1 rounded-lg bg-sky-600/20 hover:bg-sky-600 text-sky-400 hover:text-white border border-sky-500/30 transition-all text-xs font-medium cursor-pointer shadow-sm inline-flex items-center gap-1.5" title="เปิด/พิมพ์ใบรายงานสรุปเหตุการณ์นี้ (A4 Dossier)">
+                <i class="fa-solid fa-file-lines"></i>
+                <span>ใบรายงาน</span>
+              </button>
+              <button onclick="confirmDeleteIncident('${safeTime}', '${safeTitle}')" class="px-2.5 py-1 rounded-lg bg-rose-600/20 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/30 transition-all text-xs font-medium cursor-pointer shadow-sm inline-flex items-center gap-1" title="ลบข้อมูลเหตุการณ์นี้ออกจากระบบอย่างถาวร">
+                <i class="fa-solid fa-trash-can"></i>
+                <span>ลบ</span>
+              </button>
+            </div>
           </td>
         `;
         tbody.appendChild(tr);
@@ -4627,6 +4648,75 @@
       } finally {
         selectEl.disabled = false;
         selectEl.classList.remove('opacity-50');
+      }
+    }
+
+    // 7.5. Delete Incident Action (ลบเหตุการณ์อย่างถาวร)
+    async function confirmDeleteIncident(encTimestamp, encTitle) {
+      const timestamp = decodeURIComponent(encTimestamp || '');
+      const title = decodeURIComponent(encTitle || '');
+
+      const displayTitle = title ? title.replace(/^\[RTSD-\d+\]\s*/, '') : 'เหตุการณ์นี้';
+      const ok = confirm(`⚠️ คำเตือน: คุณต้องการ "ลบเหตุการณ์นี้ทิ้งอย่างถาวร" ใช่หรือไม่?\n\n📌 รายการ: ${displayTitle}\n🕒 เวลา: ${timestamp || '-'}\n\n* ข้อมูลจะถูกลบออกจากฐานข้อมูลและแผนที่อย่างถาวร ไม่สามารถกู้คืนได้`);
+      if (!ok) return;
+
+      try {
+        showToast('⏳ กำลังดำเนินการลบข้อมูลเหตุการณ์...');
+
+        // 1. บันทึกลง localStorage ทันทีเพื่อกันรายการฟื้นคืนชีพเมื่อกดรีเฟรช
+        let deletedIncCache = [];
+        try {
+          deletedIncCache = JSON.parse(localStorage.getItem('rtsd_deleted_incidents') || '[]');
+        } catch (e) {
+          deletedIncCache = [];
+        }
+
+        const idMatch = (title || '').match(/\[(RTSD-\d+)\]/);
+        const reportId = idMatch ? idMatch[1] : '';
+        const incKey = `${timestamp}_${title}`;
+
+        if (incKey && !deletedIncCache.includes(incKey)) deletedIncCache.push(incKey);
+        if (title && !deletedIncCache.includes(title)) deletedIncCache.push(title);
+        if (timestamp && !deletedIncCache.includes(timestamp)) deletedIncCache.push(timestamp);
+        if (reportId && !deletedIncCache.includes(reportId)) deletedIncCache.push(reportId);
+        localStorage.setItem('rtsd_deleted_incidents', JSON.stringify(deletedIncCache));
+
+        // 2. เรียก API ลบที่ Backend
+        let resData;
+        try {
+          const res = await fetch(`${API_BASE}/api/incident/delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, timestamp, report_id: reportId })
+          });
+          resData = await res.json();
+        } catch (apiErr) {
+          // Fallback direct to Google Sheets Web App
+          const res = await fetch(DATA_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'delete_incident', title, timestamp, report_id: reportId })
+          });
+          resData = await res.json();
+        }
+
+        // 3. นำออกจาก Memory ทันที และอัปเดต UI
+        rawIncidents = rawIncidents.filter(x => {
+          const mTime = timestamp && x.timestamp === timestamp;
+          const mTitle = title && x.title === title;
+          const mKey = `${x.timestamp}_${x.title}`;
+          const mId = x.report_id && reportId && x.report_id === reportId;
+          return !(mKey === incKey || (mTime && mTitle) || mId);
+        });
+
+        recalculateStats();
+        if (typeof filterTable === 'function') filterTable();
+        renderTacticalIncidentFeed();
+        renderTacticalIncidentMarkers();
+
+        showToast('🗑️ ลบข้อมูลเหตุการณ์ออกจากระบบเรียบร้อยแล้ว');
+      } catch (err) {
+        console.error('Delete incident error:', err);
+        alert('❌ เกิดข้อผิดพลาดในการลบข้อมูล: ' + err.message);
       }
     }
 
@@ -5440,6 +5530,9 @@
                 <option value="🟢 แก้ไขแล้วเสร็จ" ${isResolved ? 'selected' : ''}>🟢 แก้ไขแล้ว</option>
                 <option value="❌ ยกเลิก/ระงับเหตุ" ${item.status.includes('ยกเลิก') ? 'selected' : ''}>❌ ยกเลิก</option>
               </select>
+              <button onclick="confirmDeleteIncident('${safeTime}', '${safeTitle}')" class="px-1.5 py-0.5 rounded-lg bg-rose-600/20 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/30 text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer shadow-sm" title="ลบเหตุการณ์นี้ถาวร">
+                <i class="fa-solid fa-trash-can text-[9px]"></i>
+              </button>
             </div>
           </div>
         `;

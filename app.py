@@ -217,6 +217,31 @@ def save_deleted_users():
 
 load_deleted_users()
 
+# 🗑️ Persistent Deleted Incidents Store (เก็บประวัติเหตุการณ์ที่แอดมินลบถาวร)
+DELETED_INCIDENTS_FILE = os.path.join(os.path.dirname(__file__), "deleted_incidents.json")
+DELETED_INCIDENTS = set()
+
+def load_deleted_incidents():
+    global DELETED_INCIDENTS
+    if os.path.exists(DELETED_INCIDENTS_FILE):
+        try:
+            with open(DELETED_INCIDENTS_FILE, "r", encoding="utf-8") as f:
+                DELETED_INCIDENTS = set(json.load(f))
+        except Exception as e:
+            print(f"Error loading deleted_incidents.json: {e}")
+            DELETED_INCIDENTS = set()
+    else:
+        DELETED_INCIDENTS = set()
+
+def save_deleted_incidents():
+    try:
+        with open(DELETED_INCIDENTS_FILE, "w", encoding="utf-8") as f:
+            json.dump(list(DELETED_INCIDENTS), f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Error saving deleted_incidents.json: {e}")
+
+load_deleted_incidents()
+
 def load_user_credentials():
     global USER_CREDENTIALS
     if os.path.exists(USER_CREDENTIALS_FILE):
@@ -1163,10 +1188,25 @@ def api_broadcast_app_update():
 
 @app.route("/api/incidents", methods=['GET'])
 def api_incidents():
-    """API ดึงข้อมูลเหตุการณ์ทั้งหมดจาก Google Sheets สำหรับ Dashboard"""
+    """API ดึงข้อมูลเหตุการณ์ทั้งหมดจาก Google Sheets สำหรับ Dashboard (กรองรายการที่ถูกลบออก)"""
     try:
         res = requests.get(GOOGLE_SHEET_URL, timeout=20)
-        return jsonify(res.json()), 200
+        rows = res.json()
+        if isinstance(rows, list) and len(rows) > 1 and DELETED_INCIDENTS:
+            header = rows[0]
+            filtered = [header]
+            for r in rows[1:]:
+                t = str(r[0]).strip() if len(r) > 0 else ""
+                ttl = str(r[1]).strip() if len(r) > 1 else ""
+                k = f"{t}_{ttl}"
+                if k in DELETED_INCIDENTS or ttl in DELETED_INCIDENTS or t in DELETED_INCIDENTS:
+                    continue
+                id_m = re.search(r'\[(RTSD-\d+)\]', ttl)
+                if id_m and id_m.group(1) in DELETED_INCIDENTS:
+                    continue
+                filtered.append(r)
+            return jsonify(filtered), 200
+        return jsonify(rows), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -1418,6 +1458,62 @@ def api_update_incident_status():
         "report_id": report_id,
         "title": title,
         "dispatched_info": assigned_info
+    }), 200
+
+
+@app.route("/api/incident/delete", methods=['POST'])
+def api_delete_incident():
+    """API สำหรับให้ Dashboard สั่งลบข้อมูลเหตุการณ์ออกจากระบบอย่างถาวร"""
+    global DELETED_INCIDENTS, DISPATCHED_INCIDENTS, INCIDENTS_CACHE
+    data = request.get_json(silent=True) or {}
+    title = str(data.get("title") or "").strip()
+    timestamp = str(data.get("timestamp") or "").strip()
+    report_id = str(data.get("report_id") or "").strip()
+
+    if not title and not timestamp and not report_id:
+        return jsonify({"status": "error", "message": "กรุณาระบุข้อมูลเหตุการณ์ที่ต้องการลบ"}), 400
+
+    # บันทึกเข้า DELETED_INCIDENTS
+    if timestamp and title:
+        DELETED_INCIDENTS.add(f"{timestamp}_{title}")
+    if title:
+        DELETED_INCIDENTS.add(title)
+    if timestamp:
+        DELETED_INCIDENTS.add(timestamp)
+    if report_id:
+        DELETED_INCIDENTS.add(report_id)
+
+    id_match = re.search(r'\[(RTSD-\d+)\]', title)
+    if id_match:
+        DELETED_INCIDENTS.add(id_match.group(1))
+
+    save_deleted_incidents()
+    INCIDENTS_CACHE["last_fetched"] = 0
+
+    # ลบออกจาก DISPATCHED_INCIDENTS ด้วย
+    keys_to_del = [k for k in DISPATCHED_INCIDENTS if k in DELETED_INCIDENTS or (title and title in k) or (timestamp and timestamp in k)]
+    for k in keys_to_del:
+        del DISPATCHED_INCIDENTS[k]
+
+    # ส่งคำสั่งไปลบใน Google Sheets
+    sheet_res = None
+    try:
+        payload = {
+            "action": "delete_incident",
+            "title": title,
+            "timestamp": timestamp,
+            "report_id": report_id or (id_match.group(1) if id_match else "")
+        }
+        res = requests.post(GOOGLE_SHEET_URL, json=payload, timeout=15)
+        if res.status_code == 200:
+            sheet_res = res.json()
+    except Exception as e:
+        print(f"Error calling Google Sheets delete_incident: {e}")
+
+    return jsonify({
+        "status": "success",
+        "deleted": True,
+        "sheet_result": sheet_res
     }), 200
 
 

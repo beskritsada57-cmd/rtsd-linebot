@@ -191,7 +191,16 @@ def sync_once(synced_history):
         return synced_history
 
     headers = {'referer': PORTAL_URL}
-    existing_map = {}
+    deleted_incidents_set = set()
+    del_file = os.path.join(os.path.dirname(__file__), "deleted_incidents.json")
+    if os.path.exists(del_file):
+        try:
+            with open(del_file, "r", encoding="utf-8") as f:
+                deleted_incidents_set = set(json.load(f))
+        except Exception:
+            pass
+
+    delete_oids = []
     try:
         q_res = requests.get(f"{TARGET_LAYER_URL}/query", params={
             'where': '1=1',
@@ -205,6 +214,15 @@ def sync_once(synced_history):
             r_time = (attrs.get('report_time') or '').strip()
             r_title = (attrs.get('title') or '').strip()
             r_status = (attrs.get('status') or '').strip()
+
+            # หากหมุดบน ArcGIS ตรงกับรายการที่ถูกลบถาวร ให้ลบออกจาก ArcGIS ทันที
+            id_m = re.search(r'\[(RTSD-\d+)\]', r_title)
+            r_id = id_m.group(1) if id_m else ""
+            k = f"{r_time}_{r_title}"
+            if oid and (r_title in deleted_incidents_set or r_time in deleted_incidents_set or k in deleted_incidents_set or (r_id and r_id in deleted_incidents_set)):
+                delete_oids.append(oid)
+                continue
+
             if r_time:
                 existing_map[r_time] = (oid, r_status)
             if r_title:
@@ -215,7 +233,6 @@ def sync_once(synced_history):
     data_rows = rows[1:]
     new_features = []
     update_features = []
-    delete_oids = []
 
     for row in data_rows:
         if len(row) < 10:

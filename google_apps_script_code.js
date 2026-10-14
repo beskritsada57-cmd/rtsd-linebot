@@ -213,6 +213,43 @@ function doPost(e) {
     }
 
     // =========================================================================
+    // 2.5. กรณีสั่งลบข้อมูลเหตุการณ์ (action: "delete_incident")
+    // =========================================================================
+    if (data.action === "delete_incident") {
+      var searchTitle = (data.title || "").toString().toLowerCase().trim();
+      var searchTime = (data.timestamp || "").toString().toLowerCase().trim();
+      var reportId = (data.report_id || "").toString().toLowerCase().trim();
+      
+      var values = sheet.getDataRange().getValues();
+      var deletedCount = 0;
+      
+      for (var r = values.length - 1; r >= 1; r--) {
+        var rowTime = (values[r][0] || "").toString().toLowerCase();
+        var rowTitle = (values[r][1] || "").toString().toLowerCase();
+        
+        var match = false;
+        if (reportId && rowTitle.indexOf(reportId) !== -1) {
+          match = true;
+        } else if (searchTitle && searchTitle !== "-" && rowTitle.indexOf(searchTitle) !== -1) {
+          match = true;
+        } else if (searchTime && searchTime !== "-" && rowTime.indexOf(searchTime) !== -1) {
+          match = true;
+        }
+        
+        if (match) {
+          sheet.deleteRow(r + 1);
+          deletedCount++;
+        }
+      }
+      
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        deleted_count: deletedCount,
+        message: deletedCount > 0 ? "ลบข้อมูลเหตุการณ์สำเร็จ" : "ไม่พบเหตุการณ์ที่ตรงกับเงื่อนไข"
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // =========================================================================
     // 3. กรณีสั่งอัปเดตสถานะของเหตุการณ์เดิม (action: "update_status")
     // =========================================================================
     if (data.action === "update_status") {
