@@ -192,6 +192,31 @@ def normalize_phone_number(phone):
 USER_CREDENTIALS_FILE = os.path.join(os.path.dirname(__file__), "user_credentials.json")
 USER_CREDENTIALS = {}
 
+# 🗑️ Persistent Deleted Users Store (ป้องกันการดึงรายชื่อที่แอดมินลบแล้วกลับมาแสดง)
+DELETED_USERS_FILE = os.path.join(os.path.dirname(__file__), "deleted_users.json")
+DELETED_USERS = set()
+
+def load_deleted_users():
+    global DELETED_USERS
+    if os.path.exists(DELETED_USERS_FILE):
+        try:
+            with open(DELETED_USERS_FILE, "r", encoding="utf-8") as f:
+                DELETED_USERS = set(json.load(f))
+        except Exception as e:
+            print(f"Error loading deleted_users.json: {e}")
+            DELETED_USERS = set()
+    else:
+        DELETED_USERS = set()
+
+def save_deleted_users():
+    try:
+        with open(DELETED_USERS_FILE, "w", encoding="utf-8") as f:
+            json.dump(list(DELETED_USERS), f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Error saving deleted_users.json: {e}")
+
+load_deleted_users()
+
 def load_user_credentials():
     global USER_CREDENTIALS
     if os.path.exists(USER_CREDENTIALS_FILE):
@@ -226,13 +251,17 @@ load_user_credentials()
 
 
 def fetch_registered_users():
-    """ดึงรายชื่อผู้ใช้ที่ลงทะเบียนแล้วจาก Google Sheets เข้ามาเก็บในแคช พร้อมจัดรูปโปรไฟล์คมชัด"""
-    global registered_users, phone_to_user
+    """ดึงรายชื่อผู้ใช้ที่ลงทะเบียนแล้วจาก Google Sheets เข้ามาเก็บในแคช พร้อมจัดรูปโปรไฟล์คมชัด และเคลียร์รายชื่อเก่าที่ถูกลบออก"""
+    global registered_users, phone_to_user, DELETED_USERS
     master_phone = "0863390614"
     existing_master_pic = phone_to_user.get(master_phone, {}).get("picture_profile", "-")
 
+    # สร้าง Dictionary ใหม่เพื่อป้องกันข้อมูลผู้ใช้ที่ถูกลบไปแล้วตกค้างใน Memory
+    new_phone_to_user = {}
+    new_registered_users = {}
+
     # คงสถานะผู้ดูแลระบบหลักไว้เสมอ
-    phone_to_user[master_phone] = {
+    master_user = {
         "name": phone_to_user.get(master_phone, {}).get("name", "ผู้ดูแลระบบสูงสุด (Master Admin)"),
         "phone": master_phone,
         "role": "ผู้ดูแลระบบสูงสุด (Super Admin)",
@@ -243,6 +272,9 @@ def fetch_registered_users():
         "picture_profile": existing_master_pic,
         "permissions": get_user_permissions("ผู้ดูแลระบบสูงสุด (Super Admin)")
     }
+    new_phone_to_user[master_phone] = master_user
+    new_registered_users[master_user["line_user_id"]] = master_user
+
     try:
         # ใช้คำสั่ง GET ?sheet=users (Read-Only) ปลอดภัย 100% ไม่สร้างแถวใหม่ใน Google Sheets
         res = requests.get(f"{GOOGLE_SHEET_URL}?sheet=users", timeout=10)
@@ -254,6 +286,11 @@ def fetch_registered_users():
                     unit = "-"
                     position = "-"
                     status = "อนุมัติแล้ว"
+                    unit_size = "ชุดปฏิบัติการขนาดเล็ก (3-5 นาย)"
+                    vehicle_type = "🚗 รถกระบะตรวจการณ์ 4x4 (Pickup 4WD)"
+                    area = "เชียงราย (ทุกอำเภอ)"
+                    user_uname = ""
+
                     if isinstance(u, dict):
                         lid = str(u.get("line_user_id", "")).strip()
                         raw_phone = str(u.get("phone_number", "")).strip()
@@ -263,6 +300,10 @@ def fetch_registered_users():
                         position = str(u.get("position", "-")).strip()
                         status = str(u.get("approval_status", u.get("status", "อนุมัติแล้ว"))).strip()
                         picture_profile = str(u.get("picture_profile", u.get("picture_url", "-"))).strip()
+                        unit_size = str(u.get("unit_size", unit_size)).strip()
+                        vehicle_type = str(u.get("vehicle_type", vehicle_type)).strip()
+                        area = str(u.get("area", u.get("district", area))).strip()
+                        user_uname = str(u.get("username", "")).strip()
                     elif isinstance(u, list) and len(u) >= 4:
                         if str(u[0]).lower() == "registered_at":
                             continue
@@ -274,10 +315,21 @@ def fetch_registered_users():
                         position = str(u[6]).strip() if len(u) > 6 else "-"
                         status = str(u[7]).strip() if len(u) > 7 else "อนุมัติแล้ว"
                         picture_profile = str(u[9]).strip() if len(u) > 9 else "-"
+                        if len(u) > 10:
+                            user_uname = str(u[10]).strip()
+                        if len(u) > 11:
+                            area = str(u[11]).strip()
+                        if len(u) > 12:
+                            unit_size = str(u[12]).strip()
+                        if len(u) > 13:
+                            vehicle_type = str(u[13]).strip()
                     else:
                         continue
 
                     phone = normalize_phone_number(raw_phone)
+                    if not phone or phone in DELETED_USERS:
+                        continue  # ข้ามเบอร์ที่ถูกลบแล้ว ไม่นำกลับเข้ามาแสดง
+
                     direct_pic = normalize_drive_image_url(picture_profile)
 
                     if phone in ADMIN_PHONES or phone == master_phone:
@@ -290,10 +342,15 @@ def fetch_registered_users():
                     user_data_item = {
                         "name": name if name and name != "ไม่ระบุชื่อ" else current_entry.get("name", "ผู้ใช้งาน"),
                         "phone": phone,
+                        "username": user_uname or current_entry.get("username", ""),
                         "role": role,
                         "unit": unit if unit != "-" else current_entry.get("unit", "-"),
                         "position": position if position != "-" else current_entry.get("position", "-"),
                         "status": status,
+                        "area": area,
+                        "district": area,
+                        "unit_size": unit_size,
+                        "vehicle_type": vehicle_type,
                         "picture_profile": final_pic,
                         "permissions": get_user_permissions(role)
                     }
@@ -301,17 +358,26 @@ def fetch_registered_users():
                     best_lid = lid if str(lid).startswith("U") else (current_lid if str(current_lid).startswith("U") else lid)
 
                     if best_lid and best_lid != "-":
-                        registered_users[best_lid] = user_data_item
+                        new_registered_users[best_lid] = user_data_item
                     if phone:
-                        phone_to_user[phone] = {"line_user_id": best_lid, **user_data_item}
+                        new_phone_to_user[phone] = {"line_user_id": best_lid, **user_data_item}
+
+        # สลับแคชหลักเป็นชุดข้อมูลที่ดึงมาใหม่ล่าสุด
+        phone_to_user = new_phone_to_user
+        registered_users = new_registered_users
     except Exception as e:
         print(f"Error fetching users: {e}")
 
 
 def save_registered_user(line_user_id, name, phone, role="ผู้ใช้งาน", unit="-", position="-", status="อนุมัติแล้ว", purpose="-", picture_profile="-", picture_base64="", username="", unit_size="ชุดปฏิบัติการขนาดเล็ก (3-5 นาย)", vehicle_type="🚗 รถกระบะตรวจการณ์ 4x4 (Pickup 4WD)", area="เชียงราย (ทุกอำเภอ)"):
     """บันทึกข้อมูลผู้ใช้ใหม่ลง Google Sheets และแคชในหน่วยความจำ พร้อมรูปโปรไฟล์ ขนาดหน่วย ยานพาหนะ และพื้นที่รับผิดชอบ"""
-    global registered_users, phone_to_user
+    global registered_users, phone_to_user, DELETED_USERS
     clean_phone = phone.replace("-", "").replace(" ", "")
+
+    # หากเคยถูกลบ ให้นำออกจาก Blacklist ทันทีเมื่อมีการลงทะเบียนใหม่
+    if clean_phone in DELETED_USERS:
+        DELETED_USERS.remove(clean_phone)
+        save_deleted_users()
 
     # หากมีรูป Base64 ให้ตั้งค่ารูปโปรไฟล์ทันที เพื่อให้แสดงผลได้ทันที
     if picture_base64:
@@ -363,7 +429,11 @@ def save_registered_user(line_user_id, name, phone, role="ผู้ใช้ง�
             "approval_status": status,
             "purpose": purpose,
             "picture_profile": picture_profile or "-",
-            "picture_base64": picture_base64 or ""
+            "picture_base64": picture_base64 or "",
+            "area": area,
+            "district": area,
+            "unit_size": unit_size,
+            "vehicle_type": vehicle_type
         }
         requests.post(GOOGLE_SHEET_URL, json=payload, timeout=10)
         return True
@@ -2497,6 +2567,7 @@ def api_admin_update_role():
 @app.route("/api/admin/delete-user", methods=['POST'])
 def api_admin_delete_user():
     """แอดมินลบบัญชีผู้ใช้งานออกจากระบบ และลบออกจากตาราง Google Sheets ถาวร"""
+    global phone_to_user, registered_users, DELETED_USERS
     data = request.get_json(silent=True) or {}
     phone = str(data.get("phone", "")).strip().replace("-", "").replace(" ", "")
 
@@ -2506,10 +2577,19 @@ def api_admin_delete_user():
     user_info = phone_to_user.get(phone, {})
     lid = user_info.get("line_user_id", "")
 
+    # บันทึกเข้า Blacklist DELETED_USERS ถาวรเพื่อป้องกันการฟื้นคืนชีพเมื่อรีเฟรชหน้าเว็บ
+    DELETED_USERS.add(phone)
+    save_deleted_users()
+
     if phone in phone_to_user:
         del phone_to_user[phone]
     if lid and lid in registered_users:
         del registered_users[lid]
+
+    # ลบข้อมูลรหัสผ่านออกจาก USER_CREDENTIALS ด้วย
+    if phone in USER_CREDENTIALS:
+        del USER_CREDENTIALS[phone]
+        save_user_credentials()
 
     tokens_to_remove = [t for t, s in ACTIVE_SESSIONS.items() if s.get("phone") == phone]
     for t in tokens_to_remove:

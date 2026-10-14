@@ -50,16 +50,8 @@
     .glow-cyan {
       box-shadow: 0 0 20px rgba(6, 182, 212, 0.25);
     }
-    .glow-green {
-      box-shadow: 0 0 20px rgba(16, 185, 129, 0.25);
-    }
-    .custom-radio:checked + label {
-      border-color: #06b6d4;
-      background-color: rgba(6, 182, 212, 0.12);
-    }
-    .custom-radio:checked + label .check-icon {
-      opacity: 1;
-      transform: scale(1);
+    .glow-amber {
+      box-shadow: 0 0 20px rgba(245, 158, 11, 0.25);
     }
   </style>
 </head>
@@ -77,7 +69,7 @@
       </div>
       <div class="text-left">
         <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-          ระบบลงทะเบียนและยื่นขอใช้งาน
+          ระบบลงทะเบียนและยื่นขอใช้งานกำลังพล
         </h1>
         <p class="text-xs text-slate-400">ศูนย์บัญชาการแผนที่และเตือนภัย กรมแผนที่ทหาร (RTSD)</p>
       </div>
@@ -91,11 +83,51 @@
 
     <form id="registerForm" onsubmit="handleFormSubmit(event)" class="space-y-6">
       
-      <!-- Section 1: ข้อมูลส่วนตัวและสังกัด -->
+      <!-- Section 1: ข้อมูลระบุตัวตนและสังกัด (ตรงกับ Mobile App) -->
       <div>
         <div class="flex items-center gap-2 text-cyan-400 font-semibold text-sm mb-3 border-b border-slate-700/60 pb-2">
-          <i class="fa-solid fa-user-shield"></i>
-          <span>1. ข้อมูลระบุตัวตนและหน่วยงานต้นสังกัด</span>
+          <i class="fa-solid fa-id-badge text-cyan-400"></i>
+          <span>1. ข้อมูลประจำตัวกำลังพล & ต้นสังกัด</span>
+        </div>
+
+        <!-- 📷 รูปถ่ายโปรไฟล์ (Avatar + File Picker) -->
+        <div class="mb-4 p-3.5 rounded-xl bg-slate-900/90 border border-slate-700/80">
+          <label class="block text-xs font-semibold text-cyan-400 mb-2 flex items-center gap-1.5">
+            <i class="fa-solid fa-camera"></i>
+            <span>รูปภาพโปรไฟล์กำลังพล (กล้อง / คลังภาพ)</span>
+          </label>
+          
+          <div class="flex flex-col sm:flex-row items-center gap-4">
+            <!-- Avatar Preview Container -->
+            <div class="relative group cursor-pointer" onclick="document.getElementById('profileFileInput').click()" title="แตะเพื่อเลือกรูปจากแกลเลอรี">
+              <div id="avatarPreviewContainer" class="w-20 h-20 rounded-full border-2 border-dashed border-cyan-500/50 bg-slate-800/80 flex flex-col items-center justify-center text-slate-400 overflow-hidden shadow-md transition hover:border-cyan-400">
+                <i id="avatarIcon" class="fa-solid fa-cloud-arrow-up text-xl text-cyan-400 mb-1"></i>
+                <span id="avatarText" class="text-[10px] text-center text-slate-400 px-1 leading-tight">เลือกภาพ</span>
+                <img id="avatarPreviewImg" class="w-full h-full object-cover hidden" alt="Profile Preview">
+              </div>
+              <div class="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-cyan-600 text-white flex items-center justify-center text-xs shadow-md border border-slate-900">
+                <i class="fa-solid fa-images"></i>
+              </div>
+            </div>
+
+            <!-- Action Controls -->
+            <div class="flex-1 w-full space-y-2">
+              <div class="flex flex-wrap items-center gap-2">
+                <input type="file" id="profileFileInput" accept="image/*" class="hidden" onchange="handleProfileImageSelect(event)">
+                <button type="button" onclick="document.getElementById('profileFileInput').click()" class="px-3 py-1.5 rounded-lg bg-cyan-600/30 hover:bg-cyan-600/50 text-cyan-300 border border-cyan-500/40 text-xs font-medium transition flex items-center gap-1.5 cursor-pointer shadow">
+                  <i class="fa-solid fa-photo-film text-cyan-400"></i>
+                  <span>เลือกรูปจากแกลเลอรี (Gallery)</span>
+                </button>
+                <button type="button" id="removePhotoBtn" onclick="removeSelectedPhoto()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-rose-950/60 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-500/40 text-xs transition hidden items-center gap-1 cursor-pointer">
+                  <i class="fa-solid fa-trash-can"></i>
+                  <span>ลบรูป</span>
+                </button>
+              </div>
+              <p class="text-[11px] text-slate-400 leading-relaxed">
+                📱 รองรับไฟล์ภาพจากมือถือ (ระบบย่อขนาดให้อัตโนมัติ) หรือเว้นว่างไว้เพื่อดึงภาพจาก LINE
+              </p>
+            </div>
+          </div>
         </div>
         
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -105,49 +137,49 @@
               ยศ / คำนำหน้า <span class="text-rose-400">*</span>
             </label>
             <select id="userRank" required onchange="toggleRankOther(this.value)" class="w-full px-3 py-2.5 rounded-xl bg-slate-800/90 border border-slate-600 text-sm text-white focus:outline-none focus:border-cyan-400 transition">
-              <optgroup label="⭐ นายทหารชั้นนายพล">
-                <option value="พล.อ.">พล.อ. / พล.ร.อ. / พล.อ.อ.</option>
-                <option value="พล.ท.">พล.ท. / พล.ร.ท. / พล.อ.ท.</option>
-                <option value="พล.ต.">พล.ต. / พล.ร.ต. / พล.อ.ต.</option>
-              </optgroup>
               <optgroup label="🎖️ นายทหารสัญญาบัตร">
-                <option value="พ.อ.(พิเศษ)">พ.อ.(พิเศษ) / น.อ.(พิเศษ)</option>
-                <option value="พ.อ.">พ.อ. / น.อ.</option>
-                <option value="พ.ท.">พ.ท. / น.ท.</option>
-                <option value="พ.ต.">พ.ต. / น.ต.</option>
                 <option value="ร.อ." selected>ร.อ.</option>
                 <option value="ร.ท.">ร.ท.</option>
                 <option value="ร.ต.">ร.ต.</option>
                 <option value="ว่าที่ ร.ต.">ว่าที่ ร.ต.</option>
+                <option value="พ.ต.">พ.ต.</option>
+                <option value="พ.ท.">พ.ท.</option>
+                <option value="พ.อ.">พ.อ.</option>
+                <option value="พ.อ.(พิเศษ)">พ.อ.(พิเศษ)</option>
+              </optgroup>
+              <optgroup label="⭐ นายทหารชั้นนายพล">
+                <option value="พล.ต.">พล.ต.</option>
+                <option value="พล.ท.">พล.ท.</option>
+                <option value="พล.อ.">พล.อ.</option>
               </optgroup>
               <optgroup label="🔰 นายทหารประทวน">
-                <option value="จ.ส.อ.">จ.ส.อ. / พ.จ.อ. / พ.อ.อ.</option>
-                <option value="จ.ส.ท.">จ.ส.ท. / พ.จ.ท. / พ.อ.ท.</option>
-                <option value="จ.ส.ต.">จ.ส.ต. / พ.จ.ต. / พ.อ.ต.</option>
-                <option value="ส.อ.">ส.อ. / จ.อ. / จ.อ.</option>
-                <option value="ส.ท.">ส.ท. / จ.ท. / จ.ท.</option>
-                <option value="ส.ต.">ส.ต. / จ.ต. / จ.ต.</option>
+                <option value="ส.ต.">ส.ต.</option>
+                <option value="ส.ท.">ส.ท.</option>
+                <option value="ส.อ.">ส.อ.</option>
+                <option value="จ.ส.ต.">จ.ส.ต.</option>
+                <option value="จ.ส.ท.">จ.ส.ท.</option>
+                <option value="จ.ส.อ.">จ.ส.อ.</option>
                 <option value="พลฯ">พลอาสาสมัคร / พลทหาร</option>
               </optgroup>
               <optgroup label="👮 ตำรวจ">
-                <option value="พล.ต.อ.">พล.ต.อ.</option>
-                <option value="พล.ต.ท.">พล.ต.ท.</option>
-                <option value="พล.ต.ต.">พล.ต.ต.</option>
-                <option value="พ.ต.อ.">พ.ต.อ.</option>
-                <option value="พ.ต.ท.">พ.ต.ท.</option>
-                <option value="พ.ต.ต.">พ.ต.ต.</option>
-                <option value="ร.ต.อ.">ร.ต.อ.</option>
-                <option value="ร.ต.ท.">ร.ต.ท.</option>
-                <option value="ร.ต.ต.">ร.ต.ต.</option>
+                <option value="ส.ต.ต. - ส.ต.อ.">ส.ต.ต. - ส.ต.อ.</option>
+                <option value="จ.ส.ต. (ตร.)">จ.ส.ต. (ตร.)</option>
                 <option value="ด.ต.">ด.ต.</option>
-                <option value="ส.ต.ต.">ส.ต.ต. - ส.ต.อ.</option>
+                <option value="ร.ต.ต.">ร.ต.ต.</option>
+                <option value="ร.ต.ท.">ร.ต.ท.</option>
+                <option value="ร.ต.อ.">ร.ต.อ.</option>
+                <option value="พ.ต.ต.">พ.ต.ต.</option>
+                <option value="พ.ต.ท.">พ.ต.ท.</option>
+                <option value="พ.ต.อ.">พ.ต.อ.</option>
+                <option value="พล.ต.ต.">พล.ต.ต.</option>
+                <option value="พล.ต.ท.">พล.ต.ท.</option>
+                <option value="พล.ต.อ.">พล.ต.อ.</option>
               </optgroup>
               <optgroup label="👤 พลเรือน / ข้าราชการทั่วไป">
                 <option value="นาย">นาย</option>
                 <option value="นาง">นาง</option>
                 <option value="นางสาว">นางสาว</option>
-                <option value="ดร.">ดร.</option>
-                <option value="อื่นๆ">อื่นๆ (ระบุเอง)</option>
+                <option value="อื่นๆ (ระบุเอง)">อื่นๆ (ระบุเอง)</option>
               </optgroup>
             </select>
             <input type="text" id="userRankOther" placeholder="พิมพ์ยศ/คำนำหน้าเอง..." class="w-full mt-2 px-3 py-2 rounded-xl bg-slate-900 border border-amber-500/60 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition hidden">
@@ -163,7 +195,7 @@
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
-          <!-- สังกัด / หน่วยงาน (Dropdown) -->
+          <!-- สังกัด / หน่วยงาน (Dropdown ตรงกับ Mobile App) -->
           <div>
             <label class="block text-xs font-medium text-slate-300 mb-1">
               หน่วยงาน / ต้นสังกัด <span class="text-rose-400">*</span>
@@ -173,38 +205,19 @@
                 <option value="กรมแผนที่ทหาร (ผท.บก.ทท.)" selected>กรมแผนที่ทหาร (ผท.บก.ทท.)</option>
                 <option value="กองบริการแผนที่ (กบค.ผท.)">กองบริการแผนที่ (กบค.ผท.)</option>
                 <option value="กองเทคโนโลยีภูมิสารสนเทศ (กทภ.ผท.)">กองเทคโนโลยีภูมิสารสนเทศ (กทภ.ผท.)</option>
-                <option value="กองทำแผนที่ (กทผ.ผท.)">กองทำแผนที่ (กทผ.ผท.)</option>
-                <option value="กองสารสนเทศและแผนที่ภาพ (กสภ.ผท.)">กองสารสนเทศและแผนที่ภาพ (กสภ.ผท.)</option>
-                <option value="กองควบคุมทางอากาศและสำรวจรังวัด (กอส.ผท.)">กองควบคุมทางอากาศและสำรวจรังวัด (กอส.ผท.)</option>
-                <option value="กองยีโอเดซีและภูมิศาสตร์ (กยภ.ผท.)">กองยีโอเดซีและภูมิศาสตร์ (กยภ.ผท.)</option>
-                <option value="กองการสงครามแผนที่ (กสผ.ผท.)">กองการสงครามแผนที่ (กสผ.ผท.)</option>
                 <option value="ศูนย์ปฏิบัติการร่วมแผนที่ (ศปก.ผท.)">ศูนย์ปฏิบัติการร่วมแผนที่ (ศปก.ผท.)</option>
-                <option value="โรงเรียนแผนที่ กรมแผนที่ทหาร (รร.ผท.)">โรงเรียนแผนที่ กรมแผนที่ทหาร (รร.ผท.)</option>
                 <option value="กองบัญชาการกองทัพไทย (บก.ทท.)">กองบัญชาการกองทัพไทย (บก.ทท.)</option>
-                <option value="หน่วยบัญชาการทหารพัฒนา (นทพ.)">หน่วยบัญชาการทหารพัฒนา (นทพ.)</option>
-                <option value="ศูนย์ปฏิบัติการต่อต้านการก่อการร้ายสากล (ศปภ.)">ศูนย์ปฏิบัติการต่อต้านการก่อการร้ายสากล (ศปภ.)</option>
-                <option value="สำนักยุทธการทหาร (สยท.ทหาร)">สำนักยุทธการทหาร (สยท.ทหาร)</option>
-                <option value="สำนักข่าวกรองทหาร (สขท.ทหาร)">สำนักข่าวกรองทหาร (สขท.ทหาร)</option>
               </optgroup>
               <optgroup label="⚔️ เหล่าทัพหลัก">
-                <option value="ศูนย์ปฏิบัติการกองทัพบก (ศปก.ทบ.)">ศูนย์ปฏิบัติการกองทัพบก (ศปก.ทบ.)</option>
                 <option value="กองทัพบก (ทบ.)">กองทัพบก (ทบ.)</option>
-                <option value="ศูนย์ปฏิบัติการกองทัพเรือ (ศปก.ทร.)">ศูนย์ปฏิบัติการกองทัพเรือ (ศปก.ทร.)</option>
                 <option value="กองทัพเรือ (ทร.)">กองทัพเรือ (ทร.)</option>
-                <option value="ศูนย์ปฏิบัติการกองทัพอากาศ (ศปก.ทอ.)">ศูนย์ปฏิบัติการกองทัพอากาศ (ศปก.ทอ.)</option>
                 <option value="กองทัพอากาศ (ทอ.)">กองทัพอากาศ (ทอ.)</option>
               </optgroup>
               <optgroup label="🛡️ ความมั่นคง / ปภ. / หน่วยงานร่วม">
                 <option value="กรมป้องกันและบรรเทาสาธารณภัย (ปภ.)">กรมป้องกันและบรรเทาสาธารณภัย (ปภ.)</option>
-                <option value="ศูนย์เตือนภัยพิบัติแห่งชาติ (ศภช.)">ศูนย์เตือนภัยพิบัติแห่งชาติ (ศภช.)</option>
-                <option value="กองอำนวยการรักษาความมั่นคงภายใน (กอ.รมน.)">กองอำนวยการรักษาความมั่นคงภายใน (กอ.รมน.)</option>
                 <option value="สำนักงานตำรวจแห่งชาติ (ตร.)">สำนักงานตำรวจแห่งชาติ (ตร.)</option>
-                <option value="กองบัญชาการตำรวจตระเวนชายแดน (ตชด.)">กองบัญชาการตำรวจตระเวนชายแดน (ตชด.)</option>
                 <option value="GISTDA (จิสด้า)">GISTDA (จิสด้า)</option>
-                <option value="สถาบันสารสนเทศทรัพยากรน้ำ (สสน. / HII)">สถาบันสารสนเทศทรัพยากรน้ำ (สสน. / HII)</option>
-                <option value="กรมอุตุนิยมวิทยา">กรมอุตุนิยมวิทยา</option>
-                <option value="กรมชลประทาน">กรมชลประทาน</option>
-                <option value="อื่นๆ">อื่นๆ (ระบุหน่วยงานเอง)</option>
+                <option value="อื่นๆ (ระบุหน่วยงานเอง)">อื่นๆ (ระบุหน่วยงานเอง)</option>
               </optgroup>
             </select>
             <input type="text" id="userUnitOther" placeholder="พิมพ์ชื่อหน่วยงาน / สังกัด ของท่าน..." class="w-full mt-2 px-3 py-2 rounded-xl bg-slate-900 border border-amber-500/60 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition hidden">
@@ -215,29 +228,106 @@
             <label class="block text-xs font-medium text-slate-300 mb-1">
               ตำแหน่งหน้าที่
             </label>
-            <input type="text" id="userPosition" placeholder="เช่น ผบ.ร้อย / นายทหารแผนที่ / หัวหน้าชุด" class="w-full px-3 py-2.5 rounded-xl bg-slate-800/90 border border-slate-600 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition">
+            <input type="text" id="userPosition" value="หัวหน้าชุดปฏิบัติการ" placeholder="เช่น หัวหน้าชุด, พลขับ, ฝ่ายยุทธการ" class="w-full px-3 py-2.5 rounded-xl bg-slate-800/90 border border-slate-600 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition">
           </div>
 
           <!-- พื้นที่รับผิดชอบ / เขตปฏิบัติการ -->
           <div class="sm:col-span-2">
             <label class="block text-xs font-medium text-slate-300 mb-1 flex items-center gap-1.5">
               <i class="fa-solid fa-map-location-dot text-cyan-400"></i>
-              <span>พื้นที่รับผิดชอบ / เขตปฏิบัติการ</span>
+              <span>พื้นที่รับผิดชอบ / เขตปฏิบัติการ <span class="text-rose-400">*</span></span>
             </label>
             <input type="text" id="userArea" value="เชียงราย (ทุกอำเภอ)" placeholder="เช่น เชียงราย (ทุกอำเภอ), อ.แม่สาย, ภาคเหนือ, ส่วนกลาง" class="w-full px-3 py-2.5 rounded-xl bg-slate-800/90 border border-slate-600 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition">
-            <p class="text-[11px] text-slate-400 mt-1">สามารถระบุเป็นอำเภอเดียว, หลายอำเภอ, ทั้งจังหวัด หรือพื้นที่ระดับภาคได้</p>
+          </div>
+
+          <!-- ขนาดของหน่วย / กำลังพล (Dropdown ตรงกับ Mobile App) -->
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1 flex items-center gap-1.5">
+              <i class="fa-solid fa-users-viewfinder text-amber-400"></i>
+              <span>ขนาดของหน่วย / กำลังพล <span class="text-rose-400">*</span></span>
+            </label>
+            <select id="userUnitSize" required class="w-full px-3 py-2.5 rounded-xl bg-slate-800/90 border border-slate-600 text-sm text-white focus:outline-none focus:border-amber-400 transition">
+              <option value="ชุดปฏิบัติการขนาดเล็ก (3-5 นาย)" selected>ชุดปฏิบัติการขนาดเล็ก (3-5 นาย)</option>
+              <option value="หมู่ / หมวดปฏิบัติการ (6-15 นาย)">หมู่ / หมวดปฏิบัติการ (6-15 นาย)</option>
+              <option value="กองร้อย / ชุดเคลื่อนที่เร็ว (16-50 นาย)">กองร้อย / ชุดเคลื่อนที่เร็ว (16-50 นาย)</option>
+              <option value="กองพัน / บก.ควบคุม (50+ นาย)">กองพัน / บก.ควบคุม (50+ นาย)</option>
+              <option value="เจ้าหน้าที่เดี่ยว / ลาดตระเวนคู่ (1-2 นาย)">เจ้าหน้าที่เดี่ยว / ลาดตระเวนคู่ (1-2 นาย)</option>
+            </select>
+          </div>
+
+          <!-- ประเภทยานพาหนะหลักประจำหน่วย (Dropdown ตรงกับ Mobile App) -->
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1 flex items-center gap-1.5">
+              <i class="fa-solid fa-truck-pickup text-emerald-400"></i>
+              <span>ยานพาหนะหลักประจำหน่วย <span class="text-rose-400">*</span></span>
+            </label>
+            <select id="userVehicleType" required class="w-full px-3 py-2.5 rounded-xl bg-slate-800/90 border border-slate-600 text-sm text-white focus:outline-none focus:border-emerald-400 transition">
+              <option value="🚗 รถกระบะตรวจการณ์ 4x4 (Pickup 4WD)" selected>🚗 รถกระบะตรวจการณ์ 4x4 (Pickup 4WD)</option>
+              <option value="🚚 รถบรรทุกทหาร 6 ล้อ / ขนส่งพล">🚚 รถบรรทุกทหาร 6 ล้อ / ขนส่งพล</option>
+              <option value="🚑 รถพยาบาล / กู้ภัยฉุกเฉิน (Ambulance)">🚑 รถพยาบาล / กู้ภัยฉุกเฉิน (Ambulance)</option>
+              <option value="🏍️ รถจักรยานยนต์ลาดตระเวน (Motorcycle)">🏍️ รถจักรยานยนต์ลาดตระเวน (Motorcycle)</option>
+              <option value="🚤 เรือท้องแบนกู้ภัย (Flat-bottom Boat)">🚤 เรือท้องแบนกู้ภัย (Flat-bottom Boat)</option>
+              <option value="🛶 เรือยางกู้ภัยติดเครื่องยนต์ (Inflatable Boat)">🛶 เรือยางกู้ภัยติดเครื่องยนต์ (Inflatable Boat)</option>
+              <option value="🛥️ เรือเร็วตรวจการณ์ (Patrol Speedboat)">🛥️ เรือเร็วตรวจการณ์ (Patrol Speedboat)</option>
+              <option value="🚁 โดรนสำรวจ / อากาศยานไร้คนขับ (UAV Drone)">🚁 โดรนสำรวจ / อากาศยานไร้คนขับ (UAV Drone)</option>
+              <option value="🚶 ชุดเดินเท้า / ลาดตระเวนเดินเท้า (Foot Patrol)">🚶 ชุดเดินเท้า / ลาดตระเวนเดินเท้า (Foot Patrol)</option>
+            </select>
           </div>
         </div>
       </div>
 
-      <!-- Section 2: ข้อมูลติดต่อและรับ OTP -->
+      <!-- Section 2: ข้อมูลบัญชีผู้ใช้สำหรับล็อกอิน (ตรงกับ Mobile App) -->
       <div>
-        <div class="flex items-center gap-2 text-cyan-400 font-semibold text-sm mb-3 border-b border-slate-700/60 pb-2">
-          <i class="fa-solid fa-mobile-screen-button"></i>
-          <span>2. การยืนยันตัวตนและความปลอดภัย (สำคัญมาก)</span>
+        <div class="flex items-center gap-2 text-amber-400 font-semibold text-sm mb-3 border-b border-slate-700/60 pb-2">
+          <i class="fa-solid fa-lock text-amber-400"></i>
+          <span>2. บัญชีผู้ใช้งานสำหรับล็อกอิน (Login Credentials)</span>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <!-- Username -->
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">
+              ชื่อผู้ใช้งาน (Username) <span class="text-rose-400">*</span>
+            </label>
+            <div class="relative">
+              <input type="text" id="userUsername" required minlength="3" placeholder="เช่น somchai99" class="w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-800/90 border border-slate-600 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition font-mono">
+              <i class="fa-solid fa-at absolute left-3 top-3 text-amber-400 text-xs"></i>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-1">อย่างน้อย 3 ตัวอักษร (ภาษาอังกฤษ/ตัวเลข)</p>
+          </div>
+
+          <!-- Password -->
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">
+              รหัสผ่าน (Password / PIN) <span class="text-rose-400">*</span>
+            </label>
+            <div class="relative">
+              <input type="password" id="userPassword" required minlength="4" placeholder="••••••••" class="w-full pl-9 pr-9 py-2.5 rounded-xl bg-slate-800/90 border border-slate-600 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition">
+              <i class="fa-solid fa-key absolute left-3 top-3 text-amber-400 text-xs"></i>
+              <button type="button" onclick="togglePasswordVisibility('userPassword', 'eyePassIcon')" class="absolute right-3 top-2.5 text-slate-400 hover:text-white transition">
+                <i id="eyePassIcon" class="fa-solid fa-eye-slash text-xs"></i>
+              </button>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-1">อย่างน้อย 4 ตัวอักษร หรือ PIN</p>
+          </div>
+
+          <!-- Confirm Password -->
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">
+              ยืนยันรหัสผ่าน <span class="text-rose-400">*</span>
+            </label>
+            <div class="relative">
+              <input type="password" id="userConfirmPassword" required minlength="4" placeholder="••••••••" class="w-full pl-9 pr-9 py-2.5 rounded-xl bg-slate-800/90 border border-slate-600 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition">
+              <i class="fa-solid fa-lock-check absolute left-3 top-3 text-amber-400 text-xs"></i>
+              <button type="button" onclick="togglePasswordVisibility('userConfirmPassword', 'eyeConfirmIcon')" class="absolute right-3 top-2.5 text-slate-400 hover:text-white transition">
+                <i id="eyeConfirmIcon" class="fa-solid fa-eye-slash text-xs"></i>
+              </button>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-1">กรอกรหัสผ่านซ้ำอีกครั้ง</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
           <!-- เบอร์โทรศัพท์ -->
           <div>
             <label class="block text-xs font-medium text-slate-300 mb-1">
@@ -248,68 +338,25 @@
               <i class="fa-solid fa-phone absolute left-3.5 top-3 text-slate-400 text-xs"></i>
             </div>
             <p class="text-[11px] text-amber-400 mt-1">
-              <i class="fa-solid fa-circle-info"></i> เบอร์นี้จะใช้รับรหัส OTP ผ่าน LINE เมื่อเข้า Dashboard
+              <i class="fa-solid fa-circle-info"></i> เบอร์นี้จะใช้รับรหัส OTP ผ่าน LINE และใช้ล็อกอินสำรองได้
             </p>
           </div>
 
           <!-- LINE Account / User ID -->
           <div>
             <label class="block text-xs font-medium text-slate-300 mb-1">
-              ชื่อแสดงบน LINE / LINE ID (ถ้ามี)
+              LINE Account / LINE ID (ถ้ามี)
             </label>
             <div class="relative">
               <input type="text" id="userLineId" placeholder="เช่น LINE: somchai_rtsd" class="w-full pl-10 pr-3 py-2.5 rounded-xl bg-slate-800/90 border border-slate-600 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition">
               <i class="fa-brands fa-line absolute left-3.5 top-3 text-emerald-400 text-sm"></i>
             </div>
-            <p class="text-[11px] text-slate-400 mt-1">เพื่อให้ระบบส่ง OTP และแจ้งเตือนไปยังแชตของท่านได้ทันที</p>
-          </div>
-
-          <!-- รูปโปรไฟล์ (อัปโหลดจาก Gallery หรือใส่ URL) -->
-          <div class="sm:col-span-2 p-3.5 rounded-xl bg-slate-900/90 border border-slate-700/80">
-            <label class="block text-xs font-semibold text-cyan-400 mb-2 flex items-center gap-1.5">
-              <i class="fa-solid fa-camera"></i>
-              <span>รูปภาพโปรไฟล์ (เลือกจากคลังภาพ Gallery หรือ ถ่ายรูป)</span>
-            </label>
-            
-            <div class="flex flex-col sm:flex-row items-center gap-4">
-              <!-- Avatar Preview Container -->
-              <div class="relative group cursor-pointer" onclick="document.getElementById('profileFileInput').click()" title="แตะเพื่อเลือกรูปจากแกลเลอรี">
-                <div id="avatarPreviewContainer" class="w-20 h-20 rounded-full border-2 border-dashed border-cyan-500/50 bg-slate-800/80 flex flex-col items-center justify-center text-slate-400 overflow-hidden shadow-md transition hover:border-cyan-400">
-                  <i id="avatarIcon" class="fa-solid fa-cloud-arrow-up text-xl text-cyan-400 mb-1"></i>
-                  <span id="avatarText" class="text-[10px] text-center text-slate-400 px-1 leading-tight">เลือกภาพ</span>
-                  <img id="avatarPreviewImg" class="w-full h-full object-cover hidden" alt="Profile Preview">
-                </div>
-                <div class="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-cyan-600 text-white flex items-center justify-center text-xs shadow-md border border-slate-900">
-                  <i class="fa-solid fa-images"></i>
-                </div>
-              </div>
-
-              <!-- Action Controls -->
-              <div class="flex-1 w-full space-y-2">
-                <div class="flex flex-wrap items-center gap-2">
-                  <input type="file" id="profileFileInput" accept="image/*" class="hidden" onchange="handleProfileImageSelect(event)">
-                  <button type="button" onclick="document.getElementById('profileFileInput').click()" class="px-3 py-1.5 rounded-lg bg-cyan-600/30 hover:bg-cyan-600/50 text-cyan-300 border border-cyan-500/40 text-xs font-medium transition flex items-center gap-1.5 cursor-pointer shadow">
-                    <i class="fa-solid fa-photo-film text-cyan-400"></i>
-                    <span>เลือกรูปจากแกลเลอรี (Gallery)</span>
-                  </button>
-                  <button type="button" id="removePhotoBtn" onclick="removeSelectedPhoto()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-rose-950/60 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-500/40 text-xs transition hidden items-center gap-1 cursor-pointer">
-                    <i class="fa-solid fa-trash-can"></i>
-                    <span>ลบรูป</span>
-                  </button>
-                </div>
-                <p class="text-[11px] text-slate-400 leading-relaxed">
-                  📱 รองรับไฟล์ภาพจากมือถือ (ระบบจะย่อขนาดให้อัตโนมัติ) หรือเว้นว่างไว้เพื่อดึงภาพโปรไฟล์จาก LINE อัตโนมัติ
-                </p>
-                <div class="pt-1">
-                  <input type="url" id="userPictureProfile" placeholder="หรือวางลิงก์รูปภาพ URL ที่นี่ (ถ้ามี)..." class="w-full px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition">
-                </div>
-              </div>
-            </div>
+            <p class="text-[11px] text-slate-400 mt-1">สำหรับรับข้อความแจ้งเตือนสถานะอนุมัติทาง LINE</p>
           </div>
         </div>
       </div>
 
-      <!-- Section 3: วัตถุประสงค์การใช้งาน -->
+      <!-- Section 3: วัตถุประสงค์การใช้งานและข้อตกลง -->
       <div>
         <label class="block text-xs font-medium text-slate-300 mb-1">
           3. วัตถุประสงค์การขอเข้าใช้งานระบบ (ถ้ามี)
@@ -345,14 +392,17 @@
 
       <div class="bg-slate-800/80 rounded-xl p-3.5 text-left text-xs space-y-1.5 border border-slate-700 mb-5 text-slate-300">
         <div><span class="text-slate-400">ชื่อ-สกุล:</span> <b class="text-white" id="modalName">-</b></div>
-        <div><span class="text-slate-400">หน่วยงาน:</span> <b class="text-white" id="modalUnit">-</b></div>
+        <div><span class="text-slate-400">ชื่อผู้ใช้ (Username):</span> <b class="text-amber-400 font-mono" id="modalUsername">-</b></div>
         <div><span class="text-slate-400">เบอร์โทรศัพท์:</span> <b class="text-cyan-400 font-mono" id="modalPhone">-</b></div>
-        <div><span class="text-slate-400">สถานะคำขอ:</span> <span id="modalStatusBadge" class="px-2 py-0.5 rounded text-[10px] bg-amber-950 text-amber-300 border border-amber-600 font-medium">⏳ รอการอนุมัติจาก Admin</span></div>
+        <div><span class="text-slate-400">หน่วยงาน:</span> <b class="text-white" id="modalUnit">-</b></div>
+        <div><span class="text-slate-400">ขนาดยูนิต / ยานพาหนะ:</span> <span class="text-white text-[11px]" id="modalUnitInfo">-</span></div>
+        <div><span class="text-slate-400">พื้นที่รับผิดชอบ:</span> <span class="text-white text-[11px]" id="modalArea">-</span></div>
+        <div class="pt-1"><span class="text-slate-400">สถานะคำขอ:</span> <span id="modalStatusBadge" class="px-2 py-0.5 rounded text-[10px] bg-amber-950 text-amber-300 border border-amber-600 font-medium">⏳ รอการอนุมัติจาก Admin</span></div>
       </div>
 
       <p id="modalDescription" class="text-xs text-slate-300 mb-5 leading-relaxed">
-        ระบบความปลอดภัย RTSD ได้รับคำขอของท่านเรียบร้อยแล้ว และได้ส่งแจ้งเตือนไปยังผู้ดูแลระบบ (Admin) เพื่อตรวจสอบสิทธิ์<br>
-        <span class="text-amber-400 font-medium">เมื่อแอดมินอนุมัติเรียบร้อย ท่านจะได้รับการแจ้งเตือนทาง LINE และสามารถเข้าใช้งานแอปพลิเคชันได้ทันทีครับ</span>
+        ระบบความปลอดภัย RTSD ได้รับคำขอและบันทึกบัญชีของท่านเรียบร้อยแล้ว<br>
+        <span class="text-amber-400 font-medium">เมื่อแอดมินอนุมัติเรียบร้อย ท่านสามารถใช้ Username / เบอร์โทร และรหัสผ่านที่ตั้งไว้ เพื่อเข้าใช้งานได้ทันทีครับ</span>
       </p>
 
       <div class="grid grid-cols-2 gap-2.5">
@@ -377,7 +427,7 @@
 
     function toggleRankOther(val) {
       const otherInput = document.getElementById('userRankOther');
-      if (val === 'อื่นๆ') {
+      if (val === 'อื่นๆ (ระบุเอง)' || val === 'อื่นๆ') {
         otherInput.classList.remove('hidden');
         otherInput.required = true;
         otherInput.focus();
@@ -389,13 +439,26 @@
 
     function toggleUnitOther(val) {
       const otherInput = document.getElementById('userUnitOther');
-      if (val === 'อื่นๆ') {
+      if (val === 'อื่นๆ (ระบุหน่วยงานเอง)' || val === 'อื่นๆ') {
         otherInput.classList.remove('hidden');
         otherInput.required = true;
         otherInput.focus();
       } else {
         otherInput.classList.add('hidden');
         otherInput.required = false;
+      }
+    }
+
+    function togglePasswordVisibility(inputId, iconId) {
+      const input = document.getElementById(inputId);
+      const icon = document.getElementById(iconId);
+      if (!input || !icon) return;
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'fa-solid fa-eye text-xs text-amber-400';
+      } else {
+        input.type = 'password';
+        icon.className = 'fa-solid fa-eye-slash text-xs text-slate-400';
       }
     }
 
@@ -410,7 +473,6 @@
       reader.onload = function(event) {
         const img = new Image();
         img.onload = function() {
-          // ย่อขนาดรูปภาพให้พอดี (Max 400x400) เพื่อให้อัปโหลดไวและประหยัดเน็ต
           const canvas = document.createElement('canvas');
           const maxDim = 400;
           let width = img.width;
@@ -431,11 +493,9 @@
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
 
-          // แปลงเป็น Base64 JPEG
           const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
           selectedProfileBase64 = dataUrl.split(',')[1];
 
-          // แสดงรูป Preview
           const previewImg = document.getElementById('avatarPreviewImg');
           previewImg.src = dataUrl;
           previewImg.classList.remove('hidden');
@@ -466,23 +526,43 @@
       const submitBtn = document.getElementById('submitBtn');
 
       let rank = document.getElementById('userRank').value.trim();
-      if (rank === 'อื่นๆ') {
+      if (rank === 'อื่นๆ (ระบุเอง)' || rank === 'อื่นๆ') {
         rank = document.getElementById('userRankOther').value.trim() || 'อื่นๆ';
       }
 
       const name = document.getElementById('userName').value.trim();
 
       let unit = document.getElementById('userUnitSelect').value.trim();
-      if (unit === 'อื่นๆ') {
+      if (unit === 'อื่นๆ (ระบุหน่วยงานเอง)' || unit === 'อื่นๆ') {
         unit = document.getElementById('userUnitOther').value.trim() || 'หน่วยงานทั่วไป';
       }
 
-      const position = document.getElementById('userPosition').value.trim() || '-';
+      const position = document.getElementById('userPosition').value.trim() || 'หัวหน้าชุดปฏิบัติการ';
       const area = (document.getElementById('userArea') ? document.getElementById('userArea').value.trim() : '') || 'เชียงราย (ทุกอำเภอ)';
-      const phone = document.getElementById('userPhone').value.trim().replace(/-/g, '');
+      const unitSize = document.getElementById('userUnitSize').value.trim();
+      const vehicleType = document.getElementById('userVehicleType').value.trim();
+      const phone = document.getElementById('userPhone').value.trim().replace(/-/g, '').replace(/\s/g, '');
+      const username = document.getElementById('userUsername').value.trim().toLowerCase().replace(/\s/g, '');
+      const password = document.getElementById('userPassword').value.trim();
+      const confirmPassword = document.getElementById('userConfirmPassword').value.trim();
       const lineId = document.getElementById('userLineId').value.trim() || '-';
       const role = 'ผู้ใช้งานทั่วไป';
-      const purpose = document.getElementById('userPurpose').value.trim() || 'ปฏิบัติงานสารสนเทศภูมิศาสตร์';
+      const purpose = document.getElementById('userPurpose').value.trim() || 'ปฏิบัติงานสารสนเทศภูมิศาสตร์ RTSD';
+
+      if (!username || username.length < 3) {
+        alert('กรุณาระบุ Username อย่างน้อย 3 ตัวอักษร (เช่น somchai99)');
+        return;
+      }
+
+      if (!password || password.length < 4) {
+        alert('กรุณาระบุรหัสผ่าน (Password / PIN) อย่างน้อย 4 ตัวอักษร');
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        alert('รหัสผ่านและยืนยันรหัสผ่านไม่ตรงกัน กรุณาตรวจสอบอีกครั้ง');
+        return;
+      }
 
       if (!phone || phone.length < 9 || phone.length > 10) {
         alert('กรุณากรอกหมายเลขโทรศัพท์ 10 หลักให้ถูกต้อง (เช่น 0812345678)');
@@ -500,15 +580,19 @@
           rank: rank,
           full_name: fullNameWithRank,
           name_only: name,
+          username: username,
+          password: password,
           unit: unit,
           position: position,
           area: area,
           district: area,
+          unit_size: unitSize,
+          vehicle_type: vehicleType,
           phone_number: phone,
           line_user_id: lineId,
           role: role,
           purpose: purpose,
-          picture_profile: (document.getElementById('userPictureProfile') ? document.getElementById('userPictureProfile').value.trim() : '') || '-',
+          picture_profile: '-',
           picture_base64: selectedProfileBase64 || ''
         };
 
@@ -533,8 +617,11 @@
           // Fill modal details
           document.getElementById('reqIdBadge').innerText = `REQUEST ID: ${data.req_id || 'RTSD-REQ-' + phone.slice(-4)}`;
           document.getElementById('modalName').innerText = fullNameWithRank;
-          document.getElementById('modalUnit').innerText = unit;
+          document.getElementById('modalUsername').innerText = username;
           document.getElementById('modalPhone').innerText = phone;
+          document.getElementById('modalUnit').innerText = unit;
+          document.getElementById('modalUnitInfo').innerText = `${unitSize} / ${vehicleType}`;
+          document.getElementById('modalArea').innerText = area;
           
           const isApproved = data.approval_status === 'อนุมัติแล้ว';
           const badgeEl = document.getElementById('modalStatusBadge');

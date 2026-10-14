@@ -42,7 +42,8 @@ function doPost(e) {
         userSheet = ss.insertSheet("Users");
         userSheet.appendRow([
           "registered_at", "line_user_id", "full_name", "phone_number", "role", 
-          "unit", "position", "approval_status", "purpose", "picture_profile"
+          "unit", "position", "approval_status", "purpose", "picture_profile",
+          "username", "area", "unit_size", "vehicle_type"
         ]);
       } else {
         var lastCol = userSheet.getLastColumn();
@@ -55,6 +56,12 @@ function doPost(e) {
         if (lastCol < 10) {
           userSheet.getRange(1, 10).setValue("picture_profile");
         }
+        if (lastCol < 14) {
+          userSheet.getRange(1, 11).setValue("username");
+          userSheet.getRange(1, 12).setValue("area");
+          userSheet.getRange(1, 13).setValue("unit_size");
+          userSheet.getRange(1, 14).setValue("vehicle_type");
+        }
       }
       
       var lineId = (data.line_user_id || "").toString().trim();
@@ -66,6 +73,10 @@ function doPost(e) {
       var status = (data.approval_status || "อนุมัติแล้ว").toString().trim();
       var purpose = (data.purpose || "-").toString().trim();
       var pic = (data.picture_profile || data.picture_url || "-").toString().trim();
+      var username = (data.username || "").toString().trim();
+      var area = (data.area || data.district || "เชียงราย (ทุกอำเภอ)").toString().trim();
+      var unitSize = (data.unit_size || "ชุดปฏิบัติการขนาดเล็ก (3-5 นาย)").toString().trim();
+      var vehicleType = (data.vehicle_type || "🚗 รถกระบะตรวจการณ์ 4x4 (Pickup 4WD)").toString().trim();
 
       // หากมีการอัปโหลดไฟล์ภาพ Base64 จาก Gallery
       if (data.picture_base64) {
@@ -99,12 +110,16 @@ function doPost(e) {
           if (status) userSheet.getRange(i + 1, 8).setValue(status);
           if (purpose) userSheet.getRange(i + 1, 9).setValue(purpose);
           if (pic && pic !== "-") userSheet.getRange(i + 1, 10).setValue(pic);
+          if (username) userSheet.getRange(i + 1, 11).setValue(username);
+          if (area) userSheet.getRange(i + 1, 12).setValue(area);
+          if (unitSize) userSheet.getRange(i + 1, 13).setValue(unitSize);
+          if (vehicleType) userSheet.getRange(i + 1, 14).setValue(vehicleType);
           updated = true;
           break;
         }
       }
       if (!updated) {
-        userSheet.appendRow([now, lineId, name, phone, role, unit, position, status, purpose, pic]);
+        userSheet.appendRow([now, lineId, name, phone, role, unit, position, status, purpose, pic, username, area, unitSize, vehicleType]);
       }
       
       return ContentService.createTextOutput(JSON.stringify({
@@ -116,7 +131,11 @@ function doPost(e) {
         unit: unit,
         position: position,
         approval_status: status,
-        picture_profile: pic
+        picture_profile: pic,
+        username: username,
+        area: area,
+        unit_size: unitSize,
+        vehicle_type: vehicleType
       })).setMimeType(ContentService.MimeType.JSON);
     }
     
@@ -142,7 +161,11 @@ function doPost(e) {
             position: rows[u][6] || "-",
             approval_status: rows[u][7] || "อนุมัติแล้ว",
             purpose: rows[u][8] || "-",
-            picture_profile: rows[u][9] || "-"
+            picture_profile: rows[u][9] || "-",
+            username: rows[u][10] || "",
+            area: rows[u][11] || "เชียงราย (ทุกอำเภอ)",
+            unit_size: rows[u][12] || "ชุดปฏิบัติการขนาดเล็ก (3-5 นาย)",
+            vehicle_type: rows[u][13] || "🚗 รถกระบะตรวจการณ์ 4x4 (Pickup 4WD)"
           });
         }
       }
