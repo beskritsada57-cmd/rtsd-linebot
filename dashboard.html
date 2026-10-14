@@ -692,7 +692,7 @@
                     <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
                     <span class="text-cyan-300 font-medium">🛣️ เส้นทางลาดตระเวน (Tracks)</span>
                   </div>
-                  <input type="checkbox" id="chkFilterTracks" checked onchange="toggleLayerFilter('tracks', this.checked)" class="accent-cyan-500 rounded cursor-pointer">
+                  <input type="checkbox" id="chkFilterTracks" onchange="toggleLayerFilter('tracks', this.checked)" class="accent-cyan-500 rounded cursor-pointer">
                 </label>
 
                 <!-- Export Patrol Tracks Buttons -->
@@ -7659,7 +7659,7 @@
       units: true,
       pins: true,
       cctv: true,
-      tracks: true
+      tracks: false // ปิดไว้ก่อนเป็นค่าเริ่มต้นตามที่ผู้ใช้ต้องการ
     };
     try {
       const savedLayers = localStorage.getItem('rtsd_layer_filters');
@@ -7827,7 +7827,7 @@
         if (chkUnits) chkUnits.checked = isLayerVisible.units !== false;
         if (chkPins) chkPins.checked = isLayerVisible.pins !== false;
         if (chkCctv) chkCctv.checked = isLayerVisible.cctv !== false;
-        if (chkTracks) chkTracks.checked = isLayerVisible.tracks !== false;
+        if (chkTracks) chkTracks.checked = isLayerVisible.tracks === true;
         updateLayerFilterBadge();
         dd.classList.remove('hidden');
       } else {

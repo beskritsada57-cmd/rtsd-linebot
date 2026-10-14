@@ -832,11 +832,14 @@ def api_tracker_update():
         "unit_size": str(data.get("unit_size", "-")),
         "vehicle_type": str(data.get("vehicle_type", "-")),
         "last_update": data.get("timestamp", time.strftime("%Y-%m-%d %H:%M:%S")),
-        "last_seen_epoch": time.time()
+        "last_seen_epoch": time.time(),
+        "is_line_tracking": str(data.get("record_track", "")).lower() in ["true", "1", "yes"]
     }
 
     # 🗺️ บันทึกประวัติพิกัดลง Tracklines (Polyline) ของชุดปฏิบัติการ
-    if lat != 0 and lon != 0 and -90 <= lat <= 90 and -180 <= lon <= 180:
+    # เฉพาะเมื่อเจ้าหน้าที่กดเปิดแทร็กกิ่งแบบเส้นในแอป (record_track = True) เท่านั้น
+    record_track = str(data.get("record_track", "")).lower() in ["true", "1", "yes"]
+    if record_track and lat != 0 and lon != 0 and -90 <= lat <= 90 and -180 <= lon <= 180:
         if unit_id not in unit_tracks:
             unit_tracks[unit_id] = []
         pts = unit_tracks[unit_id]
