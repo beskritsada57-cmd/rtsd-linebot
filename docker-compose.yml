@@ -16,7 +16,7 @@ services:
       - CHANNEL_SECRET=95fadcaa0b4890bf137239eb0122230c
       - CHANNEL_ACCESS_TOKEN=tZwEj7/Os0MEb2g5oQMsZc6/8Uvt0AID8SVj/O5dyRkph1hgP8H3JSdduIh+SIXjQI1rPILjCx3ZVuG+WszETDZxOZZ2oXki4wCIF/kz26gjfE+iz8GCQtYCj4cbFLv3EQrOv/YrsWJ/VwMDns4f7gdB04t89/1O/w1cDnyilFU=
     volumes:
-      - bot_data:/app/data
+      - /share/Container/rtsd-linebot:/app
     networks:
       - botnet
 
