@@ -3605,9 +3605,6 @@
         }
         dateCounts[dateKey] = (dateCounts[dateKey] || 0) + 1;
 
-        const idMatch = (title || '').match(/\[(RTSD-\d+)\]/);
-        const report_id = idMatch ? idMatch[1] : '';
-
         rawIncidents.push({
           timestamp, title, address, lat, lon, reporter, urgency, incident_type: cleanType, raw_type: incident_type, status, media_url, report_id
         });
