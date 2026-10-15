@@ -97,13 +97,26 @@ function doPost(e) {
       
       var uValues = userSheet.getDataRange().getValues();
       var updated = false;
+      var cleanTargetPhone = (phone || "").toString().trim().replace(/[-\s]/g, "");
+      var normTargetPhone = cleanTargetPhone;
+      if (normTargetPhone.length === 9 && (normTargetPhone[0] === '6' || normTargetPhone[0] === '8' || normTargetPhone[0] === '9')) {
+        normTargetPhone = '0' + normTargetPhone;
+      }
+
       for (var i = 1; i < uValues.length; i++) {
         var rowLineId = (uValues[i][1] || "").toString().trim();
-        var rowPhone = (uValues[i][3] || "").toString().trim();
+        var rawRowPhone = (uValues[i][3] || "").toString().trim().replace(/[-\s]/g, "");
+        var rowPhone = rawRowPhone;
+        if (rowPhone.length === 9 && (rowPhone[0] === '6' || rowPhone[0] === '8' || rowPhone[0] === '9')) {
+          rowPhone = '0' + rowPhone;
+        }
         
-        if ((lineId && rowLineId === lineId) || (phone && rowPhone === phone)) {
+        var matchPhone = normTargetPhone && (rowPhone === normTargetPhone || rowPhone.endsWith(normTargetPhone) || normTargetPhone.endsWith(rowPhone));
+        var matchLine = lineId && rowLineId && (rowLineId === lineId);
+
+        if (matchPhone || matchLine) {
           if (name) userSheet.getRange(i + 1, 3).setValue(name);
-          if (phone) userSheet.getRange(i + 1, 4).setValue(phone);
+          if (normTargetPhone) userSheet.getRange(i + 1, 4).setValue("'" + normTargetPhone);
           if (role) userSheet.getRange(i + 1, 5).setValue(role);
           if (unit) userSheet.getRange(i + 1, 6).setValue(unit);
           if (position) userSheet.getRange(i + 1, 7).setValue(position);
@@ -119,7 +132,7 @@ function doPost(e) {
         }
       }
       if (!updated) {
-        userSheet.appendRow([now, lineId, name, phone, role, unit, position, status, purpose, pic, username, area, unitSize, vehicleType]);
+        userSheet.appendRow([now, lineId, name, "'" + (normTargetPhone || phone), role, unit, position, status, purpose, pic, username, area, unitSize, vehicleType]);
       }
       
       return ContentService.createTextOutput(JSON.stringify({

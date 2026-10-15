@@ -101,11 +101,15 @@ phone_to_user = {
     "0863390614": {
         "name": "ผู้ดูแลระบบ RTSD",
         "phone": "0863390614",
-        "role": "ผู้ดูแลระบบ (Admin)",
+        "role": "ผู้ดูแลระบบสูงสุด (Super Admin)",
         "unit": "กรมแผนที่ทหาร (RTSD)",
         "position": "ผู้ดูแลระบบหลัก",
         "status": "อนุมัติแล้ว",
-        "line_user_id": "U2e495c2521fcf6fda9afee8924b3ba55"
+        "line_user_id": "U2e495c2521fcf6fda9afee8924b3ba55",
+        "area": "เชียงราย (ทุกอำเภอ)",
+        "district": "เชียงราย (ทุกอำเภอ)",
+        "unit_size": "ชุดปฏิบัติการขนาดเล็ก (3-5 นาย)",
+        "vehicle_type": "🚗 รถกระบะตรวจการณ์ 4x4 (Pickup 4WD)"
     }
 }
 otp_cache = {}         # { phone: {"otp": "123456", "expires_at": timestamp, "user_info": ...} }
@@ -272,6 +276,35 @@ def save_user_credentials():
         print(f"Error saving user_credentials.json: {e}")
 
 load_user_credentials()
+
+# 👥 Persistent Registered Users Store (บันทึกรายชื่อผู้ใช้ลงดิสก์ ป้องกันข้อมูลโปรไฟล์หายเมื่อรีสตาร์ทคอนเทนเนอร์)
+REGISTERED_USERS_FILE = os.path.join(os.path.dirname(__file__), "registered_users.json")
+
+def load_registered_users_cache():
+    global registered_users, phone_to_user
+    if os.path.exists(REGISTERED_USERS_FILE):
+        try:
+            with open(REGISTERED_USERS_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                cached = data.get("phone_to_user", {})
+                for ph, u in cached.items():
+                    norm_ph = normalize_phone_number(ph) or ph
+                    phone_to_user[norm_ph] = u
+                    lid = u.get("line_user_id")
+                    if lid and lid != "-" and str(lid).startswith("U"):
+                        registered_users[lid] = u
+        except Exception as e:
+            print(f"Error loading registered_users.json: {e}")
+
+def save_registered_users_cache():
+    global phone_to_user
+    try:
+        with open(REGISTERED_USERS_FILE, "w", encoding="utf-8") as f:
+            json.dump({"phone_to_user": phone_to_user}, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Error saving registered_users.json: {e}")
+
+load_registered_users_cache()
 
 # 🔐 Persistent OTP Cache Store (รองรับ Multi-worker และป้องกัน OTP หายเวลารีสตาร์ทคอนเทนเนอร์)
 OTP_CACHE_FILE = os.path.join(os.path.dirname(__file__), "otp_cache.json")
@@ -442,22 +475,28 @@ def fetch_registered_users():
                     if phone in ADMIN_PHONES or phone == master_phone:
                         role = "ผู้ดูแลระบบสูงสุด (Super Admin)"
 
-                    # หากมีข้อมูลรูปโปรไฟล์เดิมที่มีอยู่แล้วและแถวนี้ไม่มีรูป ให้คงรูปเดิมไว้
+                    # หากมีข้อมูลโปรไฟล์เดิมที่มีอยู่แล้วและแถวนี้ไม่มีค่า ให้คงค่าเดิมไว้
                     current_entry = phone_to_user.get(phone, {})
-                    final_pic = direct_pic if direct_pic != "-" else current_entry.get("picture_profile", "-")
+                    final_pic = direct_pic if direct_pic and direct_pic != "-" else current_entry.get("picture_profile", "-")
+                    final_unit = unit if unit and unit != "-" else current_entry.get("unit", "-")
+                    final_pos = position if position and position != "-" else current_entry.get("position", "-")
+                    final_area = area if area and area != "-" else current_entry.get("area", "เชียงราย (ทุกอำเภอ)")
+                    final_unit_size = unit_size if unit_size and unit_size != "-" else current_entry.get("unit_size", "ชุดปฏิบัติการขนาดเล็ก (3-5 นาย)")
+                    final_vehicle_type = vehicle_type if vehicle_type and vehicle_type != "-" else current_entry.get("vehicle_type", "🚗 รถกระบะตรวจการณ์ 4x4 (Pickup 4WD)")
+                    final_name = name if name and name != "ไม่ระบุชื่อ" else current_entry.get("name", "ผู้ใช้งาน")
 
                     user_data_item = {
-                        "name": name if name and name != "ไม่ระบุชื่อ" else current_entry.get("name", "ผู้ใช้งาน"),
+                        "name": final_name,
                         "phone": phone,
                         "username": user_uname or current_entry.get("username", ""),
                         "role": role,
-                        "unit": unit if unit != "-" else current_entry.get("unit", "-"),
-                        "position": position if position != "-" else current_entry.get("position", "-"),
+                        "unit": final_unit,
+                        "position": final_pos,
                         "status": status,
-                        "area": area,
-                        "district": area,
-                        "unit_size": unit_size,
-                        "vehicle_type": vehicle_type,
+                        "area": final_area,
+                        "district": final_area,
+                        "unit_size": final_unit_size,
+                        "vehicle_type": final_vehicle_type,
                         "picture_profile": final_pic,
                         "permissions": get_user_permissions(role)
                     }
@@ -469,9 +508,18 @@ def fetch_registered_users():
                     if phone:
                         new_phone_to_user[phone] = {"line_user_id": best_lid, **user_data_item}
 
+        # คงข้อมูลผู้ใช้ในเครื่องที่ยังไม่ได้ซิงค์ลง Google Sheets
+        for p, u in phone_to_user.items():
+            if p not in new_phone_to_user and p not in DELETED_USERS:
+                new_phone_to_user[p] = u
+                lid = u.get("line_user_id")
+                if lid and str(lid).startswith("U"):
+                    new_registered_users[lid] = u
+
         # สลับแคชหลักเป็นชุดข้อมูลที่ดึงมาใหม่ล่าสุด
         phone_to_user = new_phone_to_user
         registered_users = new_registered_users
+        save_registered_users_cache()
     except Exception as e:
         print(f"Error fetching users: {e}")
 
@@ -479,7 +527,7 @@ def fetch_registered_users():
 def save_registered_user(line_user_id, name, phone, role="ผู้ใช้งาน", unit="-", position="-", status="อนุมัติแล้ว", purpose="-", picture_profile="-", picture_base64="", username="", unit_size="ชุดปฏิบัติการขนาดเล็ก (3-5 นาย)", vehicle_type="🚗 รถกระบะตรวจการณ์ 4x4 (Pickup 4WD)", area="เชียงราย (ทุกอำเภอ)"):
     """บันทึกข้อมูลผู้ใช้ใหม่ลง Google Sheets และแคชในหน่วยความจำ พร้อมรูปโปรไฟล์ ขนาดหน่วย ยานพาหนะ และพื้นที่รับผิดชอบ"""
     global registered_users, phone_to_user, DELETED_USERS
-    clean_phone = phone.replace("-", "").replace(" ", "")
+    clean_phone = normalize_phone_number(phone) or str(phone).replace("-", "").replace(" ", "")
 
     # หากเคยถูกลบ ให้นำออกจาก Blacklist ทันทีเมื่อมีการลงทะเบียนใหม่
     if clean_phone in DELETED_USERS:
@@ -505,6 +553,9 @@ def save_registered_user(line_user_id, name, phone, role="ผู้ใช้ง�
 
     user_username = username or USER_CREDENTIALS.get(clean_phone, {}).get("username", "")
 
+    if clean_phone in ADMIN_PHONES or clean_phone == "0863390614":
+        role = "ผู้ดูแลระบบสูงสุด (Super Admin)"
+
     user_data = {
         "name": name,
         "phone": clean_phone,
@@ -521,8 +572,10 @@ def save_registered_user(line_user_id, name, phone, role="ผู้ใช้ง�
         "vehicle_type": vehicle_type,
         "permissions": get_user_permissions(role)
     }
-    registered_users[line_user_id] = user_data
+    if line_user_id and line_user_id != "-":
+        registered_users[line_user_id] = user_data
     phone_to_user[clean_phone] = {"line_user_id": line_user_id, **user_data}
+    save_registered_users_cache()
     try:
         payload = {
             "action": "register_user",
@@ -2968,14 +3021,17 @@ def api_user_update_profile():
         token = data.get("token", "")
 
     phone = str(data.get("phone", "")).strip().replace("-", "").replace(" ", "")
+    norm_phone = normalize_phone_number(phone)
+    if norm_phone:
+        phone = norm_phone
 
     # ตรวจสอบสิทธิ์ผ่าน Token
     session = ACTIVE_SESSIONS.get(token) if token else None
     if session:
-        session_phone = session.get("phone", "")
+        session_phone = normalize_phone_number(session.get("phone", "")) or session.get("phone", "")
         if not phone:
             phone = session_phone
-        is_admin = session.get("phone") in ADMIN_PHONES or "Super Admin" in session.get("role", "")
+        is_admin = session_phone in ADMIN_PHONES or "Super Admin" in session.get("role", "")
         if phone != session_phone and not is_admin:
             return jsonify({"status": "error", "message": "ท่านไม่มีสิทธิ์แก้ไขข้อมูลของบัญชีอื่น"}), 403
 
@@ -3039,8 +3095,12 @@ def api_user_update_profile():
     elif pic_url and pic_url != "-":
         user_info["picture_profile"] = pic_url
 
+    if phone in ADMIN_PHONES or phone == "0863390614":
+        user_info["role"] = "ผู้ดูแลระบบสูงสุด (Super Admin)"
+        user_info["permissions"] = get_user_permissions(user_info["role"])
+
     lid = user_info.get("line_user_id", "")
-    if lid in registered_users:
+    if lid and lid != "-" and lid in registered_users:
         registered_users[lid].update({
             "name": user_info["name"],
             "unit": user_info["unit"],
@@ -3054,10 +3114,10 @@ def api_user_update_profile():
 
     # ซิงค์ Session ปัจจุบัน
     for s_tok, s in ACTIVE_SESSIONS.items():
-        if s.get("phone") == phone:
+        if normalize_phone_number(s.get("phone", "")) == phone:
             s["user"] = user_info
 
-    # ซิงค์ลง Google Sheets
+    # ซิงค์ลง Google Sheets และแคชลงไฟล์ดิสก์
     save_registered_user(
         line_user_id=lid,
         name=user_info.get("name", "ผู้ใช้งาน"),
@@ -3069,12 +3129,51 @@ def api_user_update_profile():
         purpose=user_info.get("purpose", "-"),
         picture_profile=user_info.get("picture_profile", "-"),
         picture_base64=pic_b64,
-        username=user_info.get("username", "")
+        username=user_info.get("username", ""),
+        unit_size=user_info.get("unit_size", "ชุดปฏิบัติการขนาดเล็ก (3-5 นาย)"),
+        vehicle_type=user_info.get("vehicle_type", "🚗 รถกระบะตรวจการณ์ 4x4 (Pickup 4WD)"),
+        area=user_info.get("area", "เชียงราย (ทุกอำเภอ)")
     )
+    save_registered_users_cache()
 
     return jsonify({
         "status": "success",
         "message": "อัปเดตข้อมูลโปรไฟล์เรียบร้อยแล้ว",
+        "user": user_info
+    }), 200
+
+
+@app.route("/api/user/profile", methods=['GET'])
+def api_user_profile():
+    """API ดึงข้อมูลโปรไฟล์ผู้ใช้ล่าสุด สำหรับ Mobile App ซิงค์ข้อมูล"""
+    auth_header = request.headers.get("Authorization", "")
+    token = ""
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:].strip()
+
+    phone = str(request.args.get("phone", "")).strip().replace("-", "").replace(" ", "")
+    norm_phone = normalize_phone_number(phone)
+    if norm_phone:
+        phone = norm_phone
+
+    if not phone and token:
+        session = ACTIVE_SESSIONS.get(token)
+        if session:
+            phone = normalize_phone_number(session.get("phone", "")) or session.get("phone", "")
+
+    if not phone:
+        return jsonify({"status": "error", "message": "กรุณาระบุหมายเลขโทรศัพท์หรือแนบ Token"}), 400
+
+    user_info = phone_to_user.get(phone)
+    if not user_info:
+        fetch_registered_users()
+        user_info = phone_to_user.get(phone)
+
+    if not user_info:
+        return jsonify({"status": "error", "message": "ไม่พบข้อมูลผู้ใช้"}), 404
+
+    return jsonify({
+        "status": "success",
         "user": user_info
     }), 200
 
