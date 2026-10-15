@@ -863,8 +863,8 @@ def tracker_page():
     return "Tracker HTML template not found on server", 404
 
 
-# 📦 ลิงก์ดาวน์โหลด APK ผ่าน Google Drive
-APK_DOWNLOAD_URL = "https://drive.google.com/file/d/1gfLNzJr_oUfvgmLErlts0zVtVaJidjzv/view?usp=sharing"
+# 📦 ลิงก์ดาวน์โหลด APK ผ่าน Google Drive (RTSD_Tactical_Tracker_v1.6_ProfileSync.apk)
+APK_DOWNLOAD_URL = "https://drive.google.com/file/d/1hJO9oDcaq6glCIscPkxqEoxqyWfjTCkR/view?usp=sharing"
 
 @app.route("/download", methods=['GET'])
 @app.route("/download/app", methods=['GET'])
