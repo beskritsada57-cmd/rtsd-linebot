@@ -1240,8 +1240,8 @@ def tracker_page():
     return "Tracker HTML template not found on server", 404
 
 
-# 📦 ลิงก์ดาวน์โหลด APK ผ่าน Google Drive (RTSD_Tactical_Tracker_v1.7.1.apk)
-APK_DOWNLOAD_URL = "https://drive.google.com/file/d/1pbU6FwEfE211iZ0YmFQFYJwrrZN8hpFO/view?usp=sharing"
+# 📦 ลิงก์ดาวน์โหลด APK ผ่าน Google Drive (RTSD_Tactical_Tracker_v1.7.2.apk)
+APK_DOWNLOAD_URL = "https://drive.google.com/file/d/1XRMHZ0u6x4SqKZsehmmu8-W6XZqpkkKm/view?usp=sharing"
 
 @app.route("/download", methods=['GET'])
 @app.route("/download/app", methods=['GET'])
@@ -1513,8 +1513,8 @@ def api_broadcast_app_update():
     """
     try:
         data = request.get_json(silent=True) or {}
-        version = str(data.get("version") or "v1.7.1").strip()
-        changelog = str(data.get("changelog") or "เพิ่มระบบวิทยุสื่อสารทางยุทธวิธี PTT (3 ช่องสัญญาณ) พร้อมปรับปรุงโลโก้และชื่อระบบศูนย์ปฏิบัติการให้ตรงกับเว็บไซต์ 100%").strip()
+        version = str(data.get("version") or "v1.7.2").strip()
+        changelog = str(data.get("changelog") or "เพิ่มสวิตช์เปิด-ปิดวิทยุ (Power On/Off) พร้อมปุ่มปิดไมค์ส่งสัญญาณ และคืนค่าตราสัญลักษณ์ทางการ RTSD ให้ตรงกัน 100%").strip()
         download_url = str(data.get("download_url") or "https://linebot.goc-rtsd.com/download/app").strip()
         map_url = "https://linebot.goc-rtsd.com/map"
         dashboard_url = "https://linebot.goc-rtsd.com/dashboard"
@@ -4736,13 +4736,13 @@ def handle_text(event):
             "━━━━━━━━━━━━━━━━━━\n"
             "ระบบติดตามพิกัด GPS สด & วิทยุสื่อสารยุทธวิธี สำหรับเจ้าหน้าที่ภาคสนาม\n\n"
             "🎖️ สังกัด: กรมแผนที่ทหาร (RTSD)\n"
-            "📦 เวอร์ชัน: v1.7.1 (PTT Radio & Web Dashboard Sync)\n"
-            "⚙️ ขนาดไฟล์: ~53.9 MB (Android 8.0+)\n"
+            "📦 เวอร์ชัน: v1.7.2 (PTT Power Switch & Official RTSD Emblem)\n"
+            "⚙️ ขนาดไฟล์: ~56.2 MB (Android 8.0+)\n"
             "━━━━━━━━━━━━━━━━━━\n"
             "📥 ลิงก์ดาวน์โหลดตรง (.APK):\n"
             "👉 https://linebot.goc-rtsd.com/download/app\n"
             "🔗 สำรอง (Google Drive):\n"
-            "👉 https://drive.google.com/file/d/1pbU6FwEfE211iZ0YmFQFYJwrrZN8hpFO/view?usp=sharing\n\n"
+            "👉 https://drive.google.com/file/d/1XRMHZ0u6x4SqKZsehmmu8-W6XZqpkkKm/view?usp=sharing\n\n"
             "🛡️ คำแนะนำความปลอดภัย:\n"
             "แอปพลิเคชันนี้พัฒนาเพื่อภารกิจภายในกรมแผนที่ทหาร ปลอดภัย 100% ไม่มีมัลแวร์\n"
             "หากระบบ Android ขึ้นเตือน ให้กด 'ติดตั้งต่อไป (Install anyway)' ได้เลยครับ"
