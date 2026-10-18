@@ -6,6 +6,7 @@ import threading
 import base64
 import math
 import requests
+import sqlite3
 from flask import Flask, request, abort, jsonify, send_file, redirect
 from linebot.v3 import WebhookHandler
 from linebot.v3.exceptions import InvalidSignatureError
@@ -192,6 +193,321 @@ def normalize_phone_number(phone):
     return p
 
 
+# =========================================================================
+# 🗄️ LOCAL SQLite DATABASE ON QNAP NAS (rtsd_tactical.db)
+# จัดเก็บฐานข้อมูลผู้ใช้งาน RTSD ในเครื่อง NAS โดยตรง ป้องกันปัญหาข้อมูลสูญหาย
+# และใช้ Google Sheets เป็นตัวสำรองข้อมูลภายนอก (Backup Mirror)
+# =========================================================================
+DB_FILE = os.path.join(os.path.dirname(__file__), "rtsd_tactical.db")
+
+def get_db_connection():
+    """เปิดการเชื่อมต่อ SQLite โดยเปิด timeout 15 วิ และใช้ Row factory"""
+    conn = sqlite3.connect(DB_FILE, timeout=15, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def init_sqlite_db():
+    """สร้างตาราง users และ index บน NAS SQLite DB หากยังไม่มี พร้อมรองรับ schema migration"""
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                phone TEXT UNIQUE NOT NULL,
+                name TEXT DEFAULT '',
+                role TEXT DEFAULT 'ผู้ใช้งานทั่วไป',
+                unit TEXT DEFAULT '-',
+                position TEXT DEFAULT '-',
+                status TEXT DEFAULT 'อนุมัติแล้ว',
+                purpose TEXT DEFAULT '-',
+                line_user_id TEXT DEFAULT '',
+                username TEXT DEFAULT '',
+                password TEXT DEFAULT '',
+                picture_profile TEXT DEFAULT '-',
+                area TEXT DEFAULT 'เชียงราย (ทุกอำเภอ)',
+                district TEXT DEFAULT 'เชียงราย (ทุกอำเภอ)',
+                unit_size TEXT DEFAULT 'ชุดปฏิบัติการขนาดเล็ก (3-5 นาย)',
+                vehicle_type TEXT DEFAULT '🚗 รถกระบะตรวจการณ์ 4x4 (Pickup 4WD)',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_line_user_id ON users(line_user_id);")
+
+            # ตรวจสอบและเพิ่มคอลัมน์อัตโนมัติหากมีคอลัมน์ใหม่ในอนาคต (Schema Auto-Migration)
+            cursor.execute("PRAGMA table_info(users);")
+            existing_cols = {col["name"] for col in cursor.fetchall()}
+            for col_name, col_def in [
+                ("area", "TEXT DEFAULT 'เชียงราย (ทุกอำเภอ)'"),
+                ("district", "TEXT DEFAULT 'เชียงราย (ทุกอำเภอ)'"),
+                ("unit_size", "TEXT DEFAULT 'ชุดปฏิบัติการขนาดเล็ก (3-5 นาย)'"),
+                ("vehicle_type", "TEXT DEFAULT '🚗 รถกระบะตรวจการณ์ 4x4 (Pickup 4WD)'"),
+                ("username", "TEXT DEFAULT ''"),
+                ("password", "TEXT DEFAULT ''"),
+                ("picture_profile", "TEXT DEFAULT '-'")
+            ]:
+                if col_name not in existing_cols:
+                    try:
+                        cursor.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_def};")
+                    except Exception:
+                        pass
+
+            # สร้างบัญชี Master Admin เริ่มต้นเสมอ
+            cursor.execute("""
+            INSERT INTO users (phone, name, role, unit, position, status, line_user_id, username, password)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(phone) DO UPDATE SET
+                role='ผู้ดูแลระบบสูงสุด (Super Admin)',
+                status='อนุมัติแล้ว',
+                updated_at=CURRENT_TIMESTAMP
+            """, (
+                "0863390614",
+                "ผู้ดูแลระบบสูงสุด (Master Admin)",
+                "ผู้ดูแลระบบสูงสุด (Super Admin)",
+                "กรมแผนที่ทหาร (RTSD)",
+                "ผู้ดูแลระบบหลัก",
+                "อนุมัติแล้ว",
+                "U2e495c2521fcf6fda9afee8924b3ba55",
+                "admin",
+                MASTER_PIN
+            ))
+            conn.commit()
+            print("[SQLite] Database initialized and master admin verified.")
+    except Exception as e:
+        print(f"[SQLite] Error initializing database: {e}")
+
+def db_upsert_user(phone, name="", role="ผู้ใช้งานทั่วไป", unit="-", position="-", status="อนุมัติแล้ว",
+                   purpose="-", line_user_id="", username="", password="", picture_profile="-",
+                   area="เชียงราย (ทุกอำเภอ)", unit_size="ชุดปฏิบัติการขนาดเล็ก (3-5 นาย)",
+                   vehicle_type="🚗 รถกระบะตรวจการณ์ 4x4 (Pickup 4WD)"):
+    """บันทึกหรืออัปเดตข้อมูลผู้ใช้งานลง SQLite ในเครื่อง NAS โดยตรง"""
+    clean_phone = normalize_phone_number(phone) or str(phone).strip().replace("-", "").replace(" ", "")
+    if not clean_phone:
+        return False
+
+    if clean_phone in ADMIN_PHONES or clean_phone == "0863390614":
+        role = "ผู้ดูแลระบบสูงสุด (Super Admin)"
+
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM users WHERE phone = ?", (clean_phone,))
+            existing = cursor.fetchone()
+
+            final_name = name or (existing["name"] if existing and existing["name"] else "ผู้ใช้งาน")
+            final_role = role or (existing["role"] if existing and existing["role"] else "ผู้ใช้งานทั่วไป")
+            final_unit = unit if unit and unit != "-" else (existing["unit"] if existing and existing["unit"] else "-")
+            final_pos = position if position and position != "-" else (existing["position"] if existing and existing["position"] else "-")
+            final_status = status or (existing["status"] if existing and existing["status"] else "อนุมัติแล้ว")
+            final_purpose = purpose if purpose and purpose != "-" else (existing["purpose"] if existing and existing["purpose"] else "-")
+
+            old_lid = existing["line_user_id"] if existing else ""
+            final_lid = line_user_id if str(line_user_id).startswith("U") else (old_lid if str(old_lid).startswith("U") else (line_user_id or old_lid or ""))
+
+            final_uname = username or (existing["username"] if existing and existing["username"] else "")
+            final_pwd = password or (existing["password"] if existing and existing["password"] else "")
+
+            old_pic = existing["picture_profile"] if existing else "-"
+            final_pic = picture_profile if picture_profile and picture_profile != "-" else old_pic
+
+            final_area = area if area and area != "-" else (existing["area"] if existing and existing["area"] else "เชียงราย (ทุกอำเภอ)")
+            final_unit_size = unit_size if unit_size and unit_size != "-" else (existing["unit_size"] if existing and existing["unit_size"] else "ชุดปฏิบัติการขนาดเล็ก (3-5 นาย)")
+            final_vehicle = vehicle_type if vehicle_type and vehicle_type != "-" else (existing["vehicle_type"] if existing and existing["vehicle_type"] else "🚗 รถกระบะตรวจการณ์ 4x4 (Pickup 4WD)")
+
+            cursor.execute("""
+            INSERT INTO users (
+                phone, name, role, unit, position, status, purpose,
+                line_user_id, username, password, picture_profile,
+                area, district, unit_size, vehicle_type, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(phone) DO UPDATE SET
+                name = excluded.name,
+                role = excluded.role,
+                unit = excluded.unit,
+                position = excluded.position,
+                status = excluded.status,
+                purpose = excluded.purpose,
+                line_user_id = excluded.line_user_id,
+                username = CASE WHEN excluded.username != '' THEN excluded.username ELSE users.username END,
+                password = CASE WHEN excluded.password != '' THEN excluded.password ELSE users.password END,
+                picture_profile = CASE WHEN excluded.picture_profile != '-' AND excluded.picture_profile != '' THEN excluded.picture_profile ELSE users.picture_profile END,
+                area = excluded.area,
+                district = excluded.district,
+                unit_size = excluded.unit_size,
+                vehicle_type = excluded.vehicle_type,
+                updated_at = CURRENT_TIMESTAMP;
+            """, (
+                clean_phone, final_name, final_role, final_unit, final_pos, final_status, final_purpose,
+                final_lid, final_uname, final_pwd, final_pic,
+                final_area, final_area, final_unit_size, final_vehicle
+            ))
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"[SQLite] Error upserting user {clean_phone}: {e}")
+        return False
+
+def db_get_user_by_phone(phone):
+    """ค้นหาผู้ใช้จากเบอร์โทรศัพท์ใน SQLite"""
+    clean_phone = normalize_phone_number(phone) or str(phone).strip().replace("-", "").replace(" ", "")
+    if not clean_phone:
+        return None
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM users WHERE phone = ?", (clean_phone,))
+            row = cursor.fetchone()
+            if row:
+                return dict(row)
+    except Exception as e:
+        print(f"[SQLite] Error getting user by phone: {e}")
+    return None
+
+def db_get_user_by_username(username):
+    """ค้นหาผู้ใช้จาก username ใน SQLite"""
+    if not username:
+        return None
+    uname = str(username).strip().lower()
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM users WHERE LOWER(username) = ? OR phone = ?", (uname, uname))
+            row = cursor.fetchone()
+            if row:
+                return dict(row)
+    except Exception as e:
+        print(f"[SQLite] Error getting user by username: {e}")
+    return None
+
+def db_get_all_users():
+    """ดึงรายชื่อผู้ใช้ทั้งหมดจาก SQLite"""
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM users ORDER BY id ASC")
+            rows = cursor.fetchall()
+            return [dict(r) for r in rows]
+    except Exception as e:
+        print(f"[SQLite] Error getting all users: {e}")
+        return []
+
+def db_delete_user(phone):
+    """ลบผู้ใช้ออกจาก SQLite ในเครื่อง NAS อย่างถาวร"""
+    clean_phone = normalize_phone_number(phone) or str(phone).strip().replace("-", "").replace(" ", "")
+    if not clean_phone:
+        return False
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM users WHERE phone = ?", (clean_phone,))
+            conn.commit()
+            print(f"[SQLite] Deleted user {clean_phone} from database.")
+            return True
+    except Exception as e:
+        print(f"[SQLite] Error deleting user: {e}")
+        return False
+
+def sync_db_to_memory_cache():
+    """ซิงค์ข้อมูลจาก SQLite บน NAS เข้าสู่ Memory cache (phone_to_user, registered_users, USER_CREDENTIALS)"""
+    global phone_to_user, registered_users, USER_CREDENTIALS, DELETED_USERS
+    try:
+        users = db_get_all_users()
+        for u in users:
+            ph = normalize_phone_number(u.get("phone", ""))
+            if not ph or ph in DELETED_USERS:
+                continue
+
+            role = u.get("role", "ผู้ใช้งานทั่วไป")
+            if ph in ADMIN_PHONES or ph == "0863390614":
+                role = "ผู้ดูแลระบบสูงสุด (Super Admin)"
+
+            user_entry = {
+                "name": u.get("name", "ผู้ใช้งาน"),
+                "phone": ph,
+                "username": u.get("username", ""),
+                "role": role,
+                "unit": u.get("unit", "-"),
+                "position": u.get("position", "-"),
+                "status": u.get("status", "อนุมัติแล้ว"),
+                "purpose": u.get("purpose", "-"),
+                "area": u.get("area", "เชียงราย (ทุกอำเภอ)"),
+                "district": u.get("district", "เชียงราย (ทุกอำเภอ)"),
+                "unit_size": u.get("unit_size", "ชุดปฏิบัติการขนาดเล็ก (3-5 นาย)"),
+                "vehicle_type": u.get("vehicle_type", "🚗 รถกระบะตรวจการณ์ 4x4 (Pickup 4WD)"),
+                "picture_profile": u.get("picture_profile", "-"),
+                "permissions": get_user_permissions(role)
+            }
+            lid = u.get("line_user_id", "")
+            phone_to_user[ph] = {"line_user_id": lid, **user_entry}
+            if lid and str(lid).startswith("U"):
+                registered_users[lid] = user_entry
+
+            pwd = u.get("password", "")
+            uname = u.get("username", "")
+            if pwd:
+                cred_item = {
+                    "username": uname or ph,
+                    "password": pwd,
+                    "phone": ph,
+                    "name": user_entry["name"]
+                }
+                USER_CREDENTIALS[ph] = cred_item
+                if uname:
+                    USER_CREDENTIALS[uname] = cred_item
+        print(f"[SQLite] Synced {len(users)} users to memory cache successfully.")
+    except Exception as e:
+        print(f"[SQLite] Error syncing db to memory cache: {e}")
+
+def migrate_existing_data_to_sqlite():
+    """ไมเกรตข้อมูลจาก registered_users.json และ user_credentials.json เข้าสู่ SQLite ครั้งแรก"""
+    # 1. จาก registered_users.json
+    if os.path.exists(REGISTERED_USERS_FILE):
+        try:
+            with open(REGISTERED_USERS_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                cached = data.get("phone_to_user", {})
+                for ph, u in cached.items():
+                    norm_ph = normalize_phone_number(ph)
+                    if norm_ph and norm_ph not in DELETED_USERS:
+                        db_upsert_user(
+                            phone=norm_ph,
+                            name=u.get("name", ""),
+                            role=u.get("role", "ผู้ใช้งานทั่วไป"),
+                            unit=u.get("unit", "-"),
+                            position=u.get("position", "-"),
+                            status=u.get("status", "อนุมัติแล้ว"),
+                            purpose=u.get("purpose", "-"),
+                            line_user_id=u.get("line_user_id", ""),
+                            username=u.get("username", ""),
+                            picture_profile=u.get("picture_profile", "-"),
+                            area=u.get("area", "เชียงราย (ทุกอำเภอ)"),
+                            unit_size=u.get("unit_size", "ชุดปฏิบัติการขนาดเล็ก (3-5 นาย)"),
+                            vehicle_type=u.get("vehicle_type", "🚗 รถกระบะตรวจการณ์ 4x4 (Pickup 4WD)")
+                        )
+        except Exception as e:
+            print(f"[SQLite] Error migrating registered_users.json: {e}")
+
+    # 2. จาก user_credentials.json
+    if os.path.exists(USER_CREDENTIALS_FILE):
+        try:
+            with open(USER_CREDENTIALS_FILE, "r", encoding="utf-8") as f:
+                creds = json.load(f)
+                for k, v in creds.items():
+                    ph = normalize_phone_number(v.get("phone", "")) or (normalize_phone_number(k) if k.isdigit() else "")
+                    if ph and v.get("password"):
+                        db_upsert_user(
+                            phone=ph,
+                            name=v.get("name", ""),
+                            username=v.get("username", ""),
+                            password=v.get("password", "")
+                        )
+        except Exception as e:
+            print(f"[SQLite] Error migrating user_credentials.json: {e}")
+
+
 # 🔑 Tactical User Credentials Store (Phone/Username -> Password/PIN)
 USER_CREDENTIALS_FILE = os.path.join(os.path.dirname(__file__), "user_credentials.json")
 USER_CREDENTIALS = {}
@@ -306,6 +622,11 @@ def save_registered_users_cache():
 
 load_registered_users_cache()
 
+# 🚀 เริ่มต้นการทำงานของฐานข้อมูล SQLite บน NAS ทันที
+init_sqlite_db()
+migrate_existing_data_to_sqlite()
+sync_db_to_memory_cache()
+
 # 🔐 Persistent OTP Cache Store (รองรับ Multi-worker และป้องกัน OTP หายเวลารีสตาร์ทคอนเทนเนอร์)
 OTP_CACHE_FILE = os.path.join(os.path.dirname(__file__), "otp_cache.json")
 
@@ -391,32 +712,15 @@ load_unit_tracks()
 
 
 def fetch_registered_users():
-    """ดึงรายชื่อผู้ใช้ที่ลงทะเบียนแล้วจาก Google Sheets เข้ามาเก็บในแคช พร้อมจัดรูปโปรไฟล์คมชัด และเคลียร์รายชื่อเก่าที่ถูกลบออก"""
+    """ดึงรายชื่อผู้ใช้จาก SQLite บน NAS เป็นหลัก และนำเข้าข้อมูลใหม่จาก Google Sheets มาอัปเดตลง SQLite"""
     global registered_users, phone_to_user, DELETED_USERS
     master_phone = "0863390614"
-    existing_master_pic = phone_to_user.get(master_phone, {}).get("picture_profile", "-")
 
-    # สร้าง Dictionary ใหม่เพื่อป้องกันข้อมูลผู้ใช้ที่ถูกลบไปแล้วตกค้างใน Memory
-    new_phone_to_user = {}
-    new_registered_users = {}
-
-    # คงสถานะผู้ดูแลระบบหลักไว้เสมอ
-    master_user = {
-        "name": phone_to_user.get(master_phone, {}).get("name", "ผู้ดูแลระบบสูงสุด (Master Admin)"),
-        "phone": master_phone,
-        "role": "ผู้ดูแลระบบสูงสุด (Super Admin)",
-        "unit": "กรมแผนที่ทหาร (RTSD)",
-        "position": "ผู้ดูแลระบบหลัก",
-        "status": "อนุมัติแล้ว",
-        "line_user_id": phone_to_user.get(master_phone, {}).get("line_user_id") if str(phone_to_user.get(master_phone, {}).get("line_user_id", "")).startswith("U") else "U2e495c2521fcf6fda9afee8924b3ba55",
-        "picture_profile": existing_master_pic,
-        "permissions": get_user_permissions("ผู้ดูแลระบบสูงสุด (Super Admin)")
-    }
-    new_phone_to_user[master_phone] = master_user
-    new_registered_users[master_user["line_user_id"]] = master_user
+    # 1. ซิงค์ข้อมูลทั้งหมดจาก SQLite บน NAS เข้าสู่ Memory ทันที
+    sync_db_to_memory_cache()
 
     try:
-        # ใช้คำสั่ง GET ?sheet=users (Read-Only) ปลอดภัย 100% ไม่สร้างแถวใหม่ใน Google Sheets
+        # 2. ซิงค์จาก Google Sheets เพื่อดึงข้อมูลกำลังพลใหม่ๆ ที่อาจถูกเพิ่มผ่าน Sheet
         res = requests.get(f"{GOOGLE_SHEET_URL}?sheet=users", timeout=10)
         if res.status_code == 200:
             users = res.json()
@@ -430,6 +734,7 @@ def fetch_registered_users():
                     vehicle_type = "🚗 รถกระบะตรวจการณ์ 4x4 (Pickup 4WD)"
                     area = "เชียงราย (ทุกอำเภอ)"
                     user_uname = ""
+                    purpose = "-"
 
                     if isinstance(u, dict):
                         lid = str(u.get("line_user_id", "")).strip()
@@ -439,6 +744,7 @@ def fetch_registered_users():
                         unit = str(u.get("unit", "-")).strip()
                         position = str(u.get("position", "-")).strip()
                         status = str(u.get("approval_status", u.get("status", "อนุมัติแล้ว"))).strip()
+                        purpose = str(u.get("purpose", "-")).strip()
                         picture_profile = str(u.get("picture_profile", u.get("picture_url", "-"))).strip()
                         unit_size = str(u.get("unit_size", unit_size)).strip()
                         vehicle_type = str(u.get("vehicle_type", vehicle_type)).strip()
@@ -454,6 +760,7 @@ def fetch_registered_users():
                         unit = str(u[5]).strip() if len(u) > 5 else "-"
                         position = str(u[6]).strip() if len(u) > 6 else "-"
                         status = str(u[7]).strip() if len(u) > 7 else "อนุมัติแล้ว"
+                        purpose = str(u[8]).strip() if len(u) > 8 else "-"
                         picture_profile = str(u[9]).strip() if len(u) > 9 else "-"
                         if len(u) > 10:
                             user_uname = str(u[10]).strip()
@@ -475,58 +782,35 @@ def fetch_registered_users():
                     if phone in ADMIN_PHONES or phone == master_phone:
                         role = "ผู้ดูแลระบบสูงสุด (Super Admin)"
 
-                    # หากมีข้อมูลโปรไฟล์เดิมที่มีอยู่แล้วและแถวนี้ไม่มีค่า ให้คงค่าเดิมไว้
-                    current_entry = phone_to_user.get(phone, {})
-                    final_pic = direct_pic if direct_pic and direct_pic != "-" else current_entry.get("picture_profile", "-")
-                    final_unit = unit if unit and unit != "-" else current_entry.get("unit", "-")
-                    final_pos = position if position and position != "-" else current_entry.get("position", "-")
-                    final_area = area if area and area != "-" else current_entry.get("area", "เชียงราย (ทุกอำเภอ)")
-                    final_unit_size = unit_size if unit_size and unit_size != "-" else current_entry.get("unit_size", "ชุดปฏิบัติการขนาดเล็ก (3-5 นาย)")
-                    final_vehicle_type = vehicle_type if vehicle_type and vehicle_type != "-" else current_entry.get("vehicle_type", "🚗 รถกระบะตรวจการณ์ 4x4 (Pickup 4WD)")
-                    final_name = name if name and name != "ไม่ระบุชื่อ" else current_entry.get("name", "ผู้ใช้งาน")
+                    # บันทึกแถวใหม่หรืออัปเดตลง SQLite DB บน NAS
+                    db_upsert_user(
+                        phone=phone,
+                        name=name,
+                        role=role,
+                        unit=unit,
+                        position=position,
+                        status=status,
+                        purpose=purpose,
+                        line_user_id=lid,
+                        username=user_uname,
+                        picture_profile=direct_pic or "-",
+                        area=area,
+                        unit_size=unit_size,
+                        vehicle_type=vehicle_type
+                    )
 
-                    user_data_item = {
-                        "name": final_name,
-                        "phone": phone,
-                        "username": user_uname or current_entry.get("username", ""),
-                        "role": role,
-                        "unit": final_unit,
-                        "position": final_pos,
-                        "status": status,
-                        "area": final_area,
-                        "district": final_area,
-                        "unit_size": final_unit_size,
-                        "vehicle_type": final_vehicle_type,
-                        "picture_profile": final_pic,
-                        "permissions": get_user_permissions(role)
-                    }
-                    current_lid = current_entry.get("line_user_id", "")
-                    best_lid = lid if str(lid).startswith("U") else (current_lid if str(current_lid).startswith("U") else lid)
-
-                    if best_lid and best_lid != "-":
-                        new_registered_users[best_lid] = user_data_item
-                    if phone:
-                        new_phone_to_user[phone] = {"line_user_id": best_lid, **user_data_item}
-
-        # คงข้อมูลผู้ใช้ในเครื่องที่ยังไม่ได้ซิงค์ลง Google Sheets
-        for p, u in phone_to_user.items():
-            if p not in new_phone_to_user and p not in DELETED_USERS:
-                new_phone_to_user[p] = u
-                lid = u.get("line_user_id")
-                if lid and str(lid).startswith("U"):
-                    new_registered_users[lid] = u
-
-        # สลับแคชหลักเป็นชุดข้อมูลที่ดึงมาใหม่ล่าสุด
-        phone_to_user = new_phone_to_user
-        registered_users = new_registered_users
+        # 3. อัปเดต Memory Cache จาก SQLite ล่าสุด
+        sync_db_to_memory_cache()
         save_registered_users_cache()
     except Exception as e:
         print(f"Error fetching users: {e}")
+        # แม้ Sheets มีปัญหา ก็ยังคงใช้ข้อมูลจาก SQLite บน NAS ได้ 100%
+        sync_db_to_memory_cache()
 
 
-def save_registered_user(line_user_id, name, phone, role="ผู้ใช้งาน", unit="-", position="-", status="อนุมัติแล้ว", purpose="-", picture_profile="-", picture_base64="", username="", unit_size="ชุดปฏิบัติการขนาดเล็ก (3-5 นาย)", vehicle_type="🚗 รถกระบะตรวจการณ์ 4x4 (Pickup 4WD)", area="เชียงราย (ทุกอำเภอ)"):
-    """บันทึกข้อมูลผู้ใช้ใหม่ลง Google Sheets และแคชในหน่วยความจำ พร้อมรูปโปรไฟล์ ขนาดหน่วย ยานพาหนะ และพื้นที่รับผิดชอบ"""
-    global registered_users, phone_to_user, DELETED_USERS
+def save_registered_user(line_user_id, name, phone, role="ผู้ใช้งาน", unit="-", position="-", status="อนุมัติแล้ว", purpose="-", picture_profile="-", picture_base64="", username="", unit_size="ชุดปฏิบัติการขนาดเล็ก (3-5 นาย)", vehicle_type="🚗 รถกระบะตรวจการณ์ 4x4 (Pickup 4WD)", area="เชียงราย (ทุกอำเภอ)", password=""):
+    """บันทึกข้อมูลผู้ใช้ใหม่ลงฐานข้อมูล SQLite บน NAS ทันที พร้อมสำรองลง Google Sheets และแคชหน่วยความจำ"""
+    global registered_users, phone_to_user, DELETED_USERS, USER_CREDENTIALS
     clean_phone = normalize_phone_number(phone) or str(phone).replace("-", "").replace(" ", "")
 
     # หากเคยถูกลบ ให้นำออกจาก Blacklist ทันทีเมื่อมีการลงทะเบียนใหม่
@@ -552,10 +836,30 @@ def save_registered_user(line_user_id, name, phone, role="ผู้ใช้ง�
             pass
 
     user_username = username or USER_CREDENTIALS.get(clean_phone, {}).get("username", "")
+    existing_pwd = password or USER_CREDENTIALS.get(clean_phone, {}).get("password", "")
 
     if clean_phone in ADMIN_PHONES or clean_phone == "0863390614":
         role = "ผู้ดูแลระบบสูงสุด (Super Admin)"
 
+    # 1. 🗄️ บันทึกลง SQLite DB บน NAS ทันที (Single Source of Truth)
+    db_upsert_user(
+        phone=clean_phone,
+        name=name,
+        role=role,
+        unit=unit,
+        position=position,
+        status=status,
+        purpose=purpose,
+        line_user_id=line_user_id,
+        username=user_username,
+        password=existing_pwd,
+        picture_profile=picture_profile or "-",
+        area=area,
+        unit_size=unit_size,
+        vehicle_type=vehicle_type
+    )
+
+    # 2. ⚡ อัปเดต Memory Cache และไฟล์ JSON สำรอง
     user_data = {
         "name": name,
         "phone": clean_phone,
@@ -576,6 +880,8 @@ def save_registered_user(line_user_id, name, phone, role="ผู้ใช้ง�
         registered_users[line_user_id] = user_data
     phone_to_user[clean_phone] = {"line_user_id": line_user_id, **user_data}
     save_registered_users_cache()
+
+    # 3. 🌐 ซิงค์ส่งต่อเป็น Backup Mirror ไปยัง Google Sheets
     try:
         payload = {
             "action": "register_user",
@@ -598,7 +904,7 @@ def save_registered_user(line_user_id, name, phone, role="ผู้ใช้ง�
         requests.post(GOOGLE_SHEET_URL, json=payload, timeout=10)
         return True
     except Exception as e:
-        print(f"Error registering user: {e}")
+        print(f"Error mirroring user to Google Sheets: {e}")
         return False
 
 
@@ -2376,6 +2682,15 @@ def api_auth_login():
 
     # ตรวจสอบว่ามีบันทึกใน USER_CREDENTIALS หรือไม่
     cred = USER_CREDENTIALS.get(clean_login) or (USER_CREDENTIALS.get(norm_phone) if norm_phone else None)
+    if not cred:
+        # ค้นหาโดยตรงจาก SQLite บน NAS
+        db_u = db_get_user_by_username(clean_login) or (db_get_user_by_phone(norm_phone) if norm_phone else None)
+        if db_u and db_u.get("password"):
+            cred = {
+                "username": db_u.get("username", "") or db_u.get("phone", ""),
+                "password": db_u.get("password", ""),
+                "phone": db_u.get("phone", "")
+            }
 
     is_admin_user = (clean_login in [p.lower() for p in ADMIN_PHONES]) or \
                     (norm_phone in [p.lower() for p in ADMIN_PHONES]) or \
@@ -2739,7 +3054,7 @@ def api_register_request():
             USER_CREDENTIALS[username] = cred_entry
         save_user_credentials()
 
-    # บันทึกเข้า Memory Cache และส่งไป Google Sheets
+    # บันทึกเข้า SQLite บน NAS, Memory Cache และส่งสำรองไป Google Sheets
     save_registered_user(
         line_user_id=line_user_id if line_user_id and line_user_id != "-" else f"WEB-{phone}",
         name=full_name,
@@ -2752,6 +3067,7 @@ def api_register_request():
         picture_profile=picture_profile,
         picture_base64=picture_base64,
         username=username,
+        password=password,
         unit_size=unit_size,
         vehicle_type=vehicle_type,
         area=area
@@ -2847,10 +3163,15 @@ def api_admin_get_users():
         users_list.append({
             "name": u.get("name", "ไม่ระบุชื่อ"),
             "phone": phone,
+            "username": u.get("username", ""),
             "unit": u.get("unit", "-"),
             "position": u.get("position", "-"),
             "role": role,
             "status": u.get("status", "อนุมัติแล้ว"),
+            "area": u.get("area", "เชียงราย (ทุกอำเภอ)"),
+            "district": u.get("district", "เชียงราย (ทุกอำเภอ)"),
+            "unit_size": u.get("unit_size", "ชุดปฏิบัติการขนาดเล็ก (3-5 นาย)"),
+            "vehicle_type": u.get("vehicle_type", "🚗 รถกระบะตรวจการณ์ 4x4 (Pickup 4WD)"),
             "line_user_id": u.get("line_user_id", "-"),
             "picture_profile": pic,
             "permissions": get_user_permissions(role)
@@ -2887,7 +3208,7 @@ def api_admin_update_role():
         for t in tokens_to_remove:
             del ACTIVE_SESSIONS[t]
 
-    # บันทึกลง Google Sheets
+    # บันทึกลง SQLite บน NAS และซิงค์ไป Google Sheets
     save_registered_user(
         line_user_id=lid,
         name=user_info.get("name", "ผู้ใช้งาน"),
@@ -2896,7 +3217,13 @@ def api_admin_update_role():
         unit=user_info.get("unit", "-"),
         position=user_info.get("position", "-"),
         status=new_status,
-        purpose=user_info.get("purpose", "-")
+        purpose=user_info.get("purpose", "-"),
+        picture_profile=user_info.get("picture_profile", "-"),
+        username=user_info.get("username", ""),
+        password=USER_CREDENTIALS.get(phone, {}).get("password", ""),
+        unit_size=user_info.get("unit_size", "ชุดปฏิบัติการขนาดเล็ก (3-5 นาย)"),
+        vehicle_type=user_info.get("vehicle_type", "🚗 รถกระบะตรวจการณ์ 4x4 (Pickup 4WD)"),
+        area=user_info.get("area", "เชียงราย (ทุกอำเภอ)")
     )
 
     # Push แจ้งเตือนทาง LINE หากมี LINE ID
@@ -2970,6 +3297,9 @@ def api_admin_delete_user():
     DELETED_USERS.add(phone)
     save_deleted_users()
 
+    # ลบออกจาก SQLite บน NAS ทันที
+    db_delete_user(phone)
+
     if phone in phone_to_user:
         del phone_to_user[phone]
     if lid and lid in registered_users:
@@ -2979,6 +3309,8 @@ def api_admin_delete_user():
     if phone in USER_CREDENTIALS:
         del USER_CREDENTIALS[phone]
         save_user_credentials()
+
+    save_registered_users_cache()
 
     tokens_to_remove = [t for t, s in ACTIVE_SESSIONS.items() if s.get("phone") == phone]
     for t in tokens_to_remove:
@@ -3130,6 +3462,7 @@ def api_user_update_profile():
         picture_profile=user_info.get("picture_profile", "-"),
         picture_base64=pic_b64,
         username=user_info.get("username", ""),
+        password=USER_CREDENTIALS.get(phone, {}).get("password", ""),
         unit_size=user_info.get("unit_size", "ชุดปฏิบัติการขนาดเล็ก (3-5 นาย)"),
         vehicle_type=user_info.get("vehicle_type", "🚗 รถกระบะตรวจการณ์ 4x4 (Pickup 4WD)"),
         area=user_info.get("area", "เชียงราย (ทุกอำเภอ)")
@@ -3166,8 +3499,14 @@ def api_user_profile():
 
     user_info = phone_to_user.get(phone)
     if not user_info:
-        fetch_registered_users()
-        user_info = phone_to_user.get(phone)
+        # ตรวจสอบจาก SQLite DB บน NAS ทันที
+        db_u = db_get_user_by_phone(phone)
+        if db_u:
+            sync_db_to_memory_cache()
+            user_info = phone_to_user.get(phone)
+        if not user_info:
+            fetch_registered_users()
+            user_info = phone_to_user.get(phone)
 
     if not user_info:
         return jsonify({"status": "error", "message": "ไม่พบข้อมูลผู้ใช้"}), 404
