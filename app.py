@@ -1240,8 +1240,8 @@ def tracker_page():
     return "Tracker HTML template not found on server", 404
 
 
-# 📦 ลิงก์ดาวน์โหลด APK ผ่าน Google Drive (RTSD_Tactical_Tracker_v1.6_ProfileSync.apk)
-APK_DOWNLOAD_URL = "https://drive.google.com/file/d/1hJO9oDcaq6glCIscPkxqEoxqyWfjTCkR/view?usp=sharing"
+# 📦 ลิงก์ดาวน์โหลด APK ผ่าน Google Drive (RTSD_Tactical_Tracker_v1.7.1.apk)
+APK_DOWNLOAD_URL = "https://drive.google.com/file/d/1pbU6FwEfE211iZ0YmFQFYJwrrZN8hpFO/view?usp=sharing"
 
 @app.route("/download", methods=['GET'])
 @app.route("/download/app", methods=['GET'])
@@ -1513,22 +1513,22 @@ def api_broadcast_app_update():
     """
     try:
         data = request.get_json(silent=True) or {}
-        version = str(data.get("version") or "v1.3").strip()
-        changelog = str(data.get("changelog") or "ปรับปรุงระบบถ่ายภาพหน้างาน และส่งสัญญาณขอกำลังเสริมด่วน (SOS) พร้อมพิกัด GPS สด").strip()
+        version = str(data.get("version") or "v1.7.1").strip()
+        changelog = str(data.get("changelog") or "เพิ่มระบบวิทยุสื่อสารทางยุทธวิธี PTT (3 ช่องสัญญาณ) พร้อมปรับปรุงโลโก้และชื่อระบบศูนย์ปฏิบัติการให้ตรงกับเว็บไซต์ 100%").strip()
         download_url = str(data.get("download_url") or "https://linebot.goc-rtsd.com/download/app").strip()
         map_url = "https://linebot.goc-rtsd.com/map"
         dashboard_url = "https://linebot.goc-rtsd.com/dashboard"
 
         msg_text = (
-            f"📲 [แจ้งอัปเดตแอปพลิเคชัน RTSD Tactical Tracker]\n"
+            f"📲 [แจ้งอัปเดตแอปพลิเคชัน ศูนย์ปฏิบัติการ RTSD]\n"
             f"━━━━━━━━━━━━━━━━━━\n"
             f"🌟 เวอร์ชันใหม่: {version}\n"
-            f"🛡️ ระบบติดตามยุทธการและสนับสนุนภาคสนาม กรมแผนที่ทหาร\n\n"
+            f"🛡️ ศูนย์ปฏิบัติการและลาดตระเวน กรมแผนที่ทหาร (RTSD)\n\n"
             f"📋 ไฮไลต์การปรับปรุง:\n"
             f"• {changelog}\n"
-            f"• รองรับการถ่ายภาพความคืบหน้าหน้างานส่งตรงเข้าศูนย์ TOC\n"
-            f"• เพิ่มระบบส่งสัญญาณขอกำลังเสริมด่วน (SOS) พร้อมพิกัดสด\n"
-            f"• เพิ่มความแม่นยำและการซูมตำแหน่งเหตุการณ์บนแผนที่\n\n"
+            f"• เพิ่มระบบวิทยุสื่อสารยุทธวิธี Push-To-Talk (PTT) ช่อง CH-01, CH-02, CH-03\n"
+            f"• บันทึกเสียงและแพ็กเกจส่งตรงเข้า QNAP NAS ปลอดภัยระดับ 256-bit\n"
+            f"• ปรับเปลี่ยนโลโก้และชื่อระบบแอปให้ตรงกับ Web Dashboard ทางการ\n\n"
             f"📥 ดาวน์โหลดและติดตั้งใหม่ได้ทันทีที่:\n"
             f"👉 {download_url}\n\n"
             f"💡 ข้อแนะนำ: เจ้าหน้าที่สามารถกดดาวน์โหลดไฟล์ APK และกดติดตั้งทับ (Update) เพื่อเริ่มใช้งานต่อได้ทันทีครับ\n"
@@ -4732,15 +4732,17 @@ def handle_text(event):
     # =========================================================================
     elif user_text in ["ดาวน์โหลดแอป", "โหลดแอป", "แอปมือถือ", "ดาวน์โหลด", "app", "apk", "แอป", "ดาวน์โหลดแอป rtsd", "ดาวน์โหลดแอปมือถือ"]:
         reply_msg = (
-            "📱 แอปพลิเคชัน RTSD Tactical Tracker\n"
+            "📱 แอปพลิเคชัน ศูนย์ปฏิบัติการ RTSD (Tactical Tracker)\n"
             "━━━━━━━━━━━━━━━━━━\n"
-            "ระบบติดตามพิกัด GPS สด & เรดาร์ยุทธการ สำหรับเจ้าหน้าที่ภาคสนาม\n\n"
+            "ระบบติดตามพิกัด GPS สด & วิทยุสื่อสารยุทธวิธี สำหรับเจ้าหน้าที่ภาคสนาม\n\n"
             "🎖️ สังกัด: กรมแผนที่ทหาร (RTSD)\n"
-            "📦 เวอร์ชัน: v1.5 (Opt-in Line Tracking & Patrol Route Log)\n"
-            "⚙️ ขนาดไฟล์: ~56 MB (Android 8.0+)\n"
+            "📦 เวอร์ชัน: v1.7.1 (PTT Radio & Web Dashboard Sync)\n"
+            "⚙️ ขนาดไฟล์: ~53.9 MB (Android 8.0+)\n"
             "━━━━━━━━━━━━━━━━━━\n"
             "📥 ลิงก์ดาวน์โหลดตรง (.APK):\n"
-            "👉 https://linebot.goc-rtsd.com/download/app\n\n"
+            "👉 https://linebot.goc-rtsd.com/download/app\n"
+            "🔗 สำรอง (Google Drive):\n"
+            "👉 https://drive.google.com/file/d/1pbU6FwEfE211iZ0YmFQFYJwrrZN8hpFO/view?usp=sharing\n\n"
             "🛡️ คำแนะนำความปลอดภัย:\n"
             "แอปพลิเคชันนี้พัฒนาเพื่อภารกิจภายในกรมแผนที่ทหาร ปลอดภัย 100% ไม่มีมัลแวร์\n"
             "หากระบบ Android ขึ้นเตือน ให้กด 'ติดตั้งต่อไป (Install anyway)' ได้เลยครับ"

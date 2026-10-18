@@ -2199,14 +2199,14 @@
           <label class="block text-xs font-semibold text-slate-300 mb-1.5">
             <i class="fa-solid fa-code-branch text-emerald-400 mr-1"></i> เวอร์ชันของแอปพลิเคชัน (Version)
           </label>
-          <input type="text" id="broadcastAppVersion" value="v1.3" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white text-sm focus:outline-none focus:border-emerald-500 transition-colors" placeholder="เช่น v1.3">
+          <input type="text" id="broadcastAppVersion" value="v1.7.1" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white text-sm focus:outline-none focus:border-emerald-500 transition-colors" placeholder="เช่น v1.7.1">
         </div>
 
         <div>
           <label class="block text-xs font-semibold text-slate-300 mb-1.5">
             <i class="fa-solid fa-list-check text-emerald-400 mr-1"></i> รายละเอียดการอัปเดต (Changelog Highlights)
           </label>
-          <textarea id="broadcastAppChangelog" rows="2" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs focus:outline-none focus:border-emerald-500 transition-colors leading-relaxed" placeholder="ระบุสิ่งที่อัปเดตหรือปรับปรุง">ปรับปรุงระบบถ่ายภาพรายงานหน้างาน และส่งสัญญาณขอกำลังเสริมด่วน (SOS) พร้อมพิกัด GPS สด</textarea>
+          <textarea id="broadcastAppChangelog" rows="2" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs focus:outline-none focus:border-emerald-500 transition-colors leading-relaxed" placeholder="ระบุสิ่งที่อัปเดตหรือปรับปรุง">เพิ่มระบบวิทยุสื่อสารทางยุทธวิธี Push-To-Talk (3 ช่องสัญญาณ) พร้อมปรับปรุงโลโก้และชื่อระบบศูนย์ปฏิบัติการให้ตรงกับเว็บไซต์ 100%</textarea>
         </div>
 
         <div>
@@ -2223,11 +2223,11 @@
             <span class="text-emerald-400 font-mono text-[10px]">LINE PREVIEW</span>
           </div>
           <div class="bg-emerald-950/30 border border-emerald-500/30 rounded-lg p-3 text-slate-200 leading-relaxed font-sans space-y-1.5">
-            <p class="font-bold text-emerald-300">📲 [แจ้งอัปเดตแอปพลิเคชัน RTSD Tactical Tracker]</p>
-            <p class="text-[11px] text-slate-300">🌟 เวอร์ชันใหม่ล่าสุด: <span id="previewVersionText" class="text-white font-bold">v1.3</span></p>
-            <p class="text-[11px] text-slate-300">🛡️ ระบบติดตามยุทธการและสนับสนุนภาคสนาม กรมแผนที่ทหาร</p>
+            <p class="font-bold text-emerald-300">📲 [แจ้งอัปเดตแอปพลิเคชัน ศูนย์ปฏิบัติการ RTSD]</p>
+            <p class="text-[11px] text-slate-300">🌟 เวอร์ชันใหม่ล่าสุด: <span id="previewVersionText" class="text-white font-bold">v1.7.1</span></p>
+            <p class="text-[11px] text-slate-300">🛡️ ศูนย์ปฏิบัติการและลาดตระเวน กรมแผนที่ทหาร</p>
             <p class="text-[11px] text-emerald-200/90 pt-1 border-t border-emerald-500/20" id="previewChangelogText">
-              • ปรับปรุงระบบถ่ายภาพรายงานหน้างาน และส่งสัญญาณขอกำลังเสริมด่วน (SOS) พร้อมพิกัด GPS สด
+              • เพิ่มระบบวิทยุสื่อสารทางยุทธวิธี Push-To-Talk (3 ช่องสัญญาณ) พร้อมปรับปรุงโลโก้และชื่อระบบศูนย์ปฏิบัติการให้ตรงกับเว็บไซต์ 100%
             </p>
             <p class="text-[11px] text-slate-400 pt-1">
               📥 ดาวน์โหลดและติดตั้งใหม่ได้ทันที:<br>
@@ -7172,7 +7172,7 @@
       const uInput = document.getElementById('broadcastAppUrl');
       const sendBtn = document.getElementById('sendBroadcastBtn');
 
-      const version = (vInput ? vInput.value : 'v1.3').trim();
+      const version = (vInput ? vInput.value : 'v1.7.1').trim();
       const changelog = (cInput ? cInput.value : '').trim();
       const downloadUrl = (uInput ? uInput.value : 'https://linebot.goc-rtsd.com/download/app').trim();
 
