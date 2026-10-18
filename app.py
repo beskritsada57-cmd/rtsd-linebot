@@ -274,10 +274,81 @@ def init_sqlite_db():
                 "admin",
                 MASTER_PIN
             ))
+            # สร้างตารางประวัติการส่งสัญญาณวิทยุสื่อสาร (Tactical Radio Transmissions)
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS radio_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                channel TEXT NOT NULL DEFAULT 'CH-01',
+                sender_phone TEXT NOT NULL,
+                sender_name TEXT NOT NULL,
+                sender_role TEXT DEFAULT 'กำลังพล',
+                sender_unit TEXT DEFAULT '-',
+                lat REAL DEFAULT 0.0,
+                lon REAL DEFAULT 0.0,
+                audio_data TEXT NOT NULL,
+                duration_sec REAL DEFAULT 0.0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_radio_channel ON radio_messages(channel);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_radio_id ON radio_messages(id);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_radio_created ON radio_messages(created_at);")
+
             conn.commit()
             print("[SQLite] Database initialized and master admin verified.")
     except Exception as e:
         print(f"[SQLite] Error initializing database: {e}")
+
+def db_save_radio_message(channel, sender_phone, sender_name, sender_role, sender_unit, lat, lon, audio_data, duration_sec):
+    """บันทึกการส่งคลื่นวิทยุลง SQLite บน NAS"""
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+            INSERT INTO radio_messages (channel, sender_phone, sender_name, sender_role, sender_unit, lat, lon, audio_data, duration_sec)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (channel, sender_phone, sender_name, sender_role, sender_unit, float(lat or 0), float(lon or 0), audio_data, float(duration_sec or 0)))
+            conn.commit()
+            msg_id = cursor.lastrowid
+
+            # จัดการพื้นที่: ลบข้อความที่เก่าเกิน 500 ข้อความล่าสุด
+            cursor.execute("DELETE FROM radio_messages WHERE id NOT IN (SELECT id FROM radio_messages ORDER BY id DESC LIMIT 500)")
+            conn.commit()
+            return msg_id
+    except Exception as e:
+        print(f"[SQLite Radio] Error saving message: {e}")
+        return None
+
+def db_get_radio_messages(channel="CH-01", after_id=0, limit=20):
+    """ดึงข้อความเสียงวิทยุตามช่องสัญญาณความถี่"""
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            if after_id > 0:
+                cursor.execute("""
+                SELECT id, channel, sender_phone, sender_name, sender_role, sender_unit, lat, lon, audio_data, duration_sec, created_at
+                FROM radio_messages
+                WHERE channel = ? AND id > ?
+                ORDER BY id ASC
+                LIMIT ?
+                """, (channel, after_id, limit))
+                rows = cursor.fetchall()
+                return [dict(r) for r in rows]
+            else:
+                cursor.execute("""
+                SELECT id, channel, sender_phone, sender_name, sender_role, sender_unit, lat, lon, audio_data, duration_sec, created_at
+                FROM radio_messages
+                WHERE channel = ?
+                ORDER BY id DESC
+                LIMIT ?
+                """, (channel, limit))
+                rows = cursor.fetchall()
+                msgs = [dict(r) for r in rows]
+                msgs.reverse()
+                return msgs
+    except Exception as e:
+        print(f"[SQLite Radio] Error getting messages: {e}")
+        return []
 
 def db_upsert_user(phone, name="", role="ผู้ใช้งานทั่วไป", unit="-", position="-", status="อนุมัติแล้ว",
                    purpose="-", line_user_id="", username="", password="", picture_profile="-",
@@ -3514,6 +3585,125 @@ def api_user_profile():
     return jsonify({
         "status": "success",
         "user": user_info
+    }), 200
+
+
+# =========================================================================
+# 📻 TACTICAL RADIO PUSH-TO-TALK (PTT) APIs
+# ระบบวิทยุสื่อสารทางยุทธวิธีแบบกดพูด-ปล่อยฟังสำหรับกำลังพลและศูนย์ TOC
+# =========================================================================
+
+TACTICAL_RADIO_CHANNELS = [
+    {
+        "id": "CH-01",
+        "name": "กองอำนวยการร่วม (TOC Main Command)",
+        "freq": "144.500 MHz",
+        "desc": "ศูนย์บัญชาการยุทธการ & ผู้บังคับหน่วยสั่งการหลัก",
+        "badge": "COMMAND"
+    },
+    {
+        "id": "CH-02",
+        "name": "ชุดปฏิบัติการลาดตระเวน (Field Patrol)",
+        "freq": "150.250 MHz",
+        "desc": "ประสานงานชุด ลว. ภาคสนาม และแจ้งสถานการณ์หน้าแนว",
+        "badge": "PATROL"
+    },
+    {
+        "id": "CH-03",
+        "name": "แจ้งเตือนภัย/ฉุกเฉิน (Emergency Net)",
+        "freq": "162.300 MHz",
+        "desc": "แจ้งเหตุฉุกเฉิน กู้ภัย และขอรับการสนับสนุนด่วน",
+        "badge": "ALERT"
+    }
+]
+
+@app.route("/api/radio/channels", methods=['GET'])
+def api_radio_channels():
+    """ส่งรายการช่องสัญญาณความถี่วิทยุสื่อสารทางยุทธวิธี"""
+    return jsonify({
+        "status": "success",
+        "channels": TACTICAL_RADIO_CHANNELS
+    }), 200
+
+
+@app.route("/api/radio/transmit", methods=['POST'])
+def api_radio_transmit():
+    """รับสัญญาณคลื่นเสียงวิทยุสื่อสารจากกำลังพล และกระจายไปยังช่องสัญญาณความถี่"""
+    data = request.get_json(silent=True) or {}
+    channel = str(data.get("channel", "CH-01")).strip().upper()
+    audio_data = str(data.get("audio_data", "") or data.get("audio_base64", "")).strip()
+    duration_sec = float(data.get("duration_sec", 0.0) or data.get("duration", 0.0))
+    lat = float(data.get("lat", 0.0) or 0.0)
+    lon = float(data.get("lon", 0.0) or 0.0)
+
+    # ดึงข้อมูลผู้ส่งจาก Token หรือจาก Request
+    auth_header = request.headers.get("Authorization", "")
+    token = auth_header[7:].strip() if auth_header.startswith("Bearer ") else data.get("token", "")
+    sender_phone = str(data.get("sender_phone", "") or data.get("phone", "")).strip()
+
+    sender_name = "กำลังพลสนาม"
+    sender_role = "หัวหน้าชุดปฏิบัติการ"
+    sender_unit = "ร้อย.ลว."
+
+    if token and token in ACTIVE_SESSIONS:
+        sess_u = ACTIVE_SESSIONS[token].get("user", {})
+        sender_phone = sess_u.get("phone", sender_phone)
+        sender_name = sess_u.get("name", sender_name)
+        sender_role = sess_u.get("role", sender_role)
+        sender_unit = sess_u.get("unit", sender_unit)
+    elif sender_phone:
+        norm_p = normalize_phone_number(sender_phone)
+        if norm_p in phone_to_user:
+            u_info = phone_to_user[norm_p]
+            sender_name = u_info.get("name", sender_name)
+            sender_role = u_info.get("role", sender_role)
+            sender_unit = u_info.get("unit", sender_unit)
+
+    if not audio_data:
+        return jsonify({"status": "error", "message": "ไม่พบข้อมูลคลื่นเสียง (Audio payload is required)"}), 400
+
+    msg_id = db_save_radio_message(
+        channel=channel,
+        sender_phone=sender_phone,
+        sender_name=sender_name,
+        sender_role=sender_role,
+        sender_unit=sender_unit,
+        lat=lat,
+        lon=lon,
+        audio_data=audio_data,
+        duration_sec=duration_sec
+    )
+
+    if not msg_id:
+        return jsonify({"status": "error", "message": "เกิดข้อผิดพลาดในการบันทึกสัญญาณวิทยุ"}), 500
+
+    return jsonify({
+        "status": "success",
+        "message": "ส่งสัญญาณวิทยุสื่อสารสำเร็จ",
+        "transmission": {
+            "id": msg_id,
+            "channel": channel,
+            "sender_name": sender_name,
+            "sender_unit": sender_unit,
+            "duration_sec": duration_sec,
+            "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+    }), 200
+
+
+@app.route("/api/radio/messages", methods=['GET'])
+def api_radio_messages():
+    """ดึงคลื่นสัญญาณวิทยุตามช่องสัญญาณ (รองรับ Long Polling / Delta Fetching ด้วย after_id)"""
+    channel = str(request.args.get("channel", "CH-01")).strip().upper()
+    after_id = int(request.args.get("after_id", 0))
+    limit = int(request.args.get("limit", 20))
+
+    messages = db_get_radio_messages(channel=channel, after_id=after_id, limit=limit)
+    return jsonify({
+        "status": "success",
+        "channel": channel,
+        "count": len(messages),
+        "messages": messages
     }), 200
 
 
